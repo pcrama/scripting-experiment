@@ -1,0 +1,9 @@
+# List of required python libraries to install for the scripts in this directory
+#
+# See also https://pip.pypa.io/en/stable/user_guide/#requirements-files
+#
+# See WithVirtualEnv.cmd which will install these libraries automatically the
+# first time they are needed when WithVirtualEnv.cmd is called via the CMD.exe
+# wrapper for your script.
+
+GitPython==3.1.11
