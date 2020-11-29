@@ -1,5 +1,6 @@
 import argparse
 
+
 def initialize_default_parser(description):
     """Build argparser with common options
 

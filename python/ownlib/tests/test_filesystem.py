@@ -3,6 +3,7 @@ import unittest
 
 from ..filesystem import *
 
+
 class FindGitRootTests(unittest.TestCase):
     def test_given_no_explicit_current_dir__when_find_git_root__then_same_as_for_getcwd(self):
         no_explicit = find_git_root()

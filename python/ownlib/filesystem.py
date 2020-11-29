@@ -1,5 +1,6 @@
 import os
 
+
 def find_git_root(current_dir=None):
     """Find .git repository containing the current director
 

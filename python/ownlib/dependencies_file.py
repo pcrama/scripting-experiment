@@ -21,7 +21,8 @@ Variable definition is a special case of a comment, it is introduced by ``#=``:
     #= <variable_name> = new value
 
 This creates (or overrides an existing variable) named ``variable_name`` and
-assigns it the value ``new value``.  Whitespace at the end of the line is ignored.
+assigns it the value ``new value``.  Whitespace at the end of a line is
+ignored.
 
 Variable substitution can be used to factor out common parts in the dependency
 specifications.  Variable substitution is *not* recursive, i.e. after
@@ -198,7 +199,7 @@ class AssignmentLine(DependencyFileLine):
             \s*                      # any number of spaces
             =
             \s*                      # any number of spaces
-            (?P<value>.*\S)          # named group of anything with final non-space
+            (?P<value>.*\S)          # named group: anything w/ final non-space
             \s*                      # any number of space
             ''',
         flags=re.ASCII | re.VERBOSE)
@@ -209,7 +210,8 @@ class AssignmentLine(DependencyFileLine):
         self.value = value
 
     def __repr__(self):
-        return f'AssignmentLine({self.line!r}, {self.variable_name!r}, {self.value!r})'
+        return (f'AssignmentLine({self.line!r}, '
+                f'{self.variable_name!r}, {self.value!r})')
 
     @classmethod
     def parse(cls, line):
@@ -229,7 +231,8 @@ class AssignmentLine(DependencyFileLine):
             return cls(line, *match.group('variable_name', 'value'))
         else:
             raise ParseError(
-                f"Invalid assignment syntax, expected '{cls.PREFIX} <var> = value'",
+                f'Invalid assignment syntax, expected '
+                f"'{cls.PREFIX} <var> = value'",
                 line)
 
     def update_variables(self, variables):
@@ -250,7 +253,7 @@ class DependencySpecification(DependencyFileLine):
 
     @classmethod
     def parse(cls, line, parts):
-        '''Parse a line previously split into 1, 2 or 3 parts into a DependencySpecification
+        '''Parse line split into 1, 2 or 3 parts into DependencySpecification
 
         :param line: input line
         :param parts: list of parts, assumed to contain 1, 2 or 3 elements
@@ -259,8 +262,8 @@ class DependencySpecification(DependencyFileLine):
         DependencySpecification('name', 'name', None, None)
         >>> DependencySpecification.parse('name tag', ['name', 'tag'])
         DependencySpecification('name tag', 'name', 'tag', None)
-        >>> DependencySpecification.parse('name tag url', ['name', 'tag', 'url'])
-        DependencySpecification('name tag url', 'name', 'tag', 'url')
+        >>> DependencySpecification.parse('a b c', ['a', 'b', 'c'])
+        DependencySpecification('a b c', 'a', 'b', 'c')
         '''
         return cls(line, *(cls.safe_parts_index(parts, idx)
                            for idx in range(3)))
@@ -286,7 +289,7 @@ class DependencySpecification(DependencyFileLine):
 def parse_line(line) -> DependencyFileLine:
     '''Parse a `line' from a dependencies file
 
-    :param line: input line with a ``strip()`` method returning the line's string
+    :param line: input line with ``strip()`` method returning the line's string
     without leading & trailing whitespace
 
     :returns: an instance of a sub-class of `DependencyFileLine'
