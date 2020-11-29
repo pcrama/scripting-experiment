@@ -76,10 +76,22 @@ class Dependency:
 def parse_dependency_file(dependency_file):
     '''Yield successive parsed lines of a Dependencies.txt file
 
-    See also :py:func:`parse_line`'''
+    See :py:func:`parse_line` & :py:func:`parse_dependency_lines_iterator`'''
     with open(dependency_file, 'r') as file:
-        for (line_number, line) in enumerate(file, start=1):
-            yield parse_line(InputLine(line_number, line, dependency_file))
+        for line in parse_dependency_lines_iterator(dependency_file, file):
+            yield line
+
+
+def parse_dependency_lines_iterator(name, dependency_lines):
+    '''Yield successive parsed lines of an iterator
+
+    :param name: name of file from which lines are pulled
+
+    :param dependency_lines: lines iterator
+
+    See also :py:func:`parse_line`'''
+    for (line_number, line) in enumerate(dependency_lines, start=1):
+        yield parse_line(InputLine(line, line_number, name))
 
 
 def replace_variables(s, variables):

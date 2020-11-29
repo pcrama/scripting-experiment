@@ -106,3 +106,25 @@ class ReplaceVariablesTestCases(unittest.TestCase):
     def test_variable_unknown(self):
         with self.assertRaises(KeyError):
             replace_variables('<var>', {})
+
+
+class ParseDependencyLinesIteratorTests(unittest.TestCase):
+    def test_example(self):
+        COMMENT_LINE = '# comment'
+        ASSIGNMENT_LINE = '#= <var>=value'
+        DEPENDENCY_LINE = 'name tag url'
+        lines = [dl for dl in parse_dependency_lines_iterator(
+            'name',
+            [COMMENT_LINE,
+             ASSIGNMENT_LINE,
+             DEPENDENCY_LINE])]
+        self.assertEqual(len(lines), 3)
+        self.assertIsInstance(lines[0], CommentLine)
+        self.assertEqual(lines[0].line.strip(), COMMENT_LINE)
+        self.assertIsInstance(lines[1], AssignmentLine)
+        self.assertEqual(lines[1].line.strip(), ASSIGNMENT_LINE)
+        self.assertIsInstance(lines[2], DependencySpecification)
+        self.assertEqual(lines[2].line.strip(), DEPENDENCY_LINE)
+        for (idx, dep_line) in enumerate(lines):
+            self.assertEqual(dep_line.line.line_number, idx + 1)
+            self.assertEqual(dep_line.line.file_name, 'name')
