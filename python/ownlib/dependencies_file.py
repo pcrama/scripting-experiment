@@ -53,12 +53,23 @@ import re
 
 from typing import List, Optional, TypeVar
 
+
 class Dependency:
     '''Information about a repository to clone as a dependency'''
-    def __init__(self, dependency_path, commit_ish, clone_url):
+    def __init__(
+            self,
+            dependency_path,
+            commit_ish,
+            clone_url,
+            dependency_file_line):
         self.dependency_path = dependency_path
         self.commit_ish = commit_ish
         self.clone_url = clone_url
+        self.dependency_file_line = dependency_file_line
+
+    def __repr__(self):
+        return (f'Dependency({self.dependency_path!r}, {self.commit_ish!r}, '
+                f'{self.clone_url!r}, {self.dependency_file_line!r})')
 
 
 def parse_dependency_file(dependency_file):
@@ -68,6 +79,51 @@ def parse_dependency_file(dependency_file):
     with open(dependency_file, 'r') as file:
         for (line_number, line) in enumerate(file, start=1):
             yield parse_line(InputLine(line_number, line, dependency_file))
+
+
+def replace_variables(s, variables):
+    '''Replace <var> in the input string with the values in the variables dict
+
+    >>> replace_variables('var', { 'var': 'value' })
+    'var'
+    >>> replace_variables('<var>', { 'var': 'value' })
+    'value'
+    >>> replace_variables('<foo>baz<bar>', { 'foo': 'boo', 'bar': 'car' })
+    'boobazcar'
+    '''
+    result = []
+    idx = 0
+    while True:
+        next_angle_bracket = s.find('<', idx)
+        if next_angle_bracket < 0:
+            return ''.join(result) + s[idx:]
+        result.append(s[idx:next_angle_bracket])
+        idx = next_angle_bracket + 1
+        closing_bracket = s.find('>', idx)
+        if closing_bracket < 0:
+            return ''.join(result) + s[idx-1:]
+        next_angle_bracket = s.find('<', idx)
+        if closing_bracket < next_angle_bracket or next_angle_bracket < 0:
+            variable_name = s[idx:closing_bracket]
+            idx = closing_bracket + 1
+            result.append(variables[variable_name])
+        elif next_angle_bracket > 0:
+            result.append(s[next_angle_bracket])
+
+
+def build_dependencies_list(lines):
+    '''Go through lines of dependencies and build py:ref:`Dependency` list'''
+    result = []
+    variables = {}
+    for dependency_line in lines:
+        try:
+            result.append(dependency_line.to_dependency(variables))
+        except AttributeError:
+            try:
+                dependency_line.update_variables(variables)
+            except AttributeError:
+                pass
+    return result
 
 
 class ParseError(Exception):
@@ -176,16 +232,21 @@ class AssignmentLine(DependencyFileLine):
                 f"Invalid assignment syntax, expected '{cls.PREFIX} <var> = value'",
                 line)
 
+    def update_variables(self, variables):
+        variables[self.variable_name] = self.value
+
 
 class DependencySpecification(DependencyFileLine):
-    def __init__(self, line, dependency, commit_ish, repo_url):
+    def __init__(self, line, dependency, commit_ish, clone_url):
         super().__init__(line)
         self.dependency = dependency
         self.commit_ish = commit_ish
-        self.repo_url = repo_url
+        self.clone_url = clone_url
 
     def __repr__(self):
-        return f'DependencySpecification({self.line!r}, {self.dependency!r}, {self.commit_ish!r}, {self.repo_url!r})'
+        return (f'DependencySpecification({self.line!r}, '
+                f'{self.dependency!r}, {self.commit_ish!r}, '
+                f'{self.clone_url!r})')
 
     @classmethod
     def parse(cls, line, parts):
@@ -203,6 +264,13 @@ class DependencySpecification(DependencyFileLine):
         '''
         return cls(line, *(cls.safe_parts_index(parts, idx)
                            for idx in range(3)))
+
+    def to_dependency(self, variables):
+        return Dependency(
+            replace_variables(self.dependency, variables),
+            replace_variables(self.commit_ish, variables),
+            replace_variables(self.clone_url, variables),
+            self.line)
 
     T = TypeVar('T')
 
