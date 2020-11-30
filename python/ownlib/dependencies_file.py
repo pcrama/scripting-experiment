@@ -52,7 +52,7 @@ is equivalent to
 
 import re
 
-from typing import List, Optional, TypeVar
+from typing import Dict, Iterator, List, Optional, TypeVar
 
 
 class Dependency:
@@ -73,7 +73,8 @@ class Dependency:
                 f'{self.clone_url!r}, {self.dependency_file_line!r})')
 
 
-def parse_dependency_file(dependency_file):
+def parse_dependency_file(
+        dependency_file: str) -> Iterator["DependencyFileLine"]:
     '''Yield successive parsed lines of a Dependencies.txt file
 
     See :py:func:`parse_line` & :py:func:`parse_dependency_lines_iterator`'''
@@ -82,7 +83,9 @@ def parse_dependency_file(dependency_file):
             yield line
 
 
-def parse_dependency_lines_iterator(name, dependency_lines):
+def parse_dependency_lines_iterator(
+        name: str, dependency_lines: Iterator[str]
+) -> Iterator["DependencyFileLine"]:
     '''Yield successive parsed lines of an iterator
 
     :param name: name of file from which lines are pulled
@@ -94,7 +97,7 @@ def parse_dependency_lines_iterator(name, dependency_lines):
         yield parse_line(InputLine(line, line_number, name))
 
 
-def replace_variables(s, variables):
+def replace_variables(s: str, variables: Dict[str, str]) -> str:
     '''Replace <var> in the input string with the values in the variables dict
 
     >>> replace_variables('var', { 'var': 'value' })
@@ -104,7 +107,7 @@ def replace_variables(s, variables):
     >>> replace_variables('<foo>baz<bar>', { 'foo': 'boo', 'bar': 'car' })
     'boobazcar'
     '''
-    result = []
+    result: List[str] = []
     idx = 0
     while True:
         next_angle_bracket = s.find('<', idx)
@@ -124,10 +127,10 @@ def replace_variables(s, variables):
             result.append(s[next_angle_bracket])
 
 
-def build_dependencies_list(lines):
+def build_dependencies_list(lines) -> List[Dependency]:
     '''Go through lines of dependencies and build py:ref:`Dependency` list'''
-    result = []
-    variables = {}
+    result: List[Dependency] = []
+    variables: Dict[str, str] = {}
     for dependency_line in lines:
         try:
             result.append(dependency_line.to_dependency(variables))
