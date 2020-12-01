@@ -313,6 +313,8 @@ def parse_line(line) -> DependencyFileLine:
 
     >>> parse_line('# comment')
     CommentLine('# comment')
+    >>> parse_line(' ')
+    CommentLine(' ')
     >>> parse_line('#= <var> = value')
     AssignmentLine('#= <var> = value', 'var', 'value')
     >>> parse_line('name tag')
@@ -325,7 +327,7 @@ def parse_line(line) -> DependencyFileLine:
     # Assignmentline.PREFIX:
     if stripped.startswith(AssignmentLine.PREFIX):
         return AssignmentLine.parse(line)
-    elif stripped.startswith(CommentLine.PREFIX):
+    elif stripped == '' or stripped.startswith(CommentLine.PREFIX):
         return CommentLine(line)
     else:
         parts = stripped.split()
