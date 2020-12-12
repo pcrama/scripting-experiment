@@ -14,11 +14,15 @@ def find_git_root(current_dir=None):
 
     :returns: the .git/ directory"""
     d = os.getcwd() if current_dir is None else os.path.realpath(current_dir)
-    while d is not None and len(d) > 2:
+    while True:
         maybe_repo_dir = os.path.join(d, GIT_DIR)
         if os.path.exists(maybe_repo_dir):
             return maybe_repo_dir
-        d = os.path.dirname(d)
+        upper_dir = os.path.dirname(d)
+        if upper_dir == d:
+            break
+        else:
+            d = upper_dir
     raise RuntimeError('Not inside a Git repository')
 
 
