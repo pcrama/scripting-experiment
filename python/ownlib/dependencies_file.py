@@ -72,6 +72,22 @@ class Dependency:
         return (f'Dependency({self.dependency_path!r}, {self.commit_ish!r}, '
                 f'{self.clone_url!r}, {self.dependency_file_line!r})')
 
+    def real_path(self, main_project):
+        '''Get the real path where this dependency should be cloned/checked out
+
+        :param main_project: git directory or git.Repo object of the main
+        project (i.e. the container of Dependecies.txt)
+
+        :returns: the real path (no .git at the end)'''
+        try:
+            git_dir = main_project.git_dir
+        except AttributeError:
+            # assume main_project is a string
+            git_dir = main_project
+
+        from . import get_dependency_real_path
+        return get_dependency_real_path(git_dir, self.dependency_path)
+
 
 def parse_dependency_file(
         dependency_file: str) -> Iterator["DependencyFileLine"]:

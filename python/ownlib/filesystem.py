@@ -42,3 +42,21 @@ def find_git_siblings(project):
             for fullpath in (os.path.join(project_container, d, GIT_DIR)
                              for d in os.listdir(project_container))
             if os.path.exists(fullpath)]
+
+
+def get_dependency_real_path(main_project_git_dir, dependency_path):
+    '''Get real path of a dependency given the main project's .git directory
+
+    :param main_project_git_dir: .git directory of main project
+    (presumably the main project also contained the Dependencies.txt
+    file)
+
+    :param dependency_path: path component of the dependencies_file.Dependency
+
+    :returns: dependency's real path (not the .git dir)
+
+    >>> get_dependency_real_path('a/b/c/.git', 'd').endswith('a/b/d')
+    True'''
+    solution = os.path.dirname(os.path.dirname(os.path.realpath(
+        main_project_git_dir)))
+    return os.path.join(solution, dependency_path)
