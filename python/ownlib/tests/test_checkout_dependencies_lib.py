@@ -63,6 +63,11 @@ class PullTests(unittest.TestCase):
         self.local_context = test_repository_with_remote(self.remote)
         self.local = self.local_context.__enter__()
         self.local.remotes.origin.fetch()
+        # Now that we have fetched, the local repository has the same commits
+        # available as the remote repository, so copy the mappings to the
+        # local repository.
+        for human_id, hex_sha in self.remote.human_id_mapping.items():
+            self.local.human_id_mapping[human_id] = hex_sha
         # Set up tracking of remote BRANCH.
         self.local.git.checkout(self.BRANCH)
         for commit in remote_commits:
@@ -185,3 +190,66 @@ class PullRebaseTests(PullTests):
         # Then
         self.assertTrue('conflict' in cm.exception.stderr)
         self.assertTrue('Could not apply' in cm.exception.stderr)
+
+
+class PullMergeTests(PullTests):
+    def test_given_no_local_changes_but_on_other_branch_when_calling_pull_merge_no_error_is_raised(self):
+        # Given: Check out other local branch to check that pull_merge sets
+        # up the correct branch.
+        self.local.git.checkout(self.OTHER_BRANCH)
+        # When
+        pull_merge(self.local, self.BRANCH)
+        # Then
+        self.assertEqual(self.local.head.commit,
+                         self.remote.branches[self.BRANCH].commit)
+
+    def test_given_no_local_changes_and_on_same_branch_when_calling_pull_merge_no_error_is_raised(self):
+        # Given
+        assert self.local.head.commit == self.local.branches[self.BRANCH].commit
+        # When
+        pull_merge(self.local, self.BRANCH)
+        # Then
+        self.assertEqual(self.local.head.commit,
+                         self.remote.branches[self.BRANCH].commit)
+
+    def test_given_branch_diverged_without_conflict_when_calling_pull_merge_no_error_is_raised(self):
+        # Given
+        self.setup_diverging_branch_without_conflict()
+        previous_local_head_commit = self.local.head.commit
+        # When
+        pull_merge(self.local, self.BRANCH)
+        # Then
+        self.assertEqual(len(self.local.head.commit.parents), 2)
+        self.assertIn(
+            self.remote.branches[self.BRANCH].commit,
+            self.local.head.commit.parents)
+        self.assertIn(
+            previous_local_head_commit,
+            self.local.head.commit.parents)
+
+    def test_given_branch_diverged_with_conflict_when_calling_pull_merge_error_is_raised(self):
+        # Given
+        self.setup_diverging_branch_with_conflict()
+        # When
+        with self.assertRaises(git.exc.GitCommandError) as cm:
+            pull_merge(self.local, self.BRANCH)
+        # Then
+        self.assertTrue('conflict' in cm.exception.stdout)
+        self.assertTrue('Automatic merge failed' in cm.exception.stdout)
+
+
+class CommitIshTests(unittest.TestCase):
+    def setUp(self):
+        # The tests are so superficial that fake data is sufficient.
+        self.sut = CommitIsh(
+            'should be a real Repo object',
+            'should be a reference: branch or tag name or hex SHA')
+
+    def test_count_as_tag(self):
+        self.assertEqual(self.sut.count_as_tag, 0)
+
+    def test_count_as_branch(self):
+        self.assertEqual(self.sut.count_as_branch, 0)
+
+    def test_count_as_hex_sha(self):
+        self.assertEqual(self.sut.count_as_hex_sha, 0)
