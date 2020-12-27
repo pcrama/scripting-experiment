@@ -66,7 +66,7 @@ class FakeCommit:
 
     An instance has a py:ref:`FakeCommit.create` method to create the commit
     in a py:ref:`FakeRepo`.  These commits can be chained together via their
-    `human_id` (to name them while ignoring their hex_sha) and parent (the
+    `human_id` (to name them while ignoring their hexsha) and parent (the
     `human_id` of the commit to checkout before writing the data).'''
     def __init__(self, data, message, human_id, parent, tag, branch):
         self.data = data

@@ -12,7 +12,7 @@ from .git_fixtures import (
 from ..checkout_dependencies_lib import *
 
 
-class FindByHexShaPrefixTests(unittest.TestCase):
+class FindByHexshaPrefixTests(unittest.TestCase):
     HUMAN_ID = 'h1'             # to find back test commit easily
 
     @classmethod
@@ -30,25 +30,25 @@ class FindByHexShaPrefixTests(unittest.TestCase):
     def tearDownClass(cls):
         cls.repository_context.__exit__(None, None, None)
 
-    def test_given_existing_hex_sha_when_calling_find_then_full_hex_sha_is_returned(self):
-        expected_hex_sha = self.repository.human_id_mapping[self.HUMAN_ID]
-        for hex_sha in (expected_hex_sha.lower(),
-                        expected_hex_sha.upper(),
-                        expected_hex_sha[:5].lower(),
-                        expected_hex_sha[:5].upper()):
-            with self.subTest(hex_sha=hex_sha):
+    def test_given_existing_hexsha_when_calling_find_then_full_hexsha_is_returned(self):
+        expected_hexsha = self.repository.human_id_mapping[self.HUMAN_ID]
+        for hexsha in (expected_hexsha.lower(),
+                        expected_hexsha.upper(),
+                        expected_hexsha[:5].lower(),
+                        expected_hexsha[:5].upper()):
+            with self.subTest(hexsha=hexsha):
                 self.assertEqual(
-                    find_by_hex_sha_prefix(self.repository, hex_sha),
-                    expected_hex_sha)
+                    find_by_hexsha_prefix(self.repository, hexsha),
+                    expected_hexsha)
 
-    def test_given_unknown_hex_sha_when_calling_find_StopIteration_is_raised(self):
-        expected_hex_sha = self.repository.human_id_mapping[self.HUMAN_ID]
+    def test_given_unknown_hexsha_when_calling_find_StopIteration_is_raised(self):
+        expected_hexsha = self.repository.human_id_mapping[self.HUMAN_ID]
         with self.assertRaises(StopIteration):
-            find_by_hex_sha_prefix(self.repository, '0000000000000000')
+            find_by_hexsha_prefix(self.repository, '0000000000000000')
 
-    def test_given_invalid_hex_sha_when_calling_find_then_StopIteration_is_raised(self):
+    def test_given_invalid_hexsha_when_calling_find_then_StopIteration_is_raised(self):
         with self.assertRaises(StopIteration):
-            find_by_hex_sha_prefix(self.repository, 'this is not a valid hex sha')
+            find_by_hexsha_prefix(self.repository, 'this is not a valid hex sha')
 
 
 class PullTests(unittest.TestCase):
@@ -83,8 +83,8 @@ class PullTests(unittest.TestCase):
         # Now that we have fetched, the local repository has the same commits
         # available as the remote repository, so copy the mappings to the
         # local repository.
-        for human_id, hex_sha in cls.remote.human_id_mapping.items():
-            cls.local.human_id_mapping[human_id] = hex_sha
+        for human_id, hexsha in cls.remote.human_id_mapping.items():
+            cls.local.human_id_mapping[human_id] = hexsha
         # Create new commit in remote but do not advance its branches yet,
         # otherwise tests are going to interfere with each other.
         for commit in remote_commits:
@@ -303,8 +303,8 @@ class CommitIshTests(unittest.TestCase):
     def test_count_as_branch(self):
         self.assertEqual(self.sut.count_as_branch, 0)
 
-    def test_count_as_hex_sha(self):
-        self.assertEqual(self.sut.count_as_hex_sha, 0)
+    def test_count_as_hexsha(self):
+        self.assertEqual(self.sut.count_as_hexsha, 0)
 
     def test_do_fetch(self):
         # When
@@ -337,9 +337,9 @@ class UnknownTests(unittest.TestCase):
         with self.assertRaises(NotImplementedError):
             self.sut.count_as_branch
 
-    def test_count_as_hex_sha(self):
+    def test_count_as_hexsha(self):
         with self.assertRaises(NotImplementedError):
-            self.sut.count_as_hex_sha
+            self.sut.count_as_hexsha
 
     def test_given_is_a_branch_when_calling_fetch_if_needed_then_fetches_and_returns_Branch(self):
         # Given
@@ -365,7 +365,7 @@ class UnknownTests(unittest.TestCase):
         # Do not pull/fetch twice for unknown commit-ishs:
         self.assertFalse(result.fetch_for_tags)
 
-    def test_given_is_a_hex_sha_when_calling_fetch_if_needed_then_fetches_and_returns_HexSha(self):
+    def test_given_is_a_hexsha_when_calling_fetch_if_needed_then_fetches_and_returns_Hexsha(self):
         # Given
         self.mock_repo.iter_commits = mock.MagicMock(return_value=(
             self._mock_commit(x)
@@ -373,15 +373,15 @@ class UnknownTests(unittest.TestCase):
         # When
         result = self.sut.fetch_if_needed()
         # Then
-        self.assertIsInstance(result, HexSha)
+        self.assertIsInstance(result, Hexsha)
         self.assertIs(result.repository, self.mock_repo)
-        # HexSha normalizes its input, so the expected value must be
+        # Hexsha normalizes its input, so the expected value must be
         # normalized, too:
         self.assertEqual(result.commit_ish, self.COMMIT_ISH_NAME.lower())
 
-    def _mock_commit(self, hex_sha):
+    def _mock_commit(self, hexsha):
         mock_commit = mock.MagicMock()
-        mock_commit.hexsha = hex_sha
+        mock_commit.hexsha = hexsha
         return mock_commit
 
 
@@ -406,8 +406,8 @@ class BranchTestsWithMockRepository(unittest.TestCase):
     def test_count_as_branch(self):
         self.assertEqual(self.makeSut('rebase').count_as_branch, 1)
 
-    def test_count_as_hex_sha(self):
-        self.assertEqual(self.makeSut('rebase').count_as_hex_sha, 0)
+    def test_count_as_hexsha(self):
+        self.assertEqual(self.makeSut('rebase').count_as_hexsha, 0)
 
     def test_fetch_if_needed(self):
         # When
@@ -419,8 +419,8 @@ class BranchTestsWithMockRepository(unittest.TestCase):
     # TODO: commit, head, checkout
 
 
-class HexShaTestsWithMockRepository(unittest.TestCase):
-    HEX_SHA = 'AbcDef'
+class HexshaTestsWithMockRepository(unittest.TestCase):
+    HEXSHA = 'AbcDef'
 
     def setUp(self):
         super().setUp()
@@ -432,7 +432,7 @@ class HexShaTestsWithMockRepository(unittest.TestCase):
     def makeSut(self, exists_locally, exists_remotely):
         existing_commit = mock.NonCallableMagicMock()
         # Hex SHAs in git.Repo objects are always lower case:
-        existing_commit.hexsha = self.HEX_SHA.lower()
+        existing_commit.hexsha = self.HEXSHA.lower()
         other_commit = mock.NonCallableMagicMock()
         other_commit.hexsha = '0' * 40
         if exists_remotely:
@@ -443,7 +443,7 @@ class HexShaTestsWithMockRepository(unittest.TestCase):
             self.mock_remote.fetch = mock.MagicMock(side_effect=side_effect)
         self.mock_repo.iter_commits = mock.MagicMock(return_value=[
             existing_commit if exists_locally else other_commit])
-        self.sut = HexSha(self.mock_repo, self.HEX_SHA)
+        self.sut = Hexsha(self.mock_repo, self.HEXSHA)
         return self.sut
 
     def test_count_as_tag(self):
@@ -452,10 +452,10 @@ class HexShaTestsWithMockRepository(unittest.TestCase):
     def test_count_as_branch(self):
         self.assertEqual(self.makeSut(True, True).count_as_branch, 0)
 
-    def test_count_as_hex_sha(self):
-        self.assertEqual(self.makeSut(True, True).count_as_hex_sha, 1)
+    def test_count_as_hexsha(self):
+        self.assertEqual(self.makeSut(True, True).count_as_hexsha, 1)
 
-    def test_given_hex_sha_not_in_repository_when_fetch_if_needed_then_fetches(self):
+    def test_given_hexsha_not_in_repository_when_fetch_if_needed_then_fetches(self):
         # Given
         self.makeSut(False, True)
         # When
@@ -464,7 +464,7 @@ class HexShaTestsWithMockRepository(unittest.TestCase):
         self.mock_remote.fetch.assert_called_once_with()
         self.assertIs(result, self.sut)
 
-    def test_given_hex_sha_not_in_repository_when_fetch_if_needed_then_nothing_happens(self):
+    def test_given_hexsha_not_in_repository_when_fetch_if_needed_then_nothing_happens(self):
         # Given
         self.makeSut(True, True)
         # When
@@ -497,8 +497,8 @@ class TagTestsWithMockRepository(unittest.TestCase):
     def test_count_as_branch(self):
         self.assertEqual(self.makeSut(False).count_as_branch, 0)
 
-    def test_count_as_hex_sha(self):
-        self.assertEqual(self.makeSut(False).count_as_hex_sha, 0)
+    def test_count_as_hexsha(self):
+        self.assertEqual(self.makeSut(False).count_as_hexsha, 0)
 
     # TODO: commit, head, checkout
 

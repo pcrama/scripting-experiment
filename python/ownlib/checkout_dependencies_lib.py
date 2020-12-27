@@ -6,7 +6,7 @@ import contextlib
 import itertools
 
 
-def find_by_hex_sha_prefix(repo, commit_ish: str) -> str:
+def find_by_hexsha_prefix(repo, commit_ish: str) -> str:
     try:
         int(commit_ish, 16)
     except ValueError:
@@ -99,7 +99,7 @@ class CommitIsh:
         return 0
 
     @property
-    def count_as_hex_sha(self):
+    def count_as_hexsha(self):
         return 0
 
     def do_fetch(self):
@@ -123,8 +123,8 @@ class Unknown(CommitIsh):
             return Tag(self.repository, self.commit_ish, False)
         else:
             try:
-                return HexSha(self.repository,
-                              find_by_hex_sha_prefix(self.repository,
+                return Hexsha(self.repository,
+                              find_by_hexsha_prefix(self.repository,
                                                      self.commit_ish))
             except StopIteration:
                 pass
@@ -142,9 +142,9 @@ class Unknown(CommitIsh):
             'Unknown.count_as_tag is not meant to be used')
 
     @property
-    def count_as_hex_sha(self):
+    def count_as_hexsha(self):
         raise NotImplementedError(
-            'Unknown.count_as_hex_sha is not meant to be used')
+            'Unknown.count_as_hexsha is not meant to be used')
 
     @property
     def commit(self):
@@ -214,7 +214,7 @@ class Branch(HeadyCommitIsh):
     }
 
 
-class HexSha(CommitIsh):
+class Hexsha(CommitIsh):
     def __init__(self, repository, commit_ish):
         # If commit_ish is not made from hexadecimal digits alone, this will
         # raise a ValueError:
@@ -222,7 +222,7 @@ class HexSha(CommitIsh):
         super().__init__(repository, commit_ish.strip().lower())
 
     @property
-    def count_as_hex_sha(self):
+    def count_as_hexsha(self):
         return 1
 
     @property
@@ -239,7 +239,7 @@ class HexSha(CommitIsh):
             self.commit
         except StopIteration:
             self.do_fetch()
-            self.commit # crash if the HexSha is still unknown after fetching
+            self.commit # crash if the Hexsha is still unknown after fetching
         return self
 
 
