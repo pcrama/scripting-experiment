@@ -5,6 +5,7 @@ Isolated in this library for easier testing'''
 import contextlib
 import itertools
 
+import git # type: ignore
 
 def find_by_hexsha_prefix(repo, commit_ish: str) -> str:
     try:
@@ -102,6 +103,10 @@ class CommitIsh:
     def count_as_hexsha(self):
         return 0
 
+    @property
+    def commit(self) -> git.Commit:
+        return self.repository.commit(self.commit_ish)
+
     def do_fetch(self):
         for remote in self.repository.remotes:
             for fetch_info in remote.fetch():
@@ -147,18 +152,12 @@ class Unknown(CommitIsh):
             'Unknown.count_as_hexsha is not meant to be used')
 
     @property
-    def commit(self):
+    def commit(self) -> git.Commit:
         raise NotImplementedError(
             'Unknown.commit is not meant to be used')
 
 
-class HeadyCommitIsh(CommitIsh):
-    @property
-    def commit(self):
-        return self.repository.head.commit
-
-
-class Tag(HeadyCommitIsh):
+class Tag(CommitIsh):
     def __init__(self, repository, commit_ish, fetch_for_tags):
         super().__init__(repository, commit_ish)
         self.fetch_for_tags = fetch_for_tags
@@ -167,10 +166,6 @@ class Tag(HeadyCommitIsh):
     def count_as_tag(self):
         return 1
 
-    @property
-    def head(self):
-        return self.repository.tags[self.commit_ish]
-
     def fetch_if_needed(self):
         if self.fetch_for_tags:
             self.do_fetch()
@@ -178,10 +173,9 @@ class Tag(HeadyCommitIsh):
 
     def checkout(self):
         self.repository.git.checkout(self.commit_ish)
-        return self.commit
 
 
-class Branch(HeadyCommitIsh):
+class Branch(CommitIsh):
     def __init__(self, repository, commit_ish, pull_for_branches):
         super().__init__(repository, commit_ish)
         self.pull_for_branches = self.PULL_STRATEGIES[pull_for_branches]
@@ -190,21 +184,16 @@ class Branch(HeadyCommitIsh):
     def count_as_branch(self):
         return 1
 
-    @property
-    def head(self):
-        return self.repository.branches[self.commit_ish]
-
     def fetch_if_needed(self):
         return self.do_fetch()
 
     def checkout(self):
-        result = self.head.checkout()
+        self.repository.branches[self.commit_ish].checkout()
         # when checking out a branch, if such a branch already exists locally,
         # checking out will not pull the most recent changes from the remote:
         # let the user decide what should be done (pull_ff_only is safe).
         if self.pull_for_branches is not None:
             self.pull_for_branches(self.repository, self.commit_ish)
-        return self.repository.head
 
     PULL_STRATEGIES = {
         'ff-only': pull_ff_only,
@@ -225,19 +214,13 @@ class Hexsha(CommitIsh):
     def count_as_hexsha(self):
         return 1
 
-    @property
-    def commit(self):
-        return next(commit
-                    for commit in self.repository.iter_commits()
-                    if commit.hexsha.startswith(self.commit_ish))
-
     def checkout(self):
-        return self.repository.git.checkout(self.commit_ish)
+        self.repository.git.checkout(self.commit_ish)
 
     def fetch_if_needed(self):
         try:
             self.commit
-        except StopIteration:
+        except git.BadName:
             self.do_fetch()
             self.commit # crash if the Hexsha is still unknown after fetching
         return self

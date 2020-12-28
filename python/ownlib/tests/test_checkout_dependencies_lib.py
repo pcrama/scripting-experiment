@@ -51,11 +51,23 @@ class FindByHexshaPrefixTests(unittest.TestCase):
             find_by_hexsha_prefix(self.repository, 'this is not a valid hex sha')
 
 
-class PullTests(unittest.TestCase):
+class TestsWithRealRepositories(unittest.TestCase):
+    '''Set up temporary local and remote repositories to run git related tests
+
+    These tests are slower than the rest and their setup is about 25% of the
+    spent run time, so the repositories are setup only once and reused.  This
+    is also the reason why this class mixes tests for different parts of
+    checkout_dependencies_lib.
+
+    To avoid interference between different test runs, many ``branches`` are
+    created, all pointing to the same commits and each test run pops one
+    branch from the list of commits.'''
+
     branches = []
     '''List of branches in the class level local and remote repositories that test instances may use'''
 
-    OTHER_BRANCH = f'otherbranch'
+    TAG = 'someTag'
+    OTHER_BRANCH = 'otherbranch'
     REMOTE_COMMIT = FakeCommit(
                 {'data': 'line 1\n'}, '2nd commit', 'h2', 'h1', None, None)
 
@@ -66,7 +78,7 @@ class PullTests(unittest.TestCase):
             FakeCommit(
                 {'data': 'one line\n'}, '1st commit', 'h1', None, None, None),
             FakeCommit(
-                {'data': 'data\n'}, 'other commit', None, None, None, cls.OTHER_BRANCH),
+                {'data': 'data\n'}, 'other commit', None, None, cls.TAG, cls.OTHER_BRANCH),
         ]
         remote_commits = [cls.REMOTE_COMMIT]
         cls.remote_context = test_repository(common_commits)
@@ -145,7 +157,13 @@ class PullTests(unittest.TestCase):
         assert initial_head_commit in self.local.head.commit.parents
         assert self.local.branches[self.BRANCH].commit == self.local.head.commit
         # The local commit is unknown in the remote repository.
-        assert self.local.head.commit not in self.remote.iter_commits()
+        try:
+            git.repo.fun.name_to_object(self.remote, self.local.head.commit.hexsha)
+        except Exception:
+            pass
+        else:
+            raise RuntimeError(
+                "Couldn't setup_diverging_branch_without_conflict properly")
         # But they both have the same parent.
         assert (self.local.head.commit.parents ==
                 self.remote.branches[self.BRANCH].commit.parents)
@@ -168,7 +186,13 @@ class PullTests(unittest.TestCase):
             None
         ).create(self.local)
         # The local commit is unknown in the remote repository.
-        assert self.local.head.commit not in self.remote.iter_commits()
+        try:
+            git.repo.fun.name_to_object(self.remote, self.local.head.commit.hexsha)
+        except Exception:
+            pass
+        else:
+            raise RuntimeError(
+                "Couldn't setup_diverging_branch_with_conflict properly")
         # But they both have the same parent.
         assert (self.local.head.commit.parents ==
                 self.remote.branches[self.BRANCH].commit.parents)
@@ -284,6 +308,54 @@ class PullTests(unittest.TestCase):
         # Then
         self.assertTrue('conflict' in cm.exception.stdout)
         self.assertTrue('Automatic merge failed' in cm.exception.stdout)
+
+    def test_given_repository_with_tag_when_calling_checkout_then_tag_is_checked_out(self):
+        # Given
+        assert self.local.head.commit != self.local.tags[self.TAG].commit
+        sut = Tag(self.local, self.TAG, False)
+        # When
+        result = sut.checkout()
+        # Then
+        self.assertIsNone(result)
+        self.assertEqual(self.local.head.commit, self.local.tags[self.TAG].commit)
+
+    def test_given_repository_with_commit_ish_not_checked_out_when_getting_commit_ish_then_commit_is_same_as_commit_ish(self):
+        # Given
+        sut_commit = self.local.tags[self.TAG].commit
+        local_head_commit = self.local.head.commit
+        assert local_head_commit  != sut_commit
+        assert self.local.branches[self.OTHER_BRANCH].commit == sut_commit
+        for sut in (Tag(self.local, self.TAG, False),
+                    Branch(self.local, self.OTHER_BRANCH, 'ff-only'),
+                    Hexsha(self.local, sut_commit.hexsha[:8])):
+            with self.subTest(sut=sut):
+                # When
+                result = sut.commit
+                # Then
+                self.assertEqual(result, sut_commit)
+                self.assertEqual( # no checking out as side effect
+                    self.local.head.commit, local_head_commit)
+
+    def test_given_repository_with_branch_when_calling_checkout_then_branch_is_checked_out(self):
+        # Given
+        assert self.local.head.commit == self.local.branches[self.BRANCH].commit
+        sut = Branch(self.local, self.OTHER_BRANCH, 'ff-only')
+        # When
+        result = sut.checkout()
+        # Then
+        self.assertIsNone(result)
+        self.assertEqual(self.local.head.commit, self.remote.branches[self.OTHER_BRANCH].commit)
+
+    def test_given_repository_with_hexsha_when_calling_checkout_then_hexsha_is_checked_out(self):
+        # Given
+        assert self.local.head.commit == self.local.branches[self.BRANCH].commit
+        hexsha = self.local.remotes.origin.refs[self.OTHER_BRANCH].commit.hexsha
+        sut = Hexsha(self.local, hexsha)
+        # When
+        result = sut.checkout()
+        # Then
+        self.assertIsNone(result)
+        self.assertEqual(self.local.head.commit.hexsha, hexsha)
 
 
 class CommitIshTests(unittest.TestCase):
@@ -416,8 +488,6 @@ class BranchTestsWithMockRepository(unittest.TestCase):
         self.assertIs(result, self.sut)
         self.mock_remote.fetch.assert_called_once_with()
 
-    # TODO: commit, head, checkout
-
 
 class HexshaTestsWithMockRepository(unittest.TestCase):
     HEXSHA = 'AbcDef'
@@ -425,7 +495,7 @@ class HexshaTestsWithMockRepository(unittest.TestCase):
     def setUp(self):
         super().setUp()
         self.mock_repo = mock.NonCallableMagicMock(
-            spec=['remotes', 'iter_commits'])
+            spec=['remotes', 'commit'])
         self.mock_remote = mock.NonCallableMagicMock(spec=['fetch'])
         self.mock_repo.remotes = [self.mock_remote]
 
@@ -434,15 +504,17 @@ class HexshaTestsWithMockRepository(unittest.TestCase):
         # Hex SHAs in git.Repo objects are always lower case:
         existing_commit.hexsha = self.HEXSHA.lower()
         other_commit = mock.NonCallableMagicMock()
-        other_commit.hexsha = '0' * 40
+        other_commit.hexsha = '01' * 20
         if exists_remotely:
             def side_effect(*args, **kwargs):
-                self.mock_repo.iter_commits = mock.MagicMock(
-                    return_value=[existing_commit])
+                self.mock_repo.commit = mock.MagicMock(
+                    return_value=existing_commit)
                 return []
             self.mock_remote.fetch = mock.MagicMock(side_effect=side_effect)
-        self.mock_repo.iter_commits = mock.MagicMock(return_value=[
-            existing_commit if exists_locally else other_commit])
+        self.mock_repo.commit = (
+            mock.MagicMock(return_value=existing_commit)
+            if exists_locally
+            else mock.MagicMock(side_effect=git.BadName('fake')))
         self.sut = Hexsha(self.mock_repo, self.HEXSHA)
         return self.sut
 
@@ -473,8 +545,6 @@ class HexshaTestsWithMockRepository(unittest.TestCase):
         self.mock_remote.fetch.assert_not_called()
         self.assertIs(result, self.sut)
 
-    # TODO: commit, head, checkout
-
 
 class TagTestsWithMockRepository(unittest.TestCase):
     NAME = 'TestTag'
@@ -499,8 +569,6 @@ class TagTestsWithMockRepository(unittest.TestCase):
 
     def test_count_as_hexsha(self):
         self.assertEqual(self.makeSut(False).count_as_hexsha, 0)
-
-    # TODO: commit, head, checkout
 
 
 @mock.patch('sys.stdout', new_callable=io.StringIO)
