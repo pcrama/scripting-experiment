@@ -13,14 +13,22 @@ from ..checkout_dependencies_lib import *
 
 
 class FindByHexshaPrefixTests(unittest.TestCase):
-    HUMAN_ID = 'h1'             # to find back test commit easily
+    HUMAN_IDS = ['h1', 'h2']    # to find back test commits easily
 
     @classmethod
     def setUpClass(cls):
+        # Two commits on separate branches: there used to be a bug in
+        # find_by_hexsha_prefix where only the current branch was searched.
         cls.repository_context = test_repository([
             FakeCommit({'data': 'one line\n'},
                        '1st commit',
-                       cls.HUMAN_ID,
+                       cls.HUMAN_IDS[0],
+                       None,
+                       None,
+                       None),
+            FakeCommit({'data': 'other line\n'},
+                       'other commit',
+                       cls.HUMAN_IDS[1],
                        None,
                        None,
                        None)])
@@ -31,18 +39,24 @@ class FindByHexshaPrefixTests(unittest.TestCase):
         cls.repository_context.__exit__(None, None, None)
 
     def test_given_existing_hexsha_when_calling_find_then_full_hexsha_is_returned(self):
-        expected_hexsha = self.repository.human_id_mapping[self.HUMAN_ID]
-        for hexsha in (expected_hexsha.lower(),
-                        expected_hexsha.upper(),
-                        expected_hexsha[:5].lower(),
-                        expected_hexsha[:5].upper()):
-            with self.subTest(hexsha=hexsha):
-                self.assertEqual(
-                    find_by_hexsha_prefix(self.repository, hexsha),
-                    expected_hexsha)
+        self.repository.git.checkout(self.repository.human_id_mapping[self.HUMAN_IDS[0]])
+        hexshas = None
+        for human_id in self.HUMAN_IDS:
+            expected_hexsha = self.repository.human_id_mapping[human_id]
+            if hexshas is None:
+                hexshas = (expected_hexsha.lower(),
+                           expected_hexsha.upper(),
+                           expected_hexsha[:5].lower(),
+                           expected_hexsha[:5].upper())
+            else:
+                hexshas = (expected_hexsha,)
+            for hexsha in hexshas:
+                with self.subTest(hexsha=hexsha, human_id=human_id):
+                    self.assertEqual(
+                        find_by_hexsha_prefix(self.repository, hexsha),
+                        expected_hexsha)
 
     def test_given_unknown_hexsha_when_calling_find_StopIteration_is_raised(self):
-        expected_hexsha = self.repository.human_id_mapping[self.HUMAN_ID]
         with self.assertRaises(StopIteration):
             find_by_hexsha_prefix(self.repository, '0000000000000000')
 
@@ -154,6 +168,7 @@ class TestsWithRealRepositories(unittest.TestCase):
             None,
             None
         ).create(self.local)
+        self.fetch_in_local()
         assert initial_head_commit in self.local.head.commit.parents
         assert self.local.branches[self.BRANCH].commit == self.local.head.commit
         # The local commit is unknown in the remote repository.
@@ -185,6 +200,7 @@ class TestsWithRealRepositories(unittest.TestCase):
             None,
             None
         ).create(self.local)
+        self.fetch_in_local()
         # The local commit is unknown in the remote repository.
         try:
             git.repo.fun.name_to_object(self.remote, self.local.head.commit.hexsha)
@@ -197,98 +213,86 @@ class TestsWithRealRepositories(unittest.TestCase):
         assert (self.local.head.commit.parents ==
                 self.remote.branches[self.BRANCH].commit.parents)
 
-    def test_given_no_local_changes_but_on_other_branch_when_calling_pull_ff_only_no_error_is_raised(self):
-        # Given: Check out other local branch to check that pull_ff_only sets
-        # up the correct branch.
-        self.local.git.checkout(self.OTHER_BRANCH)
-        # When
-        pull_ff_only(self.local, self.BRANCH)
-        # Then
-        self.assertEqual(self.local.head.commit,
-                         self.remote.branches[self.BRANCH].commit)
+    def fetch_in_local(self):
+        for remote in self.local.remotes:
+            remote.fetch()
 
-    def test_given_no_local_changes_and_on_same_branch_when_calling_pull_ff_only_no_error_is_raised(self):
+    def test_given_no_local_changes_when_calling_merge_ff_only_no_error_is_raised(self):
         # Given
+        self.fetch_in_local()
         assert self.local.head.commit == self.local.branches[self.BRANCH].commit
         # When
-        pull_ff_only(self.local, self.BRANCH)
+        merge_ff_only(self.local, self.BRANCH)
         # Then
         self.assertEqual(self.local.head.commit,
                          self.remote.branches[self.BRANCH].commit)
 
-    def test_given_branch_diverged_when_calling_pull_ff_only_an_error_is_raised(self):
+    def test_given_branch_diverged_when_calling_merge_ff_only_an_error_is_raised(self):
         # Given
         self.setup_diverging_branch_without_conflict()
         # When
         with self.assertRaises(git.exc.GitCommandError) as cm:
-            pull_ff_only(self.local, self.BRANCH)
+            merge_ff_only(self.local, self.BRANCH)
         # Then
         self.assertTrue('Not possible to fast-forward' in cm.exception.stderr)
 
-    def test_given_no_local_changes_but_on_other_branch_when_calling_pull_rebase_no_error_is_raised(self):
-        # Given: Check out other local branch to check that pull_rebase sets
-        # up the correct branch.
+    def test_given_no_local_changes_but_on_other_branch_when_calling_validate_repo_and_branch_for_merge_then_error_is_raised(self):
+        # Given: Check out other local branch
         self.local.git.checkout(self.OTHER_BRANCH)
-        # When
-        pull_rebase(self.local, self.BRANCH)
+        with self.assertRaises(RuntimeError) as cm:
+            # When
+            validate_repo_and_branch_for_merge(self.local, self.BRANCH)
         # Then
-        self.assertEqual(self.local.head.commit,
-                         self.remote.branches[self.BRANCH].commit)
+        self.assertIn(self.local.working_dir, cm.exception.args[0])
+        self.assertIn(self.BRANCH, cm.exception.args[0])
+        self.assertIn(self.OTHER_BRANCH, cm.exception.args[0])
 
-    def test_given_no_local_changes_and_on_same_branch_when_calling_pull_rebase_no_error_is_raised(self):
+    def test_given_no_local_changes_when_calling_merge_rebase_no_error_is_raised(self):
         # Given
+        self.fetch_in_local()
         assert self.local.head.commit == self.local.branches[self.BRANCH].commit
         # When
-        pull_rebase(self.local, self.BRANCH)
+        merge_rebase(self.local, self.BRANCH)
         # Then
         self.assertEqual(self.local.head.commit,
                          self.remote.branches[self.BRANCH].commit)
 
-    def test_given_branch_diverged_without_conflict_when_calling_pull_rebase_no_error_is_raised(self):
+    def test_given_branch_diverged_without_conflict_when_calling_merge_rebase_no_error_is_raised(self):
         # Given
         self.setup_diverging_branch_without_conflict()
         # When
-        pull_rebase(self.local, self.BRANCH)
+        merge_rebase(self.local, self.BRANCH)
         # Then
         self.assertEqual(self.local.head.commit.parents[0],
                          self.remote.branches[self.BRANCH].commit)
 
-    def test_given_branch_diverged_with_conflict_when_calling_pull_rebase_error_is_raised(self):
+    def test_given_branch_diverged_with_conflict_when_calling_merge_rebase_error_is_raised(self):
         # Given
         self.setup_diverging_branch_with_conflict()
         # When
         self.needs_rebase_abort = True
         with self.assertRaises(git.exc.GitCommandError) as cm:
-            pull_rebase(self.local, self.BRANCH)
+            merge_rebase(self.local, self.BRANCH)
         # Then
         self.assertTrue('conflict' in cm.exception.stderr)
         self.assertTrue('Could not apply' in cm.exception.stderr)
 
-    def test_given_no_local_changes_but_on_other_branch_when_calling_pull_merge_no_error_is_raised(self):
-        # Given: Check out other local branch to check that pull_merge sets
-        # up the correct branch.
-        self.local.git.checkout(self.OTHER_BRANCH)
-        # When
-        pull_merge(self.local, self.BRANCH)
-        # Then
-        self.assertEqual(self.local.head.commit,
-                         self.remote.branches[self.BRANCH].commit)
-
-    def test_given_no_local_changes_and_on_same_branch_when_calling_pull_merge_no_error_is_raised(self):
+    def test_given_no_local_changes_when_calling_merge_without_option_no_error_is_raised(self):
         # Given
+        self.fetch_in_local()
         assert self.local.head.commit == self.local.branches[self.BRANCH].commit
         # When
-        pull_merge(self.local, self.BRANCH)
+        merge_without_option(self.local, self.BRANCH)
         # Then
         self.assertEqual(self.local.head.commit,
                          self.remote.branches[self.BRANCH].commit)
 
-    def test_given_branch_diverged_without_conflict_when_calling_pull_merge_no_error_is_raised(self):
+    def test_given_branch_diverged_without_conflict_when_calling_merge_without_option_no_error_is_raised(self):
         # Given
         self.setup_diverging_branch_without_conflict()
         previous_local_head_commit = self.local.head.commit
         # When
-        pull_merge(self.local, self.BRANCH)
+        merge_without_option(self.local, self.BRANCH)
         # Then
         self.assertEqual(len(self.local.head.commit.parents), 2)
         self.assertIn(
@@ -298,13 +302,13 @@ class TestsWithRealRepositories(unittest.TestCase):
             previous_local_head_commit,
             self.local.head.commit.parents)
 
-    def test_given_branch_diverged_with_conflict_when_calling_pull_merge_error_is_raised(self):
+    def test_given_branch_diverged_with_conflict_when_calling_merge_without_option_error_is_raised(self):
         # Given
         self.setup_diverging_branch_with_conflict()
         # When
         self.needs_merge_abort = True
         with self.assertRaises(git.exc.GitCommandError) as cm:
-            pull_merge(self.local, self.BRANCH)
+            merge_without_option(self.local, self.BRANCH)
         # Then
         self.assertTrue('conflict' in cm.exception.stdout)
         self.assertTrue('Automatic merge failed' in cm.exception.stdout)
@@ -314,7 +318,7 @@ class TestsWithRealRepositories(unittest.TestCase):
         assert self.local.head.commit != self.local.tags[self.TAG].commit
         sut = Tag(self.local, self.TAG, False)
         # When
-        result = sut.checkout()
+        result = sut.update_working_tree()
         # Then
         self.assertIsNone(result)
         self.assertEqual(self.local.head.commit, self.local.tags[self.TAG].commit)
@@ -341,7 +345,7 @@ class TestsWithRealRepositories(unittest.TestCase):
         assert self.local.head.commit == self.local.branches[self.BRANCH].commit
         sut = Branch(self.local, self.OTHER_BRANCH, 'ff-only')
         # When
-        result = sut.checkout()
+        result = sut.update_working_tree()
         # Then
         self.assertIsNone(result)
         self.assertEqual(self.local.head.commit, self.remote.branches[self.OTHER_BRANCH].commit)
@@ -352,7 +356,7 @@ class TestsWithRealRepositories(unittest.TestCase):
         hexsha = self.local.remotes.origin.refs[self.OTHER_BRANCH].commit.hexsha
         sut = Hexsha(self.local, hexsha)
         # When
-        result = sut.checkout()
+        result = sut.update_working_tree()
         # Then
         self.assertIsNone(result)
         self.assertEqual(self.local.head.commit.hexsha, hexsha)
@@ -423,7 +427,7 @@ class UnknownTests(unittest.TestCase):
         self.assertIs(result.repository, self.mock_repo)
         self.assertIs(result.commit_ish, self.COMMIT_ISH_NAME)
         # Do not pull/fetch twice for unknown commit-ishs:
-        self.assertIs(result.pull_for_branches, do_not_pull)
+        self.assertIs(result.merging_option, do_not_merge)
 
     def test_given_is_a_tag_when_calling_fetch_if_needed_then_fetches_and_returns_Tag(self):
         # Given
@@ -437,11 +441,11 @@ class UnknownTests(unittest.TestCase):
         # Do not pull/fetch twice for unknown commit-ishs:
         self.assertFalse(result.fetch_for_tags)
 
-    def test_given_is_a_hexsha_when_calling_fetch_if_needed_then_fetches_and_returns_Hexsha(self):
+    @mock.patch('ownlib.checkout_dependencies_lib.find_by_hexsha_prefix')
+    def test_given_is_a_hexsha_when_calling_fetch_if_needed_then_fetches_and_returns_Hexsha(
+            self, find_by_hexsha_prefix_mock):
         # Given
-        self.mock_repo.iter_commits = mock.MagicMock(return_value=(
-            self._mock_commit(x)
-            for x in ('aaa', self.COMMIT_ISH_NAME, 'bbb')))
+        find_by_hexsha_prefix_mock.return_value = self.COMMIT_ISH_NAME
         # When
         result = self.sut.fetch_if_needed()
         # Then
@@ -450,11 +454,6 @@ class UnknownTests(unittest.TestCase):
         # Hexsha normalizes its input, so the expected value must be
         # normalized, too:
         self.assertEqual(result.commit_ish, self.COMMIT_ISH_NAME.lower())
-
-    def _mock_commit(self, hexsha):
-        mock_commit = mock.MagicMock()
-        mock_commit.hexsha = hexsha
-        return mock_commit
 
 
 class BranchTestsWithMockRepository(unittest.TestCase):
@@ -468,8 +467,8 @@ class BranchTestsWithMockRepository(unittest.TestCase):
         self.mock_repo.remotes = [self.mock_remote]
         self.mock_repo.branches = [self.NAME, 'someOtherBranchWeWillNotUse']
 
-    def makeSut(self, pull_strategy):
-        self.sut = Branch(self.mock_repo, self.NAME, pull_strategy)
+    def makeSut(self, merge_option):
+        self.sut = Branch(self.mock_repo, self.NAME, merge_option)
         return self.sut
 
     def test_count_as_tag(self):

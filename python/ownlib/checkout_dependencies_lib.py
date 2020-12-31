@@ -15,16 +15,13 @@ def find_by_hexsha_prefix(repo, commit_ish: str) -> str:
         # valid HEX string, we fill certainly not find it, so don't go looking
         # at all.
         raise StopIteration()
-    commit_ish = commit_ish.lower()
-    return next(commit.hexsha
-                for commit in itertools.chain(
-                        itertools.chain(*(
-                            r.repo.iter_commits() for r in repo.remotes)),
-                        repo.iter_commits())
-                if commit.hexsha.lower().startswith(commit_ish))
+    try:
+        return git.repo.fun.name_to_object(repo, commit_ish).hexsha
+    except git.BadName:
+        raise StopIteration()
 
 
-def do_not_pull(repo, branch):
+def do_not_merge(repo, branch):
     remotes_checked = remotes_ok = 0
     local_commit = repo.refs[branch].commit
     for remote in repo.remotes:
@@ -41,27 +38,49 @@ def do_not_pull(repo, branch):
                 remotes_ok += 1
 
 
-def pull_ff_only(repo, branch: str):
-    '''In `repo', switch to `branch' and pull, but only if fast-forward
+def validate_repo_and_branch_for_merge(repo, branch: str):
+    '''Verify that `repo' has `branch' with a matching tracking branch checked out
 
     :param repo: repository
 
-    :param branch: which branch to check out '''
-    if repo.head != repo.branches[branch]:
-        repo.branches[branch].checkout()
-    repo.git.pull('--ff-only')
+    :param branch: branch name'''
+    active_branch = repo.active_branch.name
+    if active_branch != branch:
+        raise RuntimeError(f'Expected {repo.working_dir} to be on {branch} '
+                           f'but found {active_branch}')
+    tracking_branch = repo.active_branch.tracking_branch().name
+    if not tracking_branch.endswith(branch):
+        raise RuntimeError(f'{tracking_branch} does not match {branch}')
 
 
-def pull_rebase(repo, branch):
-    if repo.head != repo.branches[branch]:
-        repo.branches[branch].checkout()
-    repo.git.pull('--rebase=true')
+def merge_ff_only(repo, branch: str):
+    '''In `repo', assume to be on `branch' and merge remote, but only if fast-forward
+
+    :param repo: repository
+
+    :param branch: branch name'''
+    validate_repo_and_branch_for_merge(repo, branch)
+    repo.git.merge(repo.active_branch.tracking_branch().name, '--ff-only')
 
 
-def pull_merge(repo, branch):
-    if repo.head != repo.branches[branch]:
-        repo.branches[branch].checkout()
-    repo.git.pull('--rebase=false')
+def merge_rebase(repo, branch):
+    '''In `repo', assume to be on `branch' and rebase on remote tracking branch
+
+    :param repo: repository
+
+    :param branch: branch name'''
+    validate_repo_and_branch_for_merge(repo, branch)
+    repo.git.rebase(repo.active_branch.tracking_branch().name)
+
+
+def merge_without_option(repo, branch):
+    '''In `repo', assume to be on `branch' and merge remote, but only if fast-forward
+
+    :param repo: repository
+
+    :param branch: branch name'''
+    validate_repo_and_branch_for_merge(repo, branch)
+    repo.git.merge(repo.active_branch.tracking_branch().name)
 
 
 def pluralize(n, s):
@@ -108,6 +127,7 @@ class CommitIsh:
         return self.repository.commit(self.commit_ish)
 
     def do_fetch(self):
+        '''Internal method for `fetch_if_needed`'''
         for remote in self.repository.remotes:
             for fetch_info in remote.fetch():
                 print(f'Updated {fetch_info.ref} to {fetch_info.commit}')
@@ -116,11 +136,19 @@ class CommitIsh:
 
 class Unknown(CommitIsh):
     def fetch_if_needed(self):
+        '''Ensure local view of remote reference corresponds to remote reference
+
+        :returns: an instance of CommitIsh of the correct type: `Tag`, `Hexsha`
+        or `Branch`.  The idea is that with information from the remote
+        repository, the correct type can be inferred instead of `Unknown`.
+
+        :raises RuntimeError: if after fetching, the commit-ish is still
+        unknown.'''
         # self.commit_ish was unknown so we certainly have to fetch:
         self.do_fetch()
         # check if self.commit_ish is known now:
         if self.commit_ish in self.repository.branches:
-            # Branch was unknown, so there is nothing to pull anyway:
+            # Branch was unknown, so there is nothing to merge anyway:
             return Branch(self.repository, self.commit_ish, 'no')
         elif self.commit_ish in self.repository.tags:
             # We have fetched already, no need to make the Tag believe it
@@ -156,6 +184,9 @@ class Unknown(CommitIsh):
         raise NotImplementedError(
             'Unknown.commit is not meant to be used')
 
+    def update_working_tree(self):
+        raise NotImplementedError(
+            'Unknown.update_working_tree is not meant to be used')
 
 class Tag(CommitIsh):
     def __init__(self, repository, commit_ish, fetch_for_tags):
@@ -167,39 +198,56 @@ class Tag(CommitIsh):
         return 1
 
     def fetch_if_needed(self):
+        '''Ensure local view of remote reference corresponds to remote reference
+
+        Because tags are not supposed to change once they have been pushed to
+        the server, by default this method does nothing except returning itself
+        except if `fetch_for_tags` is ``True``.
+
+        :returns: self'''
         if self.fetch_for_tags:
             self.do_fetch()
         return self
 
-    def checkout(self):
+    def update_working_tree(self):
         self.repository.git.checkout(self.commit_ish)
 
 
 class Branch(CommitIsh):
-    def __init__(self, repository, commit_ish, pull_for_branches):
+    def __init__(self, repository, commit_ish, merging_option):
         super().__init__(repository, commit_ish)
-        self.pull_for_branches = self.PULL_STRATEGIES[pull_for_branches]
+        self.merging_option = self.MERGE_VARIANTS[merging_option]
 
     @property
     def count_as_branch(self):
         return 1
 
     def fetch_if_needed(self):
+        '''Always fetch from remote: never assume a Branch stays the same'''
         return self.do_fetch()
 
-    def checkout(self):
+    def update_working_tree(self):
         self.repository.branches[self.commit_ish].checkout()
         # when checking out a branch, if such a branch already exists locally,
         # checking out will not pull the most recent changes from the remote:
-        # let the user decide what should be done (pull_ff_only is safe).
-        if self.pull_for_branches is not None:
-            self.pull_for_branches(self.repository, self.commit_ish)
+        # let the user decide what should be done (merge_ff_only is safe).
+        # Merging/Rebasing is sufficient because fetching is already done by
+        # fetch_if_needed.
+        if self.merging_option is not None:
+            self.merging_option(self.repository, self.commit_ish)
+        target_commit = next((
+            b.commit
+            for remote in self.repository.remotes
+            for b in remote.refs
+            if f'{remote.name}/{self.commit_ish}' == b.name),
+                             None)
+        assert target_commit in self.repository.iter_commits()
 
-    PULL_STRATEGIES = {
-        'ff-only': pull_ff_only,
-        'merge': pull_merge,
-        'no': do_not_pull,
-        'rebase': pull_rebase,
+    MERGE_VARIANTS = {
+        'ff-only': merge_ff_only,
+        'merge': merge_without_option,
+        'no': do_not_merge,
+        'rebase': merge_rebase,
     }
 
 
@@ -214,13 +262,22 @@ class Hexsha(CommitIsh):
     def count_as_hexsha(self):
         return 1
 
-    def checkout(self):
+    def update_working_tree(self):
         self.repository.git.checkout(self.commit_ish)
 
     def fetch_if_needed(self):
+        '''Ensure local view of remote reference corresponds to remote reference
+
+        :returns: self'''
         try:
             self.commit
         except git.BadName:
+            # Normally, we should not get here because a Hexsha is only
+            # instantiated if the hexsha exists in the repository.  If it does
+            # not exist, an Unknown is instantiated and the
+            # Unknown.fetch_if_needed will fetch, recognize the hexsha in the
+            # newly fetched information and instantiate a Hexsha.  Still, to
+            # be on the safe side, we include this exception handler.
             self.do_fetch()
             self.commit # crash if the Hexsha is still unknown after fetching
         return self
