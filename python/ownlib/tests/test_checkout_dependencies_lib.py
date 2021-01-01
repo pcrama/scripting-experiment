@@ -99,7 +99,7 @@ class TestsWithRealRepositories(unittest.TestCase):
         cls.remote = cls.remote_context.__enter__()
         # Set up branches, all pointing to commit 'h1' so that each test can
         # pop off one branch and work from that:
-        for branch_number in range(30):
+        for branch_number in range(20):
             cls.branches.append(f'test_{branch_number:02}')
             cls.remote.create_head(
                 cls.branches[-1], cls.remote.human_id_mapping['h1'])
@@ -312,6 +312,55 @@ class TestsWithRealRepositories(unittest.TestCase):
         # Then
         self.assertTrue('conflict' in cm.exception.stdout)
         self.assertTrue('Automatic merge failed' in cm.exception.stdout)
+
+    def test_given_branch_with_no_fetched_changes_when_calling_do_not_merge_no_error_is_raised(
+            self):
+        # Given
+        assert self.local.head.commit == self.local.refs[self.BRANCH].commit
+        assert self.local.head.commit == self.local.remotes[0].refs[self.BRANCH].commit
+        # When
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as sys_stdout:
+            do_not_merge(self.local, self.BRANCH)
+        # Then
+        self.assertEqual(sys_stdout.getvalue(), '')
+
+    def test_given_branch_unknown_in_remote_when_calling_do_not_merge_no_error_is_raised(
+            self):
+        # Given
+        UNKNOWN_IN_REMOTE = 'unknown_in_remote'
+        FakeCommit(
+            {'do_not_merge_test': 'some content\n'},
+            'do_not_merge',
+            'h_do_not_merge',
+            None,
+            None,
+            UNKNOWN_IN_REMOTE
+        ).create(self.local)
+        self.local.branches[UNKNOWN_IN_REMOTE].checkout()
+        # When
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as sys_stdout:
+            do_not_merge(self.local, UNKNOWN_IN_REMOTE)
+        # Then
+        self.assertEqual(sys_stdout.getvalue(), '')
+
+    def test_given_branch_with_fetched_changes_when_calling_do_not_merge_an_error_is_raised(
+            self):
+        # Given
+        self.fetch_in_local()
+        assert self.local.head.commit == self.local.refs[self.BRANCH].commit
+        assert self.local.refs[self.BRANCH].commit != self.local.remotes[0].refs[self.BRANCH].commit
+        # When
+        with self.assertRaises(RuntimeError) as cm, \
+             mock.patch('sys.stdout', new_callable=io.StringIO) as sys_stdout:
+            do_not_merge(self.local, self.BRANCH)
+        # Then
+        printed = sys_stdout.getvalue()
+        self.assertIn(self.BRANCH, printed)
+        self.assertIn(self.local.branches[self.BRANCH].commit.hexsha, printed)
+        exception_message = cm.exception.args[0]
+        self.assertIn('1 remote repository', exception_message)
+        self.assertIn('0 repositories have', exception_message)
+        self.assertIn(self.local.working_tree_dir, exception_message)
 
     def test_given_repository_with_tag_when_calling_checkout_then_tag_is_checked_out(self):
         # Given
@@ -603,3 +652,104 @@ class StashingTests(unittest.TestCase):
         self.assertEqual(len(self.stash.mock_calls), 1) # 1 for entering & 1 for exiting
         self.assertEqual(self.stash.mock_calls[0].args[0], 'pop')
         self.assertIn('popped stash', sys_stdout.getvalue().lower())
+
+
+@mock.patch('sys.stdout', new_callable=io.StringIO)
+class DoNotMergeTests(unittest.TestCase):
+    BRANCH = 'branch_name'
+    LOCAL_COMMIT = '<local commit, could be a real git.Commit object or a mock>'
+
+    def setUp(self):
+        self.repo = mock.NonCallableMagicMock(
+            spec=['refs', 'remotes', 'working_tree_dir'])
+        self.repo.refs = { self.BRANCH: self._mock_ref(self.LOCAL_COMMIT) }
+        self.repo.remotes = []
+
+    def _mock_ref(self, commit):
+        result = mock.NonCallableMagicMock(spec=['commit'])
+        result.commit = commit
+        return result
+
+    def set_up_remote(self, url, remote_commit):
+        mock_remote = mock.NonCallableMagicMock(spec=['url', 'refs'])
+        mock_remote.url = url
+        mock_remote.refs = { self.BRANCH: self._mock_ref(remote_commit) }
+        self.repo.remotes.append(mock_remote)
+
+    def test_given_no_remotes_when_calling_do_not_merge_then_nothing_happens(
+            self, sys_stdout):
+        # When
+        do_not_merge(self.repo, self.BRANCH)
+        # Then
+        self.assertEqual(sys_stdout.getvalue(), '')
+
+    def test_given_one_remote_without_change_when_calling_do_not_merge_then_no_output_is_printed(
+            self, sys_stdout):
+        # Given
+        self.set_up_remote('url1', self.LOCAL_COMMIT)
+        # When
+        do_not_merge(self.repo, self.BRANCH)
+        # Then
+        self.assertEqual(sys_stdout.getvalue(), '')
+
+    def test_given_two_remotes_without_change_when_calling_do_not_merge_then_no_output_is_printed(
+            self, sys_stdout):
+        # Given
+        self.set_up_remote('url1', self.LOCAL_COMMIT)
+        self.set_up_remote('url2', self.LOCAL_COMMIT)
+        # When
+        do_not_merge(self.repo, self.BRANCH)
+        # Then
+        self.assertEqual(sys_stdout.getvalue(), '')
+
+    def test_given_4_remotes_3_with_changes_when_calling_do_not_merge_then_output_is_printed_and_exception_is_raised(
+            self, sys_stdout):
+        # Given
+        urls_and_commits = (('url1', self.LOCAL_COMMIT),
+                            ('url2', 'remote commit 2'),
+                            ('url3', 'remote commit 3'),
+                            ('url4', 'remote commit 4'))
+        for (url, commit) in urls_and_commits:
+            self.set_up_remote(url, commit)
+        # When
+        with self.assertRaises(RuntimeError) as cm:
+            do_not_merge(self.repo, self.BRANCH)
+        # Then
+        printed = sys_stdout.getvalue()
+        for (url, commit) in urls_and_commits[:1]:
+            self.assertNotIn(url, printed)
+            # Can't do this because self.LOCAL_COMMIT is included in the
+            # diagnostic messages of the other remotes:
+            # self.assertNotIn(commit, printed)
+        printed_lines = printed.strip().split('\n')
+        self.assertEqual(len(printed_lines), len(urls_and_commits) - 1)
+        for ((url, commit), line) in zip(urls_and_commits[1:], printed_lines):
+            self.assertIn(url, line)
+            self.assertIn(commit, line)
+        self.assertIn('4 remote repositories', cm.exception.args[0])
+        self.assertIn('1 repository has', cm.exception.args[0])
+
+    def test_given_3_remotes_1_with_changes_when_calling_do_not_merge_then_output_is_printed_and_exception_is_raised(
+            self, sys_stdout):
+        # Given
+        urls_and_commits = (('url1', 'remote commit 1'),
+                            ('url2', self.LOCAL_COMMIT),
+                            ('url3', self.LOCAL_COMMIT))
+        for (url, commit) in urls_and_commits:
+            self.set_up_remote(url, commit)
+        # When
+        with self.assertRaises(RuntimeError) as cm:
+            do_not_merge(self.repo, self.BRANCH)
+        # Then
+        printed = sys_stdout.getvalue()
+        self.assertEqual(printed.count('\n'), 1)
+        for (url, commit) in urls_and_commits[:1]:
+            self.assertIn(url, printed)
+            self.assertIn(commit, printed)
+        for (url, commit) in urls_and_commits[1:]:
+            self.assertNotIn(url, printed)
+            # Can't do this because self.LOCAL_COMMIT is included in the
+            # diagnostic messages of the other remote:
+            # self.assertNotIn(commit, printed)
+        self.assertIn('3 remote repositories', cm.exception.args[0])
+        self.assertIn('2 repositories have', cm.exception.args[0])

@@ -36,6 +36,12 @@ def do_not_merge(repo, branch):
                       f'{remote.url}: {remote_commit}!')
             else:
                 remotes_ok += 1
+    if remotes_checked > 0 and remotes_checked != remotes_ok:
+        has_have = 'has' if remotes_ok == 1 else 'have'
+        raise RuntimeError(
+            f'Checked {pluralize(remotes_checked, "remote repository")} but '
+            f'only {pluralize(remotes_ok, "repository")} {has_have} the same '
+            f'commit for {branch} in {repo.working_tree_dir}')
 
 
 def validate_repo_and_branch_for_merge(repo, branch: str):
@@ -241,7 +247,11 @@ class Branch(CommitIsh):
             for b in remote.refs
             if f'{remote.name}/{self.commit_ish}' == b.name),
                              None)
-        assert target_commit in self.repository.iter_commits()
+        if target_commit is not None:
+            # There was a remote branch: double check that the remote commits
+            # ended up in the local history (can be in different ways because
+            # of --ff-only, rebase or normal merge).
+            assert target_commit in self.repository.iter_commits()
 
     MERGE_VARIANTS = {
         'ff-only': merge_ff_only,
