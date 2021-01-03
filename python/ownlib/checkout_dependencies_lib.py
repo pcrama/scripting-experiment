@@ -136,7 +136,7 @@ class CommitIsh:
         '''Internal method for `fetch_if_needed`'''
         for remote in self.repository.remotes:
             for fetch_info in remote.fetch():
-                print(f'Updated {fetch_info.ref} to {fetch_info.commit}')
+                print(f'Updated reference {fetch_info.ref} to {fetch_info.commit}')
         return self
 
 
