@@ -300,6 +300,19 @@ class DependencySpecification(DependencyFileLine):
                            for idx in range(3)))
 
     def to_dependency(self, variables):
+        '''Build py:ref:`Dependency` for to the py:ref:`DependencySpecification`
+
+        :param variables: dictionary of variables to substitute in the
+        ``DependencySpecification``
+
+        :returns: an instance of py:ref:`Dependency`
+
+        >>> DependencySpecification('a b c', 'a', 'b', 'c').to_dependency({})
+        Dependency('a', 'b', 'c', 'a b c')
+        >>> DependencySpecification('<a> <b> <a>', '<a>', '<b>', '<a>')\
+                .to_dependency({'a': 'Z', 'b': 'Y'})
+        Dependency('Z', 'Y', 'Z', '<a> <b> <a>')
+        '''
         return Dependency(
             replace_variables(self.dependency, variables),
             replace_variables(self.commit_ish, variables),
