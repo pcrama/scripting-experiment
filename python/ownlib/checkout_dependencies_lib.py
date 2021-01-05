@@ -233,7 +233,7 @@ class Branch(CommitIsh):
         return self.do_fetch()
 
     def update_working_tree(self):
-        self.repository.branches[self.commit_ish].checkout()
+        self.repository.git.checkout(self.commit_ish)
         # when checking out a branch, if such a branch already exists locally,
         # checking out will not pull the most recent changes from the remote:
         # let the user decide what should be done (merge_ff_only is safe).
@@ -305,3 +305,23 @@ def stashing(repository):
     finally:
         repository.git.stash('pop', '--index')
         print(f'Popped stash in {repository.working_tree_dir}')
+
+
+def get_branch_by_name(repository, name):
+    '''Get reference to a branch from a ``repository`` (or its remotes) by its ``name``
+
+    :param repository: a GitPython repository object
+
+    :param name: a branch name
+
+    :returns: None in case of failure or a GitPython reference object'''
+    try:
+        return repository.branches[name]
+    except IndexError:
+        for remote in repository.remotes:
+            try:
+                return remote.repo.refs[f'{remote.name}/{name}']
+            except IndexError:
+                pass
+    # Failure:
+    return None

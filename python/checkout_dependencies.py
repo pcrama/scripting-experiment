@@ -14,6 +14,7 @@ from ownlib.checkout_dependencies_lib import (
     Tag,
     Unknown,
     find_by_hexsha_prefix,
+    get_branch_by_name,
     pluralize,
     stashing,
 )
@@ -111,7 +112,7 @@ def main(args):
             # Normally, tags are not supposed to move so we should not fetch,
             # but the user may override this on the command line.
             ref = Tag(repo, commit_ish, args.fetch_for_tags)
-        elif commit_ish in repo.branches:
+        elif get_branch_by_name(repo, commit_ish) is not None:
             ref = Branch(repo, commit_ish, args.merge_for_branches)
         else:
             try:

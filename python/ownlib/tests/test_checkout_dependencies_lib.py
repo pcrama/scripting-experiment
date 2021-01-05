@@ -399,6 +399,73 @@ class TestsWithRealRepositories(unittest.TestCase):
         self.assertIsNone(result)
         self.assertEqual(self.local.head.commit, self.remote.branches[self.OTHER_BRANCH].commit)
 
+    def test_given_Branch_only_known_in_remote_when_calling_checkout_then_branch_is_checked_out(self):
+        # Given
+        UNKNOWN_IN_LOCAL = 'unknown_in_local'
+        FakeCommit(
+            {'unknown_in_local_test': 'some content\n'},
+            'unknown in local, but fetched',
+            'h_unknown_in_local',
+            None,
+            None,
+            UNKNOWN_IN_LOCAL
+        ).create(self.remote)
+        # Assume we just cloned self.local from self.remote and made a Branch
+        sut = Branch(self.local, UNKNOWN_IN_LOCAL, 'ff-only')
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as sys_stdout:
+            sut.fetch_if_needed()
+        assert UNKNOWN_IN_LOCAL in sys_stdout.getvalue()
+        assert UNKNOWN_IN_LOCAL in self.local.remotes[0].refs
+        assert UNKNOWN_IN_LOCAL not in self.local.branches
+        assert UNKNOWN_IN_LOCAL not in self.local.refs
+        # When
+        result = sut.update_working_tree()
+        # Then
+        self.assertIsNone(result)
+        self.assertEqual(self.local.head.commit, self.remote.branches[UNKNOWN_IN_LOCAL].commit)
+
+    def test_given_branch_when_calling_get_branch_by_name_then_correct_branch_is_returned(self):
+        # Given
+        UNKNOWN_IN_LOCAL = 'unknown_in_local_for_get_branch'
+        FakeCommit(
+            {'unknown_in_local_test_for_get_branch': 'some content\n'},
+            'unknown in local_for_get_branch, but fetched',
+            'h_unknown_in_local_for_get_branch',
+            None,
+            None,
+            UNKNOWN_IN_LOCAL
+        ).create(self.remote)
+        UNKNOWN_IN_REMOTE = 'unknown_in_remote_for_get_branch'
+        FakeCommit(
+            {'unknown_in_remote_for_get_branch': 'some content\n'},
+            'unknown_in_remote_for_get_branch',
+            'h_unknown_in_remote_for_get_branch',
+            None,
+            None,
+            UNKNOWN_IN_REMOTE
+        ).create(self.local)
+        self.local.branches[UNKNOWN_IN_REMOTE].checkout()
+        self.fetch_in_local()
+        assert UNKNOWN_IN_LOCAL not in self.local.branches
+        assert UNKNOWN_IN_LOCAL not in self.local.refs
+        assert UNKNOWN_IN_REMOTE not in self.remote.refs
+        assert UNKNOWN_IN_LOCAL in self.local.remotes[0].refs
+        COMPLETELY_UNKNOWN_BRANCH = 'nemo'
+        for (branch_name, equivalent_commit) in (
+                (UNKNOWN_IN_LOCAL, self.remote.branches[UNKNOWN_IN_LOCAL].commit),
+                (UNKNOWN_IN_REMOTE, self.local.branches[UNKNOWN_IN_REMOTE].commit),
+                (COMPLETELY_UNKNOWN_BRANCH, None),
+                # get_branch_by_name prefers local references over remote references:
+                (self.BRANCH, self.local.branches[self.BRANCH].commit),
+                (self.TAG, None)):
+            with self.subTest(branch=branch_name, commit=equivalent_commit):
+                reference = get_branch_by_name(self.local, branch_name)
+                if equivalent_commit is None:
+                    self.assertIsNone(reference)
+                else:
+                    self.assertIsNotNone(reference)
+                    self.assertEqual(reference.commit, equivalent_commit)
+
     def test_given_repository_with_hexsha_when_calling_checkout_then_hexsha_is_checked_out(self):
         # Given
         assert self.local.head.commit == self.local.branches[self.BRANCH].commit
