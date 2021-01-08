@@ -685,6 +685,21 @@ class TagTestsWithMockRepository(unittest.TestCase):
     def test_count_as_hexsha(self):
         self.assertEqual(self.makeSut(False).count_as_hexsha, 0)
 
+    def test_fetch_if_needed(self):
+        for fetch in (True, False):
+            with self.subTest(fetch=fetch):
+                # Given
+                sut = self.makeSut(fetch)
+                self.mock_remote.fetch.reset_mock()
+                # When
+                result = self.makeSut(fetch).fetch_if_needed()
+                # Then
+                self.assertIs(result, self.sut)
+                if fetch:
+                    self.mock_remote.fetch.assert_called_once_with()
+                else:
+                    self.mock_remote.fetch.assert_not_called()
+
 
 @mock.patch('sys.stdout', new_callable=io.StringIO)
 class StashingTests(unittest.TestCase):
