@@ -365,7 +365,7 @@ class TestsWithRealRepositories(unittest.TestCase):
     def test_given_repository_with_tag_when_calling_checkout_then_tag_is_checked_out(self):
         # Given
         assert self.local.head.commit != self.local.tags[self.TAG].commit
-        sut = Tag(self.local, self.TAG, False)
+        sut = Tag(self.local, self.TAG, 'no')
         # When
         result = sut.update_working_tree()
         # Then
@@ -378,7 +378,7 @@ class TestsWithRealRepositories(unittest.TestCase):
         local_head_commit = self.local.head.commit
         assert local_head_commit  != sut_commit
         assert self.local.branches[self.OTHER_BRANCH].commit == sut_commit
-        for sut in (Tag(self.local, self.TAG, False),
+        for sut in (Tag(self.local, self.TAG, 'no'),
                     Branch(self.local, self.OTHER_BRANCH, 'ff-only'),
                     Hexsha(self.local, sut_commit.hexsha[:8])):
             with self.subTest(sut=sut):
@@ -555,7 +555,7 @@ class UnknownTests(unittest.TestCase):
         self.assertIs(result.repository, self.mock_repo)
         self.assertIs(result.commit_ish, self.COMMIT_ISH_NAME)
         # Do not pull/fetch twice for unknown commit-ishs:
-        self.assertFalse(result.fetch_for_tags)
+        self.assertIs(result.fetch_variant, do_not_fetch)
 
     @mock.patch('ownlib.checkout_dependencies_lib.find_by_hexsha_prefix')
     def test_given_is_a_hexsha_when_calling_fetch_if_needed_then_fetches_and_returns_Hexsha(
@@ -588,17 +588,20 @@ class BranchTestsWithMockRepository(unittest.TestCase):
         return self.sut
 
     def test_count_as_tag(self):
-        self.assertEqual(self.makeSut('rebase').count_as_tag, 0)
+        self.assertEqual(
+            self.makeSut(Branch.DEFAULT_MERGE_VARIANT).count_as_tag, 0)
 
     def test_count_as_branch(self):
-        self.assertEqual(self.makeSut('rebase').count_as_branch, 1)
+        self.assertEqual(
+            self.makeSut(Branch.DEFAULT_MERGE_VARIANT).count_as_branch, 1)
 
     def test_count_as_hexsha(self):
-        self.assertEqual(self.makeSut('rebase').count_as_hexsha, 0)
+        self.assertEqual(
+            self.makeSut(Branch.DEFAULT_MERGE_VARIANT).count_as_hexsha, 0)
 
     def test_fetch_if_needed(self):
         # When
-        result = self.makeSut('rebase').fetch_if_needed()
+        result = self.makeSut(Branch.DEFAULT_MERGE_VARIANT).fetch_if_needed()
         # Then
         self.assertIs(result, self.sut)
         self.mock_remote.fetch.assert_called_once_with()
@@ -669,36 +672,47 @@ class TagTestsWithMockRepository(unittest.TestCase):
         self.mock_repo = mock.NonCallableMagicMock(
             spec=['remotes', 'tags'])
         self.mock_remote = mock.NonCallableMagicMock(spec=['fetch'])
+        self.mock_remote.name = 'mock_origin'
         self.mock_repo.remotes = [self.mock_remote]
         self.mock_repo.tags = [self.NAME, 'someOtherTagWeWillNotUse']
 
-    def makeSut(self, fetch_for_tags):
-        self.sut = Tag(self.mock_repo, self.NAME, fetch_for_tags)
+    def makeSut(self, fetch_option):
+        self.sut = Tag(self.mock_repo, self.NAME, fetch_option)
         return self.sut
 
     def test_count_as_tag(self):
-        self.assertEqual(self.makeSut(False).count_as_tag, 1)
+        self.assertEqual(
+            self.makeSut(Tag.DEFAULT_FETCH_VARIANT).count_as_tag, 1)
 
     def test_count_as_branch(self):
-        self.assertEqual(self.makeSut(False).count_as_branch, 0)
+        self.assertEqual(
+            self.makeSut(Tag.DEFAULT_FETCH_VARIANT).count_as_branch, 0)
 
     def test_count_as_hexsha(self):
-        self.assertEqual(self.makeSut(False).count_as_hexsha, 0)
+        self.assertEqual(
+            self.makeSut(Tag.DEFAULT_FETCH_VARIANT).count_as_hexsha, 0)
 
     def test_fetch_if_needed(self):
-        for fetch in (True, False):
-            with self.subTest(fetch=fetch):
+        for (fetch_option, fetch_arguments) in (
+                ('no', None),
+                ('prompt', None),
+                ('prompt_force', None),
+                ('force', ['--force', self.NAME])):
+            with self.subTest(fetch_option=fetch_option), \
+                 mock.patch('builtins.input', new_callable=lambda: lambda _:'n'), \
+                 mock.patch('sys.stdout', new_callable=io.StringIO):
                 # Given
-                sut = self.makeSut(fetch)
+                sut = self.makeSut(fetch_option)
                 self.mock_remote.fetch.reset_mock()
                 # When
-                result = self.makeSut(fetch).fetch_if_needed()
+                result = self.makeSut(fetch_option).fetch_if_needed()
                 # Then
                 self.assertIs(result, self.sut)
-                if fetch:
-                    self.mock_remote.fetch.assert_called_once_with()
-                else:
+                if fetch_arguments is None:
                     self.mock_remote.fetch.assert_not_called()
+                else:
+                    self.mock_remote.fetch.assert_called_once_with(
+                        *fetch_arguments)
 
 
 @mock.patch('sys.stdout', new_callable=io.StringIO)

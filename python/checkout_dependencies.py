@@ -1,3 +1,51 @@
+'''Clone/Checkout Dependencies listed in a file
+
+The dependencies file must be located inside a Git working directory (usually
+but not necessarily in the same directory as the .git directory).  The script
+automatically locates the project top-level (i.e. where the .git directory
+is).  This is the reference directory for the rest of this explanation.
+
+The file contains 3 columns: the name of a directory (located next to the
+reference directory); a commit-ish (a tag or hexsha or a branch name) and a
+repository URL.  See ownlib/dependencies_file.py for details about the file
+format and its features.
+
+For each line in the dependencies file:
+1. if the directory does not exist, it will be cloned using the repository URL.
+2. once the directory exists, the commit-ish will be checked out there.
+   - if the commit-ish is unknown, the remote is fetched to learn the real
+     type of the commit-ish.
+   - if the commit-ish is a tag name, normally the remote is not fetched:
+     tags are not supposed to be changed once they were published (see the
+     --fetch-for-tags option for ways to override this behavior).
+   - if the commit-ish is a hexsha, the remote is not fetched.
+   - if the commit-ish is a branch name, the remote is fetched and the
+     depending on the --merge-for-branches option, the changes of the remote
+     branch are integrated in the local repository.
+
+Fetching for tags already known locally: --fetch-for-tags
+- no [default]: this is the safest choice and tags are not supposed to move
+  anyway.
+- prompt: for each dependency with a tag, prompt whether or not to fetch it.
+  This is a safe option, too: Git will not fetch a remote tag that contradicts
+  a local tag with the same name.  However, if a git fetch operation fails,
+  the script will be interrupted.
+- prompt_force: for each dependency with a tag, tries to fetch the tag.  If
+  the fetch fails, the script offers to try again with the --force option.
+- force: fetches the tag with --force unconditionally
+
+Merging for branches already known in locally: --merge-for-branches
+- ff-only [default]: the remote changes will be included in the local branch
+  only they are a fast-forward from the local branch.  Otherwise, the script
+  stops.
+- merge: merge the remote branch into the local branch.  A failure to merge
+  will stop the script.
+- no: ignore remote branch, but fetching always happens for branches anyway.
+  If the local branch is different from the remote branch, the script stops.
+- rebase: the local changes will be rebased on top of the remote.  A failure
+  to rebase will stop the script.
+'''
+
 import argparse
 from configparser import DuplicateSectionError, NoOptionError, NoSectionError
 import contextlib
@@ -164,13 +212,18 @@ def main(args):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Clone/checkout dependencies')
+    DEFAULT_DEPENDENCIES_FILE = 'Dependencies.txt'
+    parser = argparse.ArgumentParser(
+        description='Clone/checkout dependencies',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=__doc__)
     parser.add_argument(
         'dependencies_file',
         type=argparse.FileType('r'),
         nargs='?',
-        default='Dependencies.txt',
-        help='file with list of dependencies')
+        default=DEFAULT_DEPENDENCIES_FILE,
+        help=('file with list of dependencies, '
+              f'{DEFAULT_DEPENDENCIES_FILE} by default'))
     parser.add_argument(
         '--no-stash',
         # Wish I could use action=argparse.BooleanOptionalAction, but that is Python 3.9
@@ -179,14 +232,15 @@ if __name__ == '__main__':
         help='omit stashing before checking out and popping afterwards')
     parser.add_argument(
         '--fetch-for-tags',
-        action='store_true',
-        default=False,
-        help='fetch from remote even if commit-ish is a tag')
+        choices=Tag.FETCH_VARIANTS.keys(),
+        default=Tag.DEFAULT_FETCH_VARIANT,
+        help=('fetch from remote even if commit-ish is a tag, '
+              f'default: {Tag.DEFAULT_FETCH_VARIANT}'))
     parser.add_argument(
         '--merge-for-branches',
         choices=Branch.MERGE_VARIANTS.keys(),
-        default='ff-only',
+        default=Branch.DEFAULT_MERGE_VARIANT,
         help=('if/how changes to upstream branches should be integrated '
-              'to local branches'))
+              f'to local branches, default: {Branch.DEFAULT_MERGE_VARIANT}'))
     args = parser.parse_args()
     main(args)

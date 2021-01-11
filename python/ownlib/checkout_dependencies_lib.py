@@ -111,6 +111,45 @@ def pluralize(n, s):
         return f'{n} {plural}'
 
 
+def do_not_fetch(repo, tag):
+    pass
+
+
+def prompt_before_fetching(repo, tag):
+    for remote in repo.remotes:
+        while True:
+            answer = input(
+                f'Should I fetch from {remote.name} for {tag}? (y/N/q) ')
+            if answer == '' or answer.lower() == 'n':
+                break
+            elif answer.lower() == 'y':
+                remote.fetch(remote_name, tag)
+                break # out of while loop
+            elif answer.lower() == 'q':
+                return
+
+
+def fetch_and_prompt_before_forcing(repo, tag):
+    remote_name = repo.remotes[0].name
+    try:
+        repo.git.fetch(remote_name, tag)
+    except Exception as e:
+        print(f'Caught {e} while fetching {tag} from {remote_name}')
+        while True:
+            answer = input(
+                'Should I fetch --force from {remote_name} for {tag}? (Y/n) ')
+            if answer.lower() == 'y':
+                repo.git.fetch(remote_name, '--force', tag)
+                return
+            elif answer.lower() == 'n':
+                return
+
+
+def fetch_with_force(repo, tag):
+    for remote in repo.remotes:
+        remote.fetch('--force', tag)
+
+
 class CommitIsh:
     def __init__(self, repository, commit_ish):
         self.repository = repository
@@ -159,7 +198,7 @@ class Unknown(CommitIsh):
         elif self.commit_ish in self.repository.tags:
             # We have fetched already, no need to make the Tag believe it
             # could fetch again:
-            return Tag(self.repository, self.commit_ish, False)
+            return Tag(self.repository, self.commit_ish, 'no')
         else:
             try:
                 return Hexsha(self.repository,
@@ -195,9 +234,9 @@ class Unknown(CommitIsh):
             'Unknown.update_working_tree is not meant to be used')
 
 class Tag(CommitIsh):
-    def __init__(self, repository, commit_ish, fetch_for_tags):
+    def __init__(self, repository, commit_ish, fetch_variant):
         super().__init__(repository, commit_ish)
-        self.fetch_for_tags = fetch_for_tags
+        self.fetch_variant = self.FETCH_VARIANTS[fetch_variant]
 
     @property
     def count_as_tag(self):
@@ -207,16 +246,23 @@ class Tag(CommitIsh):
         '''Ensure local view of remote reference corresponds to remote reference
 
         Because tags are not supposed to change once they have been pushed to
-        the server, by default this method does nothing except returning itself
-        except if `fetch_for_tags` is ``True``.
+        the server, the DEFAULT_FETCH_VARIANT is 'no'.
 
         :returns: self'''
-        if self.fetch_for_tags:
-            self.do_fetch()
+        self.fetch_variant(self.repository, self.commit_ish)
         return self
 
     def update_working_tree(self):
         self.repository.git.checkout(self.commit_ish)
+
+    DEFAULT_FETCH_VARIANT = 'no'
+
+    FETCH_VARIANTS = {
+        DEFAULT_FETCH_VARIANT: do_not_fetch,
+        'prompt': prompt_before_fetching,
+        'prompt_force': fetch_and_prompt_before_forcing,
+        'force': fetch_with_force,
+    }
 
 
 class Branch(CommitIsh):
@@ -253,8 +299,10 @@ class Branch(CommitIsh):
             # of --ff-only, rebase or normal merge).
             assert target_commit in self.repository.iter_commits()
 
+    DEFAULT_MERGE_VARIANT = 'ff-only'
+
     MERGE_VARIANTS = {
-        'ff-only': merge_ff_only,
+        DEFAULT_MERGE_VARIANT: merge_ff_only,
         'merge': merge_without_option,
         'no': do_not_merge,
         'rebase': merge_rebase,
