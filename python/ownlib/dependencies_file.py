@@ -149,12 +149,20 @@ def build_dependencies_list(lines) -> List[Dependency]:
     variables: Dict[str, str] = {}
     for dependency_line in lines:
         try:
-            result.append(dependency_line.to_dependency(variables))
+            # A DependencySpecification has a `to_dependency' method.  Do not
+            # execute it inside the try/catch as otherwise AttributeError
+            # exceptions during the execution would be swallowed.
+            to_dependency = dependency_line.to_dependency
         except AttributeError:
+            # Not a DependencySpecification?  Maybe it's an AssignmentLine.
             try:
                 dependency_line.update_variables(variables)
             except AttributeError:
+                # Not an AssignmentLine either, must be a CommentLine:
+                # ignore it.
                 pass
+        else:
+            result.append(to_dependency(variables))
     return result
 
 
@@ -312,12 +320,18 @@ class DependencySpecification(DependencyFileLine):
         >>> DependencySpecification('<a> <b> <a>', '<a>', '<b>', '<a>')\
                 .to_dependency({'a': 'Z', 'b': 'Y'})
         Dependency('Z', 'Y', 'Z', '<a> <b> <a>')
+        >>> DependencySpecification('<a> <b>', '<a>', '<b>', None)\
+                .to_dependency({'a': 'Z', 'b': 'Y'})
+        Dependency('Z', 'Y', None, '<a> <b>')
         '''
-        return Dependency(
-            replace_variables(self.dependency, variables),
-            replace_variables(self.commit_ish, variables),
-            replace_variables(self.clone_url, variables),
-            self.line)
+        dependency = replace_variables(self.dependency, variables)
+        commit_ish = replace_variables(self.commit_ish, variables)
+        # A clone URL is not absolutely necessary: if the dependency is
+        # already cloned, it will not be needed.
+        clone_url = (None
+                     if self.clone_url is None
+                     else replace_variables(self.clone_url, variables))
+        return Dependency(dependency, commit_ish, clone_url, self.line)
 
     T = TypeVar('T')
 

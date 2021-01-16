@@ -116,14 +116,16 @@ class ParseDependencyLinesIteratorTests(unittest.TestCase):
         BLANK_LINE = ' \t \t\t'
         ASSIGNMENT_LINE = '#= <var>=value'
         DEPENDENCY_LINE = 'name tag url'
+        NO_URL_LINE = 'name\ttag\t'
         lines = [dl for dl in parse_dependency_lines_iterator(
             'name',
             [COMMENT_LINE,
              EMPTY_LINE,
              ASSIGNMENT_LINE,
              BLANK_LINE,
-             DEPENDENCY_LINE])]
-        self.assertEqual(len(lines), 5)
+             DEPENDENCY_LINE,
+             NO_URL_LINE])]
+        self.assertEqual(len(lines), 6)
         self.assertIsInstance(lines[0], CommentLine)
         self.assertEqual(lines[0].line.strip(), COMMENT_LINE.strip())
         self.assertIsInstance(lines[1], CommentLine)
@@ -134,6 +136,8 @@ class ParseDependencyLinesIteratorTests(unittest.TestCase):
         self.assertEqual(lines[3].line.strip(), BLANK_LINE.strip())
         self.assertIsInstance(lines[4], DependencySpecification)
         self.assertEqual(lines[4].line.strip(), DEPENDENCY_LINE.strip())
+        self.assertIsInstance(lines[5], DependencySpecification)
+        self.assertEqual(lines[5].line.strip(), NO_URL_LINE.strip())
         for (idx, dep_line) in enumerate(lines):
             self.assertEqual(dep_line.line.line_number, idx + 1)
             self.assertEqual(dep_line.line.file_name, 'name')
