@@ -123,31 +123,35 @@ def prompt_before_fetching(repo, tag):
             if answer == '' or answer.lower() == 'n':
                 break
             elif answer.lower() == 'y':
-                remote.fetch(remote_name, tag)
+                _fetch_a_tag(remote, tag)
                 break # out of while loop
             elif answer.lower() == 'q':
                 return
 
 
 def fetch_and_prompt_before_forcing(repo, tag):
-    remote_name = repo.remotes[0].name
-    try:
-        repo.git.fetch(remote_name, tag)
-    except Exception as e:
-        print(f'Caught {e} while fetching {tag} from {remote_name}')
-        while True:
-            answer = input(
-                'Should I fetch --force from {remote_name} for {tag}? (Y/n) ')
-            if answer.lower() == 'y':
-                repo.git.fetch(remote_name, '--force', tag)
-                return
-            elif answer.lower() == 'n':
-                return
+    for remote in repo.remotes:
+        try:
+            fetch_info = _fetch_a_tag(remote, tag)
+        except git.GitCommandError as e:
+            print(f'Caught {e} while fetching {tag} from {remote.name}')
+            answer = 'x'
+            while answer != '' and answer.lower() not in 'yn':
+                answer = input(
+                    'Should I fetch --force from {remote.name} for {tag}? (y/N) ')
+                if answer.lower() == 'y':
+                    _fetch_a_tag(remote, tag, force=True)
+                    return
+
+
+def _fetch_a_tag(remote, tag, **kwargs):
+    return remote.fetch(
+        refspec=f'refs/tags/{tag}:refs/tags/{tag}', **kwargs)
 
 
 def fetch_with_force(repo, tag):
     for remote in repo.remotes:
-        remote.fetch('--force', tag)
+        _fetch_a_tag(remote, tag, force=True)
 
 
 class CommitIsh:

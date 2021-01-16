@@ -99,7 +99,7 @@ class TestsWithRealRepositories(unittest.TestCase):
         cls.remote = cls.remote_context.__enter__()
         # Set up branches, all pointing to commit 'h1' so that each test can
         # pop off one branch and work from that:
-        for branch_number in range(20):
+        for branch_number in range(25):
             cls.branches.append(f'test_{branch_number:02}')
             cls.remote.create_head(
                 cls.branches[-1], cls.remote.human_id_mapping['h1'])
@@ -361,6 +361,76 @@ class TestsWithRealRepositories(unittest.TestCase):
         self.assertIn('1 remote repository', exception_message)
         self.assertIn('0 repositories have', exception_message)
         self.assertIn(self.local.working_tree_dir, exception_message)
+
+    def test_given_tag_with_different_tag_in_remote_when_calling_fetch_and_prompt_before_forcing_and_answering_yes_then_tag_is_overridden(self):
+        # Given
+        TAG = f'new_tag_for_{self.BRANCH}'
+        self.local.create_tag(TAG, ref=self.local.branches[self.BRANCH])
+        self.remote.create_tag(TAG, ref=self.remote.branches[self.OTHER_BRANCH])
+        assert self.local.tags[TAG].commit != self.remote.tags[TAG].commit
+        # First two answers are invalid and ignored, third answer is valid and
+        # means fetch --force:
+        answers = ['z', 'a', 'y']
+        # When
+        with mock.patch('builtins.input') as mock_input, \
+             mock.patch('sys.stderr', new_callable=io.StringIO) as sys_stderr, \
+             mock.patch('sys.stdout', new_callable=io.StringIO) as sys_stdout:
+            mock_input.side_effect = answers
+            # mock_input.return_value = 'y'
+            fetch_and_prompt_before_forcing(self.local, TAG)
+        # Then
+        self.assertEqual(
+            self.local.tags[TAG].commit, self.remote.tags[TAG].commit)
+        self.assertEqual(sys_stderr.getvalue(), '')
+        self.assertIn(f'while fetching {TAG} from origin', sys_stdout.getvalue())
+        self.assertEqual(mock_input.call_count, len(answers))
+        for call in mock_input.mock_calls:
+            self.assertIn('Should I fetch --force', call.args[0])
+
+    def test_given_tag_with_different_tag_in_remote_when_calling_fetch_and_prompt_before_forcing_and_answering_no_then_tag_is_not_overridden(self):
+        # Given
+        TAG = f'new_tag_for_{self.BRANCH}'
+        self.local.create_tag(TAG, ref=self.local.branches[self.BRANCH])
+        self.remote.create_tag(TAG, ref=self.remote.branches[self.OTHER_BRANCH])
+        assert self.local.tags[TAG].commit != self.remote.tags[TAG].commit
+        # First answer is invalid and ignored, second answer is valid and
+        # means do NOT fetch --force
+        for final_answer in ('', 'n'):
+            answers = ['a', final_answer]
+            with self.subTest(final_answer=final_answer):
+                # When
+                with mock.patch('builtins.input') as mock_input, \
+                     mock.patch('sys.stderr', new_callable=io.StringIO) as sys_stderr, \
+                     mock.patch('sys.stdout', new_callable=io.StringIO) as sys_stdout:
+                    mock_input.side_effect = answers
+                    fetch_and_prompt_before_forcing(self.local, TAG)
+                # Then
+                self.assertNotEqual(
+                    self.local.tags[TAG].commit, self.remote.tags[TAG].commit)
+                self.assertEqual(
+                    self.local.tags[TAG].commit,
+                    self.local.branches[self.BRANCH].commit)
+                self.assertEqual(sys_stderr.getvalue(), '')
+                self.assertIn(f'while fetching {TAG} from origin', sys_stdout.getvalue())
+                self.assertEqual(mock_input.call_count, len(answers))
+                for call in mock_input.mock_calls:
+                    self.assertIn('Should I fetch --force', call.args[0])
+
+    def test_given_tag_with_different_tag_in_remote_when_calling_fetch_with_force_then_tag_is_updated(self):
+        # Given
+        TAG = f'new_tag_for_{self.BRANCH}'
+        self.local.create_tag(TAG, ref=self.local.branches[self.BRANCH])
+        self.remote.create_tag(TAG, ref=self.remote.branches[self.OTHER_BRANCH])
+        assert self.local.tags[TAG].commit != self.remote.tags[TAG].commit
+        # When
+        with mock.patch('sys.stderr', new_callable=io.StringIO) as sys_stderr, \
+             mock.patch('sys.stdout', new_callable=io.StringIO) as sys_stdout:
+            fetch_with_force(self.local, TAG)
+        # Then
+        self.assertEqual(
+            self.local.tags[TAG].commit, self.remote.tags[TAG].commit)
+        self.assertEqual(sys_stderr.getvalue(), '')
+        self.assertEqual(sys_stdout.getvalue(), '')
 
     def test_given_repository_with_tag_when_calling_checkout_then_tag_is_checked_out(self):
         # Given
@@ -693,11 +763,7 @@ class TagTestsWithMockRepository(unittest.TestCase):
             self.makeSut(Tag.DEFAULT_FETCH_VARIANT).count_as_hexsha, 0)
 
     def test_fetch_if_needed(self):
-        for (fetch_option, fetch_arguments) in (
-                ('no', None),
-                ('prompt', None),
-                ('prompt_force', None),
-                ('force', ['--force', self.NAME])):
+        for fetch_option in ('no', 'prompt'):
             with self.subTest(fetch_option=fetch_option), \
                  mock.patch('builtins.input', new_callable=lambda: lambda _:'n'), \
                  mock.patch('sys.stdout', new_callable=io.StringIO):
@@ -708,11 +774,7 @@ class TagTestsWithMockRepository(unittest.TestCase):
                 result = self.makeSut(fetch_option).fetch_if_needed()
                 # Then
                 self.assertIs(result, self.sut)
-                if fetch_arguments is None:
-                    self.mock_remote.fetch.assert_not_called()
-                else:
-                    self.mock_remote.fetch.assert_called_once_with(
-                        *fetch_arguments)
+                self.mock_remote.fetch.assert_not_called()
 
 
 @mock.patch('sys.stdout', new_callable=io.StringIO)
