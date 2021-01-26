@@ -66,7 +66,7 @@ from ownlib.checkout_dependencies_lib import (
     pluralize,
     stashing,
 )
-
+from ownlib.utils import print_header
 
 def clone(main_project: git.Repo, dependency: ownlib.Dependency) -> git.Repo:
     '''Clone a dependency as sibling of the main project
@@ -118,12 +118,6 @@ def do_not_stash(repository):
     # handles local uncommitted changes instead of having two ``if`` to
     # push and pop depending on the args.do_not_stash option.
     yield
-
-
-def print_header(s):
-    '''Print a string with underlines below'''
-    print(s)
-    print('-' * len(s))
 
 
 def main(args):
