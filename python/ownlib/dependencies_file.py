@@ -108,9 +108,15 @@ def parse_dependency_lines_iterator(
 
     :param dependency_lines: lines iterator
 
-    See also :py:func:`parse_line`'''
+    See also :py:func:`parse_line`
+
+    >>> list(parse_dependency_lines_iterator('f', ['a\\n', 'b \\r\\n', ' ']))
+    [DependencySpecification(InputLine('a', 1, 'f'), 'a', None, None),\
+ DependencySpecification(InputLine('b ', 2, 'f'), 'b', None, None),\
+ CommentLine(InputLine(' ', 3, 'f'))]
+    '''
     for (line_number, line) in enumerate(dependency_lines, start=1):
-        yield parse_line(InputLine(line, line_number, name))
+        yield parse_line(InputLine(line.rstrip('\r\n'), line_number, name))
 
 
 def replace_variables(s: str, variables: Dict[str, str]) -> str:
