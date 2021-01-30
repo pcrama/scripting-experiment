@@ -186,14 +186,6 @@ def main(args):
         with stasher(repo):
             ref.update_working_tree()
 
-        target_commit = ref.commit
-        real_commit = repo.head.commit
-        if target_commit == real_commit:
-            print(f'{repo.working_tree_dir} contains {target_commit}.')
-        else:
-            raise RuntimeError(
-                f'On {real_commit.hexsha} instead of {target_commit.hexsha}')
-
         branches += ref.count_as_branch
         tags += ref.count_as_tag
         hexshas += ref.count_as_hexsha

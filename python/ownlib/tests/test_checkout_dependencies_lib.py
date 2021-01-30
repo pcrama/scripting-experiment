@@ -434,11 +434,16 @@ class TestsWithRealRepositories(unittest.TestCase):
 
     def test_given_repository_with_tag_when_calling_checkout_then_tag_is_checked_out(self):
         # Given
-        assert self.local.head.commit != self.local.tags[self.TAG].commit
+        target_commit = self.local.tags[self.TAG].commit
+        assert self.local.head.commit != target_commit
         sut = Tag(self.local, self.TAG, 'no')
         # When
-        result = sut.update_working_tree()
+        with mock.patch('ownlib.checkout_dependencies_lib.assert_commit') \
+             as assert_commit_mock:
+            result = sut.update_working_tree()
         # Then
+        assert_commit_mock.assert_called_once_with(
+            self.local, self.TAG, target_commit, 'Tag')
         self.assertIsNone(result)
         self.assertEqual(self.local.head.commit, self.local.tags[self.TAG].commit)
 
@@ -446,9 +451,11 @@ class TestsWithRealRepositories(unittest.TestCase):
         # Given
         sut_commit = self.local.tags[self.TAG].commit
         local_head_commit = self.local.head.commit
-        assert local_head_commit  != sut_commit
+        assert local_head_commit != sut_commit
         assert self.local.branches[self.OTHER_BRANCH].commit == sut_commit
         for sut in (Tag(self.local, self.TAG, 'no'),
+                    # OTHER_BRANCH & TAG point at same commit (see assertion
+                    # higher up):
                     Branch(self.local, self.OTHER_BRANCH, 'ff-only'),
                     Hexsha(self.local, sut_commit.hexsha[:8])):
             with self.subTest(sut=sut):
@@ -538,14 +545,46 @@ class TestsWithRealRepositories(unittest.TestCase):
 
     def test_given_repository_with_hexsha_when_calling_checkout_then_hexsha_is_checked_out(self):
         # Given
-        assert self.local.head.commit == self.local.branches[self.BRANCH].commit
-        hexsha = self.local.remotes.origin.refs[self.OTHER_BRANCH].commit.hexsha
+        target_commit = self.local.remotes.origin.refs[self.OTHER_BRANCH].commit
+        assert self.local.head.commit != target_commit
+        hexsha = target_commit.hexsha
         sut = Hexsha(self.local, hexsha)
         # When
-        result = sut.update_working_tree()
+        with mock.patch('ownlib.checkout_dependencies_lib.assert_commit') \
+             as assert_commit_mock:
+            result = sut.update_working_tree()
         # Then
+        assert_commit_mock.assert_called_once_with(
+            self.local, hexsha, target_commit, 'Hexsha')
         self.assertIsNone(result)
         self.assertEqual(self.local.head.commit.hexsha, hexsha)
+
+    def test_given_repository_when_calling_assert_commit_then_RuntimeError_is_raised_if_needed(self):
+        REF_TYPE = 'reference_type'
+        head_commit = self.local.head.commit
+        with self.subTest(name='happy case'):
+            # When
+            result = assert_commit(self.local, self.TAG, head_commit, REF_TYPE)
+            # Then
+            self.assertIsNone(result)
+
+        with self.subTest(name='unhappy case'):
+            # Given
+            REF_TYPE = 'reference_type'
+            head_commit = self.local.head.commit
+            target_commit = self.local.tags[self.TAG].commit
+            assert head_commit != target_commit
+            # When
+            with self.assertRaises(RuntimeError) as cm:
+                assert_commit(self.local, self.TAG, target_commit, REF_TYPE)
+            # Then
+            for fragment in (
+                    f'Tried to check out ',
+                    f'{REF_TYPE} {self.TAG} ',
+                    self.local.working_dir,
+                    f'{head_commit.hexsha} instead of {target_commit.hexsha}',
+                    REF_TYPE):
+                self.assertIn(fragment, cm.exception.args[0])
 
 
 class CommitIshTests(unittest.TestCase):

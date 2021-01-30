@@ -258,6 +258,7 @@ class Tag(CommitIsh):
 
     def update_working_tree(self):
         self.repository.git.checkout(self.commit_ish)
+        assert_commit(self.repository, self.commit_ish, self.commit, 'Tag')
 
     DEFAULT_FETCH_VARIANT = 'no'
 
@@ -326,6 +327,7 @@ class Hexsha(CommitIsh):
 
     def update_working_tree(self):
         self.repository.git.checkout(self.commit_ish)
+        assert_commit(self.repository, self.commit_ish, self.commit, 'Hexsha')
 
     def fetch_if_needed(self):
         '''Ensure local view of remote reference corresponds to remote reference
@@ -377,3 +379,22 @@ def get_branch_by_name(repository, name):
                 pass
     # Failure:
     return None
+
+
+def assert_commit(repo, commit_ish, expected_commit, ref_type):
+    '''Raise exception unless repository's working directory has the expected commit checked out
+
+    :param repo: GitPython repository object
+
+    :param commit_ish: reference (a tag name or a hexsha)
+
+    :param expected_commit: GitPython commit object
+
+    :param ref_type: string, e.g. 'Tag' or 'Hexsha' to interpolate in the
+    exception message'''
+    real_commit = repo.head.commit
+    if real_commit != expected_commit:
+        raise RuntimeError(
+            f'Tried to check out {ref_type} {commit_ish} in '
+            f'{repo.working_dir}, got {real_commit.hexsha} '
+            f'instead of {expected_commit.hexsha}.')
