@@ -207,7 +207,7 @@ class Unknown(CommitIsh):
             try:
                 return Hexsha(self.repository,
                               find_by_hexsha_prefix(self.repository,
-                                                     self.commit_ish))
+                                                    self.commit_ish))
             except StopIteration:
                 pass
             raise RuntimeError(f'Commit-ish {self.commit_ish} not found '

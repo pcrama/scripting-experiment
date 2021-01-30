@@ -52,7 +52,7 @@ import contextlib
 import itertools
 import os
 
-import git # type: ignore
+import git  # type: ignore
 
 import ownlib
 from ownlib.checkout_dependencies_lib import (
@@ -68,6 +68,7 @@ from ownlib.checkout_dependencies_lib import (
 )
 from ownlib.utils import print_header
 
+
 def clone(main_project: git.Repo, dependency: ownlib.Dependency) -> git.Repo:
     '''Clone a dependency as sibling of the main project
 
@@ -79,7 +80,7 @@ def clone(main_project: git.Repo, dependency: ownlib.Dependency) -> git.Repo:
 
     :param main_project: git repository object.
 
-    :param dependency: dependency information parsed from the Dependencies.txt file
+    :param dependency: dependency information parsed from Dependencies.txt file
 
     :returns: the dependency git repository object.
     '''
@@ -99,8 +100,9 @@ def clone(main_project: git.Repo, dependency: ownlib.Dependency) -> git.Repo:
                       f'to copy to {dependency.dependency_path}')
                 continue
             except NoSectionError:
-                print(f'No {section} in main repository configuration to look up '
-                      f'{option} value to copy to {dependency.dependency_path}')
+                print(f'No {section} in main repository configuration to '
+                      f'look up {option} value to copy to '
+                      f'{dependency.dependency_path}')
                 continue
             try:
                 repo_config.add_section(section)
@@ -136,7 +138,7 @@ def main(args):
 
     for dependency in dependencies:
         if (cloned + branches + tags + hexshas) > 0:
-            print('') # newline to separate previous dependency from next header
+            print('')          # separate previous dependency from next header
         print_header(dependency.dependency_path)
         # Make sure we have a repository to work on by cloning if needed
         try:
@@ -212,7 +214,8 @@ if __name__ == '__main__':
               f'{DEFAULT_DEPENDENCIES_FILE} by default'))
     parser.add_argument(
         '--no-stash',
-        # Wish I could use action=argparse.BooleanOptionalAction, but that is Python 3.9
+        # Wish I could use action=argparse.BooleanOptionalAction, but that is
+        # Python 3.9
         action='store_true',
         default=False,
         help='omit stashing before checking out and popping afterwards')
