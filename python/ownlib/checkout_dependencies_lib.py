@@ -7,6 +7,7 @@ import itertools
 
 import git # type: ignore
 
+
 def find_by_hexsha_prefix(repo, commit_ish: str) -> str:
     try:
         int(commit_ish, 16)
@@ -38,6 +39,8 @@ def do_not_merge(repo, branch):
                 remotes_ok += 1
     if remotes_checked > 0 and remotes_checked != remotes_ok:
         has_have = 'has' if remotes_ok == 1 else 'have'
+        # Super late import to avoid breaking doctests.
+        from .utils import pluralize
         raise RuntimeError(
             f'Checked {pluralize(remotes_checked, "remote repository")} but '
             f'only {pluralize(remotes_ok, "repository")} {has_have} the same '
@@ -87,28 +90,6 @@ def merge_without_option(repo, branch):
     :param branch: branch name'''
     validate_repo_and_branch_for_merge(repo, branch)
     repo.git.merge(repo.active_branch.tracking_branch().name)
-
-
-def pluralize(n, s):
-    '''Concatenate a number and word turned to plural
-
-    >>> pluralize(0, 'repository')
-    '0 repositories'
-    >>> pluralize(2, 'branch')
-    '2 branches'
-    >>> pluralize(3, 'tag')
-    '3 tags'
-    '''
-    if n == 1:
-        return f'1 {s}'
-    else:
-        if s.endswith('y'):
-            plural = s[:-1] + 'ies'
-        elif s.endswith('ch'):
-            plural = s + 'es'
-        else:
-            plural = s + 's'
-        return f'{n} {plural}'
 
 
 def do_not_fetch(repo, tag):

@@ -63,11 +63,12 @@ from ownlib.checkout_dependencies_lib import (
     Unknown,
     find_by_hexsha_prefix,
     get_branch_by_name,
-    pluralize,
     stashing,
 )
-from ownlib.utils import print_header
-
+from ownlib.utils import (
+    pluralize,
+    print_header,
+)
 
 def clone(main_project: git.Repo, dependency: ownlib.Dependency) -> git.Repo:
     '''Clone a dependency as sibling of the main project
