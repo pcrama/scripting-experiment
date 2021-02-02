@@ -1,3 +1,9 @@
+import os
+from typing import Iterator, List
+
+import git
+
+
 def align_columns(pattern_prefix, pattern, columns):
     '''Align columns with given pattern if possible
 
@@ -63,13 +69,91 @@ def get_target_columns(pattern):
     return result
 
 
-def simple_test():
-    input_text = [
-        'Common            master            git.onespan.com/digipass/Common.git',
-        'C_HsmIntfClasses  version/1.2.3     C_HsmIntfClasses',
-        'SamLogin          version/2.0.3.4'
-        ]
+def freeze_dependencies_list(
+        main_project_dir: str,
+        file_content: Iterator['DependencyFileLine'],
+        allow_branches: bool) -> Iterator[str]:
+    '''Loop through the file_content and return an equivalent file with hexshas
+
+    :param main_project_dir: path name of the main project
+
+    :param file_content: an iterator of DependencyFileLine, see
+    py:func:`dependencies_file.parse_dependency_file`
+    '''
+    # Very late import to avoid issues with running doctests, see e.g.
+    # https://github.com/pytest-dev/pytest/issues/1927 that I am not alone with
+    # the problem.  This function has no doctests so I don't care.
+    from . import dependencies_file
+    from . import filesystem
+    from . import utils
+    dependencies = dependencies_file.build_dependencies_list(file_content)
+    main_project = git.Repo(main_project_dir)
+    siblings = {
+        os.path.basename(os.path.dirname(repo_dir)): git.Repo(repo_dir)
+        for repo_dir in filesystem.find_git_siblings(main_project_dir)}
     PREFIX = '# '
-    for line in input_text:
-        print(f'{PREFIX}{line}')
-        print(align_columns(PREFIX, line, [x if idx != 1 else '0123456789abcdefghijklmn' for (idx, x) in enumerate(line.split())]))
+    cloned = branches = tags = hexshas = 0
+    for file_line in file_content:
+        if not (dependencies
+                and dependencies[0].dependency_file_line is file_line.line):
+            yield file_line.line.line
+            continue
+
+        # If we get here, we have a dependency line: freeze it.
+        dependency = dependencies.pop(0)
+        if (cloned + branches + tags + hexshas) > 0:
+            print('')          # separate previous dependency from next header
+        utils.print_header(dependency.dependency_path)
+        try:
+            repo = siblings[dependency.dependency_path]
+        except KeyError:
+            name = dependency.dependency_path
+            full_path = os.path.join(os.path.dirname(main_project_dir), name)
+            raise RuntimeError(
+                f'{name} not found: clone it into {full_path} first.')
+        if repo.is_dirty() or repo.untracked_files:
+            raise RuntimeError(
+                f'{repo.working_dir} is dirty or contains untracked files')
+        head_commit = repo.head.commit
+        try:
+            as_tag = repo.tags[dependency.commit_ish].commit
+        except IndexError:
+            try:
+                as_branch = repo.branches[dependency.commit_ish].commit
+            except IndexError:
+                as_hexsha = git.repo.fun.name_to_object(
+                    repo, dependency.commit_ish)
+                expected = as_hexsha
+                hexshas += 1
+                reference_type = 'hexsha'
+            else:
+                expected = as_branch
+                branches += 1
+                reference_type = 'branch'
+                if not allow_branches:
+                    raise RuntimeError(
+                        f'{dependency.commit_ish} in {repo.working_dir} '
+                        'is a branch')
+        else:
+            expected = as_tag
+            tags += 1
+            reference_type = 'tag'
+        if head_commit != expected:
+            raise RuntimeError(
+                f'{repo.working_dir} should be at {reference_type} '
+                f'{dependency.commit_ish} ({expected.hexsha}) but '
+                f'found {head_commit.hexsha}')
+        yield f'{PREFIX}{dependency.dependency_file_line.line}'
+        columns = [dependency.dependency_path, expected.hexsha]
+        if dependency.clone_url:
+            columns.append(dependency.clone_url)
+        yield align_columns(PREFIX,
+                            dependency.dependency_file_line.line,
+                            columns)
+        print(f'The {reference_type} {dependency.commit_ish} is {expected.hexsha}.')
+    print('')
+    utils.print_header('Summary')
+    print(f'{utils.pluralize(branches + tags + hexshas, "dependency")}: '
+      f'{utils.pluralize(branches, "branch")}, '
+      f'{utils.pluralize(hexshas, "Hexsha")}',
+      f'and {utils.pluralize(tags, "tag")}')
