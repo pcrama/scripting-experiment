@@ -85,6 +85,11 @@ def clone(main_project: git.Repo, dependency: ownlib.Dependency) -> git.Repo:
 
     :returns: the dependency git repository object.
     '''
+    if dependency.clone_url is None:
+        name = dependency.dependency_path
+        location = dependency.dependency_file_line.location()
+        raise RuntimeError(f'Unable to clone {name} because I could '
+                           f'not get an URL from {location}')
     print(f'clone {dependency.dependency_path} from {dependency.clone_url}')
     cloned_repo = git.Repo.clone_from(
         dependency.clone_url,
