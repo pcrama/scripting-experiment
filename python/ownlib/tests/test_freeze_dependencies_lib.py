@@ -78,7 +78,7 @@ class TestsWithRealRepositories(unittest.TestCase):
             self.assertIn(
                 path.basename(self.repositories[idx].working_dir),
                 sys_stdout.getvalue())
-        for part in ('Summary', '2 dependencies', '2 tags', '0 branches', '0 Hexshas'):
+        for part in ('Summary', '2 dependencies', '2 tags', '0 branches', '0 hexshas'):
             self.assertIn(part, sys_stdout.getvalue())
 
     def test_given_clean_repository_when_calling_freeze_then_frozen_but_hexsha_lines_untouched(self):
@@ -113,7 +113,7 @@ class TestsWithRealRepositories(unittest.TestCase):
             self.assertIn(
                 path.basename(self.repositories[idx].working_dir),
                 sys_stdout.getvalue())
-        for part in ('Summary', '2 dependencies', '0 tags', '0 branches', '2 Hexshas'):
+        for part in ('Summary', '2 dependencies', '0 tags', '0 branches', '2 hexshas'):
             self.assertIn(part, sys_stdout.getvalue())
 
     def run_test_with_dirty_repository_expecting_exception(self):
@@ -210,7 +210,7 @@ class TestsWithRealRepositories(unittest.TestCase):
             self.assertIn(
                 path.basename(self.repositories[idx].working_dir),
                 sys_stdout.getvalue())
-        for part in ('Summary', '2 dependencies', '1 tag', '1 branch', '0 Hexshas'):
+        for part in ('Summary', '2 dependencies', '1 tag', '1 branch', '0 hexshas'):
             self.assertIn(part, sys_stdout.getvalue())
 
     def test_given_dependency_not_up_to_date_when_calling_freeze_then_raises_exception(self):

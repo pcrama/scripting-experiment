@@ -154,5 +154,5 @@ def freeze_dependencies_list(
     utils.print_header('Summary')
     print(f'{utils.pluralize(branches + tags + hexshas, "dependency")}: '
       f'{utils.pluralize(branches, "branch")}, '
-      f'{utils.pluralize(hexshas, "Hexsha")}',
+      f'{utils.pluralize(hexshas, "hexsha")}',
       f'and {utils.pluralize(tags, "tag")}')
