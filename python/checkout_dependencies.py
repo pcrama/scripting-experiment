@@ -34,7 +34,7 @@ Fetching for tags already known locally: --fetch-for-tags
   the fetch fails, the script offers to try again with the --force option.
 - force: fetches the tag with --force unconditionally
 
-Merging for branches already known in locally: --merge-for-branches
+Merging for branches already known locally: --merge-for-branches
 - ff-only [default]: the remote changes will be included in the local branch
   only they are a fast-forward from the local branch.  Otherwise, the script
   stops.

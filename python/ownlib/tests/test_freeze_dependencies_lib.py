@@ -41,14 +41,17 @@ class TestsWithRealRepositories(unittest.TestCase):
             except Exception:
                 pass
 
-    def make_frozen_line(self, idx, get_references):
+    def make_frozen_line(self, idx, get_references, url=None):
         repo = self.repositories[idx]
         # Abuse the fact that the test case instance and the git repository
         # instance both have the same attribute names that matter (tags or
         # branches): if get_references == attrgetter('tags'), this is like
         # hexsha = repo.tags[self.tags[idx]].commit.hexsha
         hexsha = get_references(repo)[get_references(self)[idx]].commit.hexsha
-        return f'{path.basename(repo.working_dir)}   {hexsha}'
+        return (
+            f'{path.basename(repo.working_dir)}   {hexsha}'
+            if url is None
+            else f'{path.basename(repo.working_dir)}   {hexsha} {url}')
 
     def parse(self, dependencies_lines):
         return list(ownlib.parse_dependency_lines_iterator(
@@ -81,7 +84,42 @@ class TestsWithRealRepositories(unittest.TestCase):
         for part in (
                 f'The tag {self.tags[1]} is {self.repositories[1].human_id_mapping["h1"]}',
                 f'The tag {self.tags[2]} is {self.repositories[2].human_id_mapping["h1"]}',
-                'Summary', '2 dependencies', '2 tags', '0 branches', '0 Hexshas'):
+                'Summary', '2 dependencies', '2 tags', '0 branches', '0 hexshas'):
+            self.assertIn(part, sys_stdout.getvalue())
+
+    def test_given_clean_repository_when_calling_freeze_then_frozen_but_hexsha_lines_untouched(self):
+        # Given
+        URL = 'https://example.com/url.git'
+        main_project = self.repositories[0]
+        dependencies_lines = [
+            '# Dependencies.txt',
+            path.basename(self.repositories[1].working_dir)
+            + ' ' + self.repositories[1].tags[self.tags[1]].commit.hexsha[:8]
+            + ' ' + URL,
+            path.basename(self.repositories[2].working_dir)
+            + ' ' + self.repositories[2].tags[self.tags[2]].commit.hexsha
+            + ' ' + URL]
+        dependencies_file = list(ownlib.parse_dependency_lines_iterator(
+            'test_dependencies.txt', dependencies_lines))
+        # When
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as sys_stdout:
+            output = list(freeze_dependencies_list(
+                main_project.working_dir, dependencies_file, False))
+        # Then
+        self.assertEqual(
+            output,
+            ['# Dependencies.txt',
+             # Partial hexsha gets written out fully, preceded by comment
+             # with original line.
+             f'# {dependencies_lines[1]}',
+             # Full hexsha remains untouched, there is nothing to do.
+             self.make_frozen_line(1, attrgetter('tags'), URL),
+             dependencies_lines[2]])
+        for idx in [1, 2]:
+            self.assertIn(
+                path.basename(self.repositories[idx].working_dir),
+                sys_stdout.getvalue())
+        for part in ('Summary', '2 dependencies', '0 tags', '0 branches', '2 hexshas'):
             self.assertIn(part, sys_stdout.getvalue())
 
     def run_test_with_dirty_repository_expecting_exception(self):
@@ -178,7 +216,7 @@ class TestsWithRealRepositories(unittest.TestCase):
         for part in (
                 f'The branch {self.branches[1]} is {self.repositories[1].human_id_mapping["h1"]}',
                 f'The tag {self.tags[2]} is {self.repositories[2].human_id_mapping["h1"]}',
-                'Summary', '2 dependencies', '1 tag', '1 branch', '0 Hexshas'):
+                'Summary', '2 dependencies', '1 tag', '1 branch', '0 hexshas'):
             self.assertIn(part, sys_stdout.getvalue())
 
     def test_given_dependency_not_up_to_date_when_calling_freeze_then_raises_exception(self):

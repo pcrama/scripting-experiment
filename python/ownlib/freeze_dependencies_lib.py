@@ -143,17 +143,23 @@ def freeze_dependencies_list(
                 f'{repo.working_dir} should be at {reference_type} '
                 f'{dependency.commit_ish} ({expected.hexsha}) but '
                 f'found {head_commit.hexsha}')
-        yield f'{PREFIX}{dependency.dependency_file_line.line}'
-        columns = [dependency.dependency_path, expected.hexsha]
-        if dependency.clone_url:
-            columns.append(dependency.clone_url)
-        yield align_columns(PREFIX,
-                            dependency.dependency_file_line.line,
-                            columns)
+        if dependency.commit_ish == expected.hexsha:
+            # No change necessary in dependencies file: reference is already
+            # unambiguous because it contained a full hexsha
+            yield dependency.dependency_file_line.line
+        else:
+            # Rewrite tag name, branch name or partial hexsha as full hexsha:
+            yield f'{PREFIX}{dependency.dependency_file_line.line}'
+            columns = [dependency.dependency_path, expected.hexsha]
+            if dependency.clone_url:
+                columns.append(dependency.clone_url)
+            yield align_columns(PREFIX,
+                                dependency.dependency_file_line.line,
+                                columns)
         print(f'The {reference_type} {dependency.commit_ish} is {expected.hexsha}.')
     print('')
     utils.print_header('Summary')
     print(f'{utils.pluralize(branches + tags + hexshas, "dependency")}: '
       f'{utils.pluralize(branches, "branch")}, '
-      f'{utils.pluralize(hexshas, "Hexsha")}',
+      f'{utils.pluralize(hexshas, "hexsha")}',
       f'and {utils.pluralize(tags, "tag")}')
