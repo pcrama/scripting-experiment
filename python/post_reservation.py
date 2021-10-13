@@ -1,8 +1,9 @@
 import cgi
 import contextlib
-import os
 import glob
 import json
+import os
+import sqlite3
 import sys
 import time
 
@@ -15,6 +16,7 @@ Input:
 - paying_seats
 - free_seats
 - gdpr_accepts_use
+- uuid
 
 Generate bank_id (10 digits, 33 bits):
 - time: 7 bits
@@ -30,10 +32,64 @@ Save:
 - free_seats
 - gdpr_accepts_use
 - bank_id
+- uuid
+- time
 '''
 
-def save_data(name, phone, email, date, paying_seats, free_seats, gdpr_accepts_use,
-              root_dir):
+
+def create_db(root_dir):
+    con = sqlite3.connect(os.path.join(root_dir, 'db.db'))
+    try:
+        con.execute('SELECT COUNT(*) FROM reservations')
+    except Exception as e:
+        print(e)
+        con.execute('''CREATE TABLE reservations
+                       (name TEXT NOT NULL,
+                        phone TEXT,
+                        email TEXT,
+                        date TEXT NOT NULL,
+                        paying_seats INTEGER,
+                        free_seats INTEGER,
+                        gdpr_accepts_use INTEGER,
+                        bank_id TEXT NOT NULL,
+                        uuid TEXT NOT NULL,
+                        time REAL)''')
+        con.execute('''CREATE UNIQUE INDEX index_bank_id ON reservations (bank_id)''')
+    return con
+
+
+def insert_data(connection, data):
+    connection.execute(
+        '''INSERT INTO reservations VALUES (
+                :name, :phone, :email, :date, :paying_seats, :free_seats,
+                :gdpr_accepts_use, :bank_id, :uuid, :time)''',
+        data)
+
+
+def save_data_sqlite3(name, phone, email, date, paying_seats, free_seats, gdpr_accepts_use,
+                      root_dir):
+    connection = create_db(root_dir)
+    @contextlib.contextmanager
+    def get_lock(bank_id):
+        lock = lock_name(bank_id)
+        os.mkdir(lock)
+        try:
+            yield
+        finally:
+            os.rmdir(lock)
+    def count_reservations():
+        return len(glob.glob(os.path.join(root_dir, '*.json')))
+    def write_data(data):
+        with open(lock_name(data['bank_id']) + '.json', 'w') as f:
+            f.write(json.dumps(data))
+    return _save_data(name, phone, email, date, paying_seats, free_seats,
+                      gdpr_accepts_use, uuid.uuid4().hex, get_lock,
+                      count_reservations, write_data, time.time, time.sleep,
+                      os.getpid())
+
+
+def save_data_file_system(name, phone, email, date, paying_seats, free_seats, gdpr_accepts_use,
+                          root_dir):
     def lock_name(bank_id):
         return os.path.join(root_dir, bank_id)
     @contextlib.contextmanager
