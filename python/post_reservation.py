@@ -1,11 +1,14 @@
 import cgi
+import cgitb
 import contextlib
 import glob
+import html
 import json
 import os
 import sqlite3
 import sys
 import time
+import uuid
 
 '''
 Input:
@@ -36,13 +39,43 @@ Save:
 - time
 '''
 
+try:
+    SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+except NameError:
+    SCRIPT_DIR = os.path.realpath(os.getcwd())
+
+
+class Reservation:
+    def __init__(self, name, phone, email, date, paying_seats, free_seats, gdpr_accepts_use, bank_id, uuid_hex, timestamp):
+        self.name = name
+        self.phone = phone
+        self.email = email
+        self.date = date
+        self.paying_seats = paying_seats
+        self.free_seats = free_seats
+        self.gdpr_accepts_use = gdpr_accepts_use
+        self.bank_id = bank_id
+        self.uuid_hex = uuid_hex
+        self.timestamp = timestamp
+
+    def to_dict(self):
+        return {'name': self.name,
+                'phone': self.phone,
+                'email': self.email,
+                'date': self.date,
+                'paying_seats': self.paying_seats,
+                'free_seats': self.free_seats,
+                'gdpr_accepts_use': self.gdpr_accepts_use,
+                'bank_id': append_bank_id_control_number(self.bank_id),
+                'uuid': self.uuid_hex,
+                'time': self.timestamp}
+
 
 def create_db(root_dir):
     con = sqlite3.connect(os.path.join(root_dir, 'db.db'))
     try:
         con.execute('SELECT COUNT(*) FROM reservations')
     except Exception as e:
-        print(e)
         con.execute('''CREATE TABLE reservations
                        (name TEXT NOT NULL,
                         phone TEXT,
@@ -66,26 +99,105 @@ def insert_data(connection, data):
         data)
 
 
-def save_data_sqlite3(name, phone, email, date, paying_seats, free_seats, gdpr_accepts_use,
-                      root_dir):
-    connection = create_db(root_dir)
-    @contextlib.contextmanager
-    def get_lock(bank_id):
-        lock = lock_name(bank_id)
-        os.mkdir(lock)
+def normalize_data(name, phone, email, date, paying_seats, free_seats, gdpr_accepts_use):
+    def safe_strip(x):
+        if x is None:
+            return ''
+        else:
+            return ' '.join(x.split())
+    def safe_non_negative_int_less_or_equal_than_50(x):
         try:
-            yield
-        finally:
-            os.rmdir(lock)
+            x = int(x)
+            return max(0, min(x, 50))
+        except Exception:
+            return 0
+    name = safe_strip(name)
+    phone = ''.join(d for d in safe_strip(phone) if d.isdigit())
+    email = safe_strip(email)
+    date = safe_strip(date)
+    paying_seats = safe_non_negative_int_less_or_equal_than_50(paying_seats)
+    free_seats = safe_non_negative_int_less_or_equal_than_50(free_seats)
+    try:
+        gdpr_accepts_use = gdpr_accepts_use.lower() in ['yes', 'oui', '1', 'true', 'vrai']
+    except Exception:
+        gdpr_accepts_use = gdpr_accepts_use and gdpr_accepts_use not in [0, False]
+    return (name, phone, email, date, paying_seats, free_seats, gdpr_accepts_use)
+
+
+class ValidationException(Exception):
+    pass
+
+
+def is_test_reservation(name, email):
+    return name.lower().startswith('test') and email.lower().endswith('@example.com')
+
+
+def validate_data(name, phone, email, date, paying_seats, free_seats, gdpr_accepts_use, connection):
+    (name, phone, email, date, paying_seats, free_seats, gdpr_accepts_use) = normalize_data(
+        name, phone, email, date, paying_seats, free_seats, gdpr_accepts_use)
+    if not(name and (phone or email)):
+        raise ValidationException('No contact information')
+    try:
+        at_sign = email.index('@', 1) # email address must contain '@' but may not start with it
+        host_dot = email.index('.', at_sign + 1)
+    except ValueError:
+        email_is_bad = email != ''
+    else:
+        email_is_bad = False
+    if email_is_bad:
+        raise ValidationException('Invalid email address')
+    if paying_seats + free_seats < 1:
+        raise ValidationException('No seats reserved')
+    if date not in (('2099-01-01', '2099-01-02')
+                    if is_test_reservation(name, email)
+                    else ('2021-12-04', '2021-12-05')):
+        raise ValidationException('No representation')
+    reservations_count, reserved_seats  = connection.execute(
+        'SELECT COUNT(*), SUM(paying_seats + free_seats) FROM reservations WHERE LOWER(name) = :name OR LOWER(email) = :email',
+        {'name': name.lower(), 'email': email.lower()}
+    ).fetchone()
+    if (reservations_count or 0) > 10:
+        raise ValidationException('Too many distinct reservations')
+    if (reserved_seats or 0) + paying_seats + free_seats > 60:
+        raise ValidationException('Too many seats reserved')
+    return (name, phone, email, date, paying_seats, free_seats, gdpr_accepts_use)
+
+
+def save_data_sqlite3(name, phone, email, date, paying_seats, free_seats, gdpr_accepts_use,
+                      connection_or_root_dir):
+    if hasattr(connection_or_root_dir, 'execute'):
+        connection = connection_or_root_dir
+    else:
+        connection = create_db(connection_or_root_dir)
+    process_id = os.getpid()
+    uuid_hex = uuid.uuid4().hex
     def count_reservations():
-        return len(glob.glob(os.path.join(root_dir, '*.json')))
-    def write_data(data):
-        with open(lock_name(data['bank_id']) + '.json', 'w') as f:
-            f.write(json.dumps(data))
-    return _save_data(name, phone, email, date, paying_seats, free_seats,
-                      gdpr_accepts_use, uuid.uuid4().hex, get_lock,
-                      count_reservations, write_data, time.time, time.sleep,
-                      os.getpid())
+        return connection.execute('SELECT COUNT(*) FROM reservations').fetchone()[0]
+    retries = 3
+    while retries > 0:
+        retries -= 1
+        timestamp = time.time()
+        bank_id = generate_bank_id(timestamp, count_reservations(), process_id)
+        try:
+            new_row = {'name': name,
+                       'phone': phone,
+                       'email': email,
+                       'date': date,
+                       'paying_seats': paying_seats,
+                       'free_seats': free_seats,
+                       'gdpr_accepts_use': gdpr_accepts_use,
+                       'bank_id': append_bank_id_control_number(bank_id),
+                       'uuid': uuid_hex,
+                       'time': timestamp}
+            with connection:
+                insert_data(connection, new_row)
+            return new_row
+        except Exception:
+            if retries > 0:
+                time.sleep(0.011)
+                pass
+            else:
+                raise
 
 
 def save_data_file_system(name, phone, email, date, paying_seats, free_seats, gdpr_accepts_use,
@@ -247,3 +359,138 @@ def append_bank_id_control_number(s):
     if n == 0:
         n = 97
     return f'{s}{n:02}'
+
+
+def html_gen(data):
+    def is_tuple(x):
+        return type(x) is tuple
+    if is_tuple(data):
+        tag_name = None
+        single_elt = len(data) == 1
+        for elt in data:
+            if tag_name is None:
+                tag = elt
+                if is_tuple(tag):
+                    tag_name = str(elt[0])
+                    attr_values = []
+                    for idx in range(1, 2, len(tag)):
+                        attr_values.append((tag[idx], html.escape(tag[idx + 1], quote=True)))
+                    yield '<' + tag_name + ' ' + ' '.join(f'{x}="{y}"' for (x, y) in attr_values)
+                else:
+                    tag_name = str(tag)
+                    yield f'<{tag_name}'
+                yield ('/>' if single_elt else '>')
+            else:
+                for x in html_gen(elt):
+                    yield x
+        if not single_elt:
+            yield f'</{tag_name}>'
+    else:
+        yield html.escape(str(data), quote=False)
+
+
+def html_document(title, body):
+    return html_gen(('html', ('head', ('title', title)), ('body', ) + body))
+
+
+def respond_html(data):
+    print('Content-Type: text/html')    # HTML is following
+    print()
+    for x in data:
+        print(x, end='')
+
+
+def respond_with_validation_error(form, e):
+    respond_html(html_document(
+        'Données invalides dans le formulaire',
+        (('p', "Votre formulaire contient l'erreur suivante:"),
+         ('p', ('code', str(e))),
+         ('p', "Voici les données reçues"),
+         ('ul',) + tuple(('li', ('code', k), ': ', repr(form[k]))
+                         for k in form.keys()))))
+
+
+def compute_price(paying_seats, date):
+    return paying_seats * CONFIGURATION['paying_seat_price']
+
+
+def respond_with_reservation_failed():
+    respond_html(html_document(
+        'Erreur interne au serveur',
+        (('p',
+         "Malheureusement une erreur s'est produite et votre réservation n'a pas été enregistrée.  "
+          "Merci de bien vouloir ré-essayer plus tard."),)))
+
+
+
+def respond_with_reservation_confirmation(
+        name, phone, email, date, paying_seats, free_seats, gdpr_accepts_use, connection):
+    try:
+        new_row = save_data_sqlite3(
+            name, phone, email, date, paying_seats, free_seats, gdpr_accepts_use, connection)
+    except Exception:
+        cgitb.handler()
+        respond_with_reservation_failed()
+    price = compute_price(paying_seats, date)
+    places = (' pour ',)
+    if paying_seats > 0:
+        places += (str(paying_seats),
+                   ' place payante ' if paying_seats == 1 else ' places payantes ')
+    if free_seats > 0:
+        if paying_seats > 0:
+            places += ('et ',)
+        places += (str(free_seats),
+                   ' place gratuite ' if free_seats == 1 else ' places gratuites ')
+    if paying_seats > 0:
+        places += ('au prix de ', str(price), '€')
+    places += (' a été enregistrée.',)
+    virement = '' \
+        if paying_seats < 1 else (
+                'p', 'Veuillez effectuer un virement pour ', str(price),
+                '€ au compte BExx XXXX YYYY ZZZZ en mentionnant la communication '
+                'structurée ', ('code', new_row['bank_id']))
+    respond_html(html_document(
+        'Réservation effectuée',
+        (('p', 'Votre réservation au nom de ', name) + places,
+         virement,
+         ('p', 'Un tout grand merci pour votre présence le ', date, ': le soutien '
+          'de nos auditeurs nous est indispensable!'))))
+
+
+if __name__ == '__main__':
+    # CGI script configuration
+    CONFIGURATION_DEFAULTS = {
+        'logdir': os.getenv('TEMP', SCRIPT_DIR),
+        'dbdir': os.getenv('TEMP', SCRIPT_DIR),
+        'cgitb_display': 1,
+        'paying_seat_price': 5,
+    }
+    try:
+        with open(os.path.join(SCRIPT_DIR, 'configuration.json')) as f:
+            CONFIGURATION = json.load(f)
+    except Exception:
+        CONFIGURATION = dict()
+    for k, v in CONFIGURATION_DEFAULTS.items():
+        CONFIGURATION.setdefault(k, v)
+
+    cgitb.enable(display=CONFIGURATION['cgitb_display'], logdir=CONFIGURATION['logdir'])
+    db_connection = create_dp(CONFIGURATION['dbdir'])
+
+    # Get form data
+    form = cgi.FieldStorage()
+    name = form.getfirst('name', default='')
+    phone = form.getfirst('phone', default='')
+    email = form.getfirst('email', default='')
+    date = form.getfirst('date', default='')
+    paying_seats = form.getfirst('paying_seats', default=0)
+    free_seats = form.getfirst('free_seats', default=0)
+    gdpr_accepts_use = form.getfirst('gdpr_accepts_use', default=False)
+
+    try:
+        (name, phone, email, date, paying_seats, free_seats, gdpr_accepts_use) = validate_data(
+            name, phone, email, date, paying_seats, free_seats, gdpr_accepts_use, db_connection)
+    except ValidationError as e:
+        respond_with_validation_error(form, e)
+    else:
+        respond_with_reservation_confirmation(
+            name, phone, email, date, paying_seats, free_seats, gdpr_accepts_use)
