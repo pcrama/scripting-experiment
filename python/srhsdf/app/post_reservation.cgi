@@ -1,3 +1,5 @@
+#!/usr/pkg/bin/python3
+# -*- coding: utf-8 -*-
 import cgi
 import cgitb
 import contextlib
@@ -390,11 +392,25 @@ def html_gen(data):
 
 
 def html_document(title, body):
-    return html_gen(('html', ('head', ('title', title)), ('body', ) + body))
+    yield '<!DOCTYPE HTML>'
+    for x in html_gen((('html', 'lang', 'fr'),
+                       ('head',
+                        ('title', title),
+                        (('meta', 'charset', 'utf-8'),)),
+                       ('body', )
+                       + body
+                       + (('hr', ),
+                          ('p',
+                           'Retour au ',
+                           (('a', 'href', 'https://www.srhbraine.be/'),
+                            "site de la Société Royale d'Harmonie de Braine-l'Alleud"),
+                           '.')))):
+        yield x
 
 
 def respond_html(data):
-    print('Content-Type: text/html')    # HTML is following
+    print('Content-Type: text/html; charset=utf-8')
+    print('Content-Language: en, fr')
     print()
     for x in data:
         print(x, end='')
@@ -404,10 +420,12 @@ def respond_with_validation_error(form, e):
     respond_html(html_document(
         'Données invalides dans le formulaire',
         (('p', "Votre formulaire contient l'erreur suivante:"),
-         ('p', ('code', str(e))),
-         ('p', "Voici les données reçues"),
-         ('ul',) + tuple(('li', ('code', k), ': ', repr(form[k]))
-                         for k in form.keys()))))
+         ('p', (('code', 'lang', 'en'), str(e))))
+        + ((('p', 'Formulaire vide.'),)
+           if len(form) < 1 else
+           (('p', "Voici les données reçues"),
+            ('ul',) + tuple(('li', ('code', k), ': ', repr(form[k]))
+                         for k in form.keys())))))
 
 
 def compute_price(paying_seats, date):
@@ -418,7 +436,7 @@ def respond_with_reservation_failed():
     respond_html(html_document(
         'Erreur interne au serveur',
         (('p',
-         "Malheureusement une erreur s'est produite et votre réservation n'a pas été enregistrée.  "
+          "Malheureusement une erreur s'est produite et votre réservation n'a pas été enregistrée.  "
           "Merci de bien vouloir ré-essayer plus tard."),)))
 
 
@@ -448,7 +466,7 @@ def respond_with_reservation_confirmation(
         if paying_seats < 1 else (
                 'p', 'Veuillez effectuer un virement pour ', str(price),
                 '€ au compte BExx XXXX YYYY ZZZZ en mentionnant la communication '
-                'structurée ', ('code', new_row['bank_id']))
+                'structurée ', ('code', new_row['bank_id']), '.')
     respond_html(html_document(
         'Réservation effectuée',
         (('p', 'Votre réservation au nom de ', name) + places,
@@ -474,23 +492,31 @@ if __name__ == '__main__':
         CONFIGURATION.setdefault(k, v)
 
     cgitb.enable(display=CONFIGURATION['cgitb_display'], logdir=CONFIGURATION['logdir'])
-    db_connection = create_dp(CONFIGURATION['dbdir'])
 
-    # Get form data
-    form = cgi.FieldStorage()
-    name = form.getfirst('name', default='')
-    phone = form.getfirst('phone', default='')
-    email = form.getfirst('email', default='')
-    date = form.getfirst('date', default='')
-    paying_seats = form.getfirst('paying_seats', default=0)
-    free_seats = form.getfirst('free_seats', default=0)
-    gdpr_accepts_use = form.getfirst('gdpr_accepts_use', default=False)
+    try:
+        db_connection = create_db(CONFIGURATION['dbdir'])
+
+        # Get form data
+        form = cgi.FieldStorage()
+        name = form.getfirst('name', default='')
+        phone = form.getfirst('phone', default='')
+        email = form.getfirst('email', default='')
+        date = form.getfirst('date', default='')
+        paying_seats = form.getfirst('paying_seats', default=0)
+        free_seats = form.getfirst('free_seats', default=0)
+        gdpr_accepts_use = form.getfirst('gdpr_accepts_use', default=False)
+    except Exception:
+        # cgitb needs the content-type header
+        print('Content-Type: text/html; charset=utf-8')
+        print('Content-Language: en')
+        print()
+        raise
 
     try:
         (name, phone, email, date, paying_seats, free_seats, gdpr_accepts_use) = validate_data(
             name, phone, email, date, paying_seats, free_seats, gdpr_accepts_use, db_connection)
-    except ValidationError as e:
+    except ValidationException as e:
         respond_with_validation_error(form, e)
     else:
         respond_with_reservation_confirmation(
-            name, phone, email, date, paying_seats, free_seats, gdpr_accepts_use)
+            name, phone, email, date, paying_seats, free_seats, gdpr_accepts_use, db_connection)

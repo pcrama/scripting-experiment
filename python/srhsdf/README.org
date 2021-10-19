@@ -1,0 +1,19 @@
+#+TITLE: Simple web application to manage reservation for gala concert
+
+* Introduction
+
+This is a simplistic set of CGI scripts adapted for my web host.
+
+* Deployment
+
+Use the ~deploy.sh~ script like this:
+#+begin_src shell :exports code
+  ./deploy.sh 'user@host' 'username' 'groupname' 'destination_folder'
+#+end_src
+
+- ~user@host~ :: anything that `ssh` accepts.
+- ~username~ and ~groupname~ :: CGI scripts are only executed if they belong
+  to a specific user/group that does not correspond to the user/group of the
+  system where development happens.  These parameters set the user/group in
+  the destination.
+- ~destination_folder~ :: where to deploy.
