@@ -9,7 +9,6 @@ def create_db(root_dir):
     except Exception as e:
         con.execute('''CREATE TABLE reservations
                        (name TEXT NOT NULL,
-                        phone TEXT,
                         email TEXT,
                         date TEXT NOT NULL,
                         paying_seats INTEGER,
@@ -29,9 +28,8 @@ def ensure_connection(connection_or_root_dir):
 
 
 class Reservation:
-    def __init__(self, name, phone, email, date, paying_seats, free_seats, gdpr_accepts_use, bank_id, uuid_hex, timestamp):
+    def __init__(self, name, email, date, paying_seats, free_seats, gdpr_accepts_use, bank_id, uuid_hex, timestamp):
         self.name = name
-        self.phone = phone
         self.email = email
         self.date = date
         self.paying_seats = paying_seats
@@ -43,7 +41,6 @@ class Reservation:
 
     def to_dict(self):
         return {'name': self.name,
-                'phone': self.phone,
                 'email': self.email,
                 'date': self.date,
                 'paying_seats': self.paying_seats,
@@ -57,6 +54,6 @@ class Reservation:
     def insert_data(self, connection):
         connection.execute(
             '''INSERT INTO reservations VALUES (
-                :name, :phone, :email, :date, :paying_seats, :free_seats,
+                :name, :email, :date, :paying_seats, :free_seats,
                 :gdpr_accepts_use, :bank_id, :uuid, :time)''',
             self.to_dict())

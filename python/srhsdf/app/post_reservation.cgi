@@ -24,7 +24,6 @@ from storage import(
 '''
 Input:
 - name
-- phone
 - email
 - date
 - paying_seats
@@ -39,7 +38,6 @@ Generate bank_id (10 digits, 33 bits):
 
 Save:
 - name
-- phone
 - email
 - date
 - paying_seats
@@ -56,7 +54,7 @@ except NameError:
     SCRIPT_DIR = os.path.realpath(os.getcwd())
 
 
-def normalize_data(name, phone, email, date, paying_seats, free_seats, gdpr_accepts_use):
+def normalize_data(name, email, date, paying_seats, free_seats, gdpr_accepts_use):
     def safe_strip(x):
         if x is None:
             return ''
@@ -69,7 +67,6 @@ def normalize_data(name, phone, email, date, paying_seats, free_seats, gdpr_acce
         except Exception:
             return 0
     name = safe_strip(name)
-    phone = ''.join(d for d in safe_strip(phone) if d.isdigit())
     email = safe_strip(email)
     date = safe_strip(date)
     paying_seats = safe_non_negative_int_less_or_equal_than_50(paying_seats)
@@ -78,7 +75,7 @@ def normalize_data(name, phone, email, date, paying_seats, free_seats, gdpr_acce
         gdpr_accepts_use = gdpr_accepts_use.lower() in ['yes', 'oui', '1', 'true', 'vrai']
     except Exception:
         gdpr_accepts_use = gdpr_accepts_use and gdpr_accepts_use not in [0, False]
-    return (name, phone, email, date, paying_seats, free_seats, gdpr_accepts_use)
+    return (name, email, date, paying_seats, free_seats, gdpr_accepts_use)
 
 
 class ValidationException(Exception):
@@ -89,10 +86,10 @@ def is_test_reservation(name, email):
     return name.lower().startswith('test') and email.lower().endswith('@example.com')
 
 
-def validate_data(name, phone, email, date, paying_seats, free_seats, gdpr_accepts_use, connection):
-    (name, phone, email, date, paying_seats, free_seats, gdpr_accepts_use) = normalize_data(
-        name, phone, email, date, paying_seats, free_seats, gdpr_accepts_use)
-    if not(name and (phone or email)):
+def validate_data(name, email, date, paying_seats, free_seats, gdpr_accepts_use, connection):
+    (name, email, date, paying_seats, free_seats, gdpr_accepts_use) = normalize_data(
+        name, email, date, paying_seats, free_seats, gdpr_accepts_use)
+    if not(name and email):
         raise ValidationException('No contact information')
     try:
         at_sign = email.index('@', 1) # email address must contain '@' but may not start with it
@@ -117,10 +114,10 @@ def validate_data(name, phone, email, date, paying_seats, free_seats, gdpr_accep
         raise ValidationException('Too many distinct reservations')
     if (reserved_seats or 0) + paying_seats + free_seats > 60:
         raise ValidationException('Too many seats reserved')
-    return (name, phone, email, date, paying_seats, free_seats, gdpr_accepts_use)
+    return (name, email, date, paying_seats, free_seats, gdpr_accepts_use)
 
 
-def save_data_sqlite3(name, phone, email, date, paying_seats, free_seats, gdpr_accepts_use,
+def save_data_sqlite3(name, email, date, paying_seats, free_seats, gdpr_accepts_use,
                       connection_or_root_dir):
     connection = ensure_connection(connection_or_root_dir)
     process_id = os.getpid()
@@ -134,7 +131,6 @@ def save_data_sqlite3(name, phone, email, date, paying_seats, free_seats, gdpr_a
         bank_id = generate_bank_id(timestamp, count_reservations(), process_id)
         try:
             new_row = Reservation(name=name,
-                                  phone=phone,
                                   email=email,
                                   date=date,
                                   paying_seats=paying_seats,
@@ -215,10 +211,10 @@ def respond_with_reservation_failed():
 
 
 def respond_with_reservation_confirmation(
-        name, phone, email, date, paying_seats, free_seats, gdpr_accepts_use, connection):
+        name, email, date, paying_seats, free_seats, gdpr_accepts_use, connection):
     try:
         new_row = save_data_sqlite3(
-            name, phone, email, date, paying_seats, free_seats, gdpr_accepts_use, connection)
+            name, email, date, paying_seats, free_seats, gdpr_accepts_use, connection)
     except Exception:
         respond_with_reservation_failed()
         cgitb.handler()
@@ -274,7 +270,6 @@ if __name__ == '__main__':
         # Get form data
         form = cgi.FieldStorage()
         name = form.getfirst('name', default='')
-        phone = form.getfirst('phone', default='')
         email = form.getfirst('email', default='')
         date = form.getfirst('date', default='')
         paying_seats = form.getfirst('paying_seats', default=0)
@@ -288,10 +283,10 @@ if __name__ == '__main__':
         raise
 
     try:
-        (name, phone, email, date, paying_seats, free_seats, gdpr_accepts_use) = validate_data(
-            name, phone, email, date, paying_seats, free_seats, gdpr_accepts_use, db_connection)
+        (name, email, date, paying_seats, free_seats, gdpr_accepts_use) = validate_data(
+            name, email, date, paying_seats, free_seats, gdpr_accepts_use, db_connection)
     except ValidationException as e:
         respond_with_validation_error(form, e)
     else:
         respond_with_reservation_confirmation(
-            name, phone, email, date, paying_seats, free_seats, gdpr_accepts_use, db_connection)
+            name, email, date, paying_seats, free_seats, gdpr_accepts_use, db_connection)
