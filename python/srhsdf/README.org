@@ -17,3 +17,16 @@ Use the ~deploy.sh~ script like this:
   system where development happens.  These parameters set the user/group in
   the destination.
 - ~destination_folder~ :: where to deploy.
+
+* Test mode
+There are 4 dates for the concert: 2 fake dates in 2099 and the 2 real dates
+in 2021.
+
+The trick to be able to book dates for the fake dates is that the name must
+start with ~Test~ and that the email address must end with ~@example.com~.
+
+* Limitations
+- No maximum number of seats per concert enforced.
+- Minimal validation on name and email: we count on the fact that few people
+  will find the form and that we will weed out fake registrations by seeing
+  who pays.
