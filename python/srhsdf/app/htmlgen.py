@@ -3,8 +3,20 @@
 import html
 import sys
 
+
+_html_gen_printed_header = False
+
+def print_content_type(content_type):
+    global _html_gen_printed_header
+    if _html_gen_printed_header:
+        return False
+    print(f'Content-Type: {content_type}')
+    _html_gen_printed_header = True
+    return True
+
+
 def cents_to_euro(cents):
-        return f'{cents // 100}.{cents % 100:02}'
+    return f'{cents // 100}.{cents % 100:02}'
 
 
 def html_gen(data):
@@ -53,9 +65,9 @@ def html_document(title, body):
 
 
 def respond_html(data):
-    print('Content-Type: text/html; charset=utf-8')
-    print('Content-Language: en, fr')
-    print()
+    if print_content_type('text/html; charset=utf-8'):
+        print('Content-Language: en, fr')
+        print()
     for x in data:
         print(x, end='')
 

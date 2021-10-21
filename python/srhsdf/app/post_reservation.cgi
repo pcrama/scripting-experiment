@@ -12,6 +12,7 @@ import config
 from htmlgen import (
     cents_to_euro,
     html_document,
+    print_content_type,
     redirect,
     respond_html,
 )
@@ -258,24 +259,24 @@ if __name__ == '__main__':
         paying_seats = form.getfirst('paying_seats', default=0)
         free_seats = form.getfirst('free_seats', default=0)
         gdpr_accepts_use = form.getfirst('gdpr_accepts_use', default=False)
+
+        try:
+            (name, email, date, paying_seats, free_seats, gdpr_accepts_use) = validate_data(
+                name, email, date, paying_seats, free_seats, gdpr_accepts_use, db_connection)
+        except ValidationException as e:
+            respond_with_validation_error(form, e)
+        else:
+            respond_with_reservation_confirmation(
+                name,
+                email,
+                date,
+                paying_seats,
+                free_seats,
+                gdpr_accepts_use,
+                db_connection)
     except Exception:
         # cgitb needs the content-type header
-        print('Content-Type: text/html; charset=utf-8')
-        print('Content-Language: en')
-        print()
+        if print_content_type('text/html; charset=utf-8'):
+            print('Content-Language: en')
+            print()
         raise
-
-    try:
-        (name, email, date, paying_seats, free_seats, gdpr_accepts_use) = validate_data(
-            name, email, date, paying_seats, free_seats, gdpr_accepts_use, db_connection)
-    except ValidationException as e:
-        respond_with_validation_error(form, e)
-    else:
-        respond_with_reservation_confirmation(
-            name,
-            email,
-            date,
-            paying_seats,
-            free_seats,
-            gdpr_accepts_use,
-            db_connection)
