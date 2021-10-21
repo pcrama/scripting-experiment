@@ -14,6 +14,7 @@ def create_db(root_dir):
                         paying_seats INTEGER,
                         free_seats INTEGER,
                         gdpr_accepts_use INTEGER,
+                        cents_due INTEGER,
                         bank_id TEXT NOT NULL,
                         uuid TEXT NOT NULL,
                         time REAL)''')
@@ -28,16 +29,18 @@ def ensure_connection(connection_or_root_dir):
 
 
 class Reservation:
-    def __init__(self, name, email, date, paying_seats, free_seats, gdpr_accepts_use, bank_id, uuid_hex, timestamp):
+    def __init__(self, name, email, date, paying_seats, free_seats, gdpr_accepts_use, cents_due, bank_id, uuid_hex, timestamp):
         self.name = name
         self.email = email
         self.date = date
         self.paying_seats = paying_seats
         self.free_seats = free_seats
         self.gdpr_accepts_use = gdpr_accepts_use
+        self.cents_due = cents_due
         self.bank_id = bank_id
         self.uuid_hex = uuid_hex
         self.timestamp = timestamp
+
 
     def to_dict(self):
         return {'name': self.name,
@@ -46,6 +49,7 @@ class Reservation:
                 'paying_seats': self.paying_seats,
                 'free_seats': self.free_seats,
                 'gdpr_accepts_use': self.gdpr_accepts_use,
+                'cents_due': self.cents_due,
                 'bank_id': self.bank_id,
                 'uuid': self.uuid_hex,
                 'time': self.timestamp}
@@ -55,5 +59,5 @@ class Reservation:
         connection.execute(
             '''INSERT INTO reservations VALUES (
                 :name, :email, :date, :paying_seats, :free_seats,
-                :gdpr_accepts_use, :bank_id, :uuid, :time)''',
+                :gdpr_accepts_use, :cents_due, :bank_id, :uuid, :time)''',
             self.to_dict())

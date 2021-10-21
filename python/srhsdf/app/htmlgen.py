@@ -3,6 +3,10 @@
 import html
 import sys
 
+def cents_to_euro(cents):
+        return f'{cents // 100}.{cents % 100:02}'
+
+
 def html_gen(data):
     def is_tuple(x):
         return type(x) is tuple

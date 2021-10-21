@@ -11,6 +11,7 @@ import time
 import uuid
 
 from htmlgen import (
+    cents_to_euro,
     html_document,
     redirect,
     respond_html,
@@ -118,7 +119,7 @@ def validate_data(name, email, date, paying_seats, free_seats, gdpr_accepts_use,
 
 
 def save_data_sqlite3(name, email, date, paying_seats, free_seats, gdpr_accepts_use,
-                      connection_or_root_dir):
+                      cents_due, connection_or_root_dir):
     connection = ensure_connection(connection_or_root_dir)
     process_id = os.getpid()
     uuid_hex = uuid.uuid4().hex
@@ -136,6 +137,7 @@ def save_data_sqlite3(name, email, date, paying_seats, free_seats, gdpr_accepts_
                                   paying_seats=paying_seats,
                                   free_seats=free_seats,
                                   gdpr_accepts_use=gdpr_accepts_use,
+                                  cents_due=cents_due,
                                   bank_id=append_bank_id_control_number(bank_id),
                                   uuid_hex=uuid_hex,
                                   timestamp=timestamp)
@@ -198,7 +200,7 @@ def respond_with_validation_error(form, e):
 
 
 def compute_price(paying_seats, date):
-    return paying_seats * CONFIGURATION['paying_seat_price']
+    return paying_seats * CONFIGURATION['paying_seat_cents']
 
 
 def respond_with_reservation_failed():
@@ -212,13 +214,13 @@ def respond_with_reservation_failed():
 
 def respond_with_reservation_confirmation(
         name, email, date, paying_seats, free_seats, gdpr_accepts_use, connection):
+    cents_due = compute_price(paying_seats, date)
     try:
         new_row = save_data_sqlite3(
-            name, email, date, paying_seats, free_seats, gdpr_accepts_use, connection)
+            name, email, date, paying_seats, free_seats, gdpr_accepts_use, cents_due, connection)
     except Exception:
         respond_with_reservation_failed()
         cgitb.handler()
-    price = compute_price(paying_seats, date)
     places = (' pour ',)
     if paying_seats > 0:
         places += (str(paying_seats),
@@ -229,11 +231,12 @@ def respond_with_reservation_confirmation(
         places += (str(free_seats),
                    ' place gratuite ' if free_seats == 1 else ' places gratuites ')
     if paying_seats > 0:
-        places += ('au prix de ', str(price), '€')
+        places += ('au prix de ', cents_to_euro(cents_due), '€')
     places += (' a été enregistrée.',)
     virement = '' \
         if paying_seats < 1 else (
-                'p', 'Veuillez effectuer un virement pour ', str(price),
+                'p', 'Veuillez effectuer un virement pour ',
+                cents_to_euro(cents_due),
                 '€ au compte BExx XXXX YYYY ZZZZ en mentionnant la communication '
                 'structurée ', ('code', new_row.bank_id), '.')
     respond_html(html_document(
@@ -243,7 +246,6 @@ def respond_with_reservation_confirmation(
          ('p', 'Un tout grand merci pour votre présence le ', date, ': le soutien '
           'de nos auditeurs nous est indispensable!'))))
 
-
 if __name__ == '__main__':
     if os.getenv('REQUEST_METHOD') != 'POST':
         redirect('https://www.srhbraine.be/concert-de-gala-2021/')
@@ -252,7 +254,7 @@ if __name__ == '__main__':
         'logdir': os.getenv('TEMP', SCRIPT_DIR),
         'dbdir': os.getenv('TEMP', SCRIPT_DIR),
         'cgitb_display': 1,
-        'paying_seat_price': 5,
+        'paying_seat_cents': 500,
     }
     try:
         with open(os.path.join(SCRIPT_DIR, 'configuration.json')) as f:
@@ -289,4 +291,10 @@ if __name__ == '__main__':
         respond_with_validation_error(form, e)
     else:
         respond_with_reservation_confirmation(
-            name, email, date, paying_seats, free_seats, gdpr_accepts_use, db_connection)
+            name,
+            email,
+            date,
+            paying_seats,
+            free_seats,
+            gdpr_accepts_use,
+            db_connection)
