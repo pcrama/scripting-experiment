@@ -2,7 +2,8 @@
 import os
 import sqlite3
 
-def create_db(root_dir):
+def create_db(configuration):
+    root_dir = configuration['dbdir']
     con = sqlite3.connect(os.path.join(root_dir, 'db.db'))
     try:
         con.execute('SELECT COUNT(*) FROM reservations')

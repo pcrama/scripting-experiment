@@ -2,14 +2,13 @@
 # -*- coding: utf-8 -*-
 import cgi
 import cgitb
-import contextlib
-import glob
 import json
 import os
 import sys
 import time
 import uuid
 
+import config
 from htmlgen import (
     cents_to_euro,
     html_document,
@@ -48,11 +47,6 @@ Save:
 - uuid
 - time
 '''
-
-try:
-    SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
-except NameError:
-    SCRIPT_DIR = os.path.realpath(os.getcwd())
 
 
 def normalize_data(name, email, date, paying_seats, free_seats, gdpr_accepts_use):
@@ -249,25 +243,12 @@ def respond_with_reservation_confirmation(
 if __name__ == '__main__':
     if os.getenv('REQUEST_METHOD') != 'POST':
         redirect('https://www.srhbraine.be/concert-de-gala-2021/')
-    # CGI script configuration
-    CONFIGURATION_DEFAULTS = {
-        'logdir': os.getenv('TEMP', SCRIPT_DIR),
-        'dbdir': os.getenv('TEMP', SCRIPT_DIR),
-        'cgitb_display': 1,
-        'paying_seat_cents': 500,
-    }
-    try:
-        with open(os.path.join(SCRIPT_DIR, 'configuration.json')) as f:
-            CONFIGURATION = json.load(f)
-    except Exception:
-        CONFIGURATION = dict()
-    for k, v in CONFIGURATION_DEFAULTS.items():
-        CONFIGURATION.setdefault(k, v)
+    CONFIGURATION = config.get_configuration()
 
     cgitb.enable(display=CONFIGURATION['cgitb_display'], logdir=CONFIGURATION['logdir'])
 
     try:
-        db_connection = create_db(CONFIGURATION['dbdir'])
+        db_connection = create_db(CONFIGURATION)
 
         # Get form data
         form = cgi.FieldStorage()
