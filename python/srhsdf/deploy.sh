@@ -31,6 +31,8 @@ else
     fi
     cd "$(dirname "$0")/app"
     dos2unix *.cgi *.py
-    tar cf - --"owner=$user" --"group=$group" . \
+    tar cf - --"owner=$user" --"group=$group" \
+        --exclude "#*" --exclude "*~" --exclude "*.bak" --exclude "*cache*" \
+        . \
         | ssh "$destination" "mkdir -p '$folder'; tar xvf - -C '$folder' $setup_password $setup_access"
 fi
