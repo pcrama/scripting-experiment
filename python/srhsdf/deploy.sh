@@ -29,10 +29,13 @@ else
         setup_password=""
         setup_access=""
     fi
-    cd "$(dirname "$0")/app"
-    dos2unix *.cgi *.py
-    tar cf - --"owner=$user" --"group=$group" \
-        --exclude "#*" --exclude "*~" --exclude "*.bak" --exclude "*cache*" \
+    staging_dir="$(mktemp --directory)"
+    tar cf - --exclude "#*" --exclude "*~" --exclude "*.bak" --exclude "*cache*" \
+        -C "$(dirname "$0")/app" \
         . \
+        | tar xf - -C "$staging_dir"
+    find "$staging_dir" -type f '(' -name '*.cgi' -o -name '*.py' ')' -print0 | xargs -0 dos2unix
+    tar cf - --"owner=$user" --"group=$group" -C "$staging_dir" . \
         | ssh "$destination" "mkdir -p '$folder'; tar xvf - -C '$folder' $setup_password $setup_access"
+    rm -r "$staging_dir" || echo "Unable to clean up staging_dir='$staging_dir'"
 fi
