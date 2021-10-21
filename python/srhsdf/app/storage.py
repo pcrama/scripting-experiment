@@ -62,3 +62,32 @@ class Reservation:
                 :name, :email, :date, :paying_seats, :free_seats,
                 :gdpr_accepts_use, :cents_due, :bank_id, :uuid, :time)''',
             self.to_dict())
+
+    @classmethod
+    def select(cls, connection, filter=None, order_columns=None, limit=None, offset=None):
+        params = dict()
+        query = ['SELECT * FROM reservations']
+        if filter is not None:
+            query.append('WHERE :filter')
+            params['filter'] = filter
+        if order_columns is not None:
+            query.append('ORDER BY :order_columns')
+            params['order_columns'] = order_columns
+        if limit is not None:
+            query.append('LIMIT :limit')
+            params['limit'] = limit
+        if offset is not None:
+            query.append('OFFSET :offset')
+            params['offset'] = offset
+        for row in connection.execute(' '.join(query), params):
+            yield cls(
+                name=row[0],
+                email=row[1],
+                date=row[2],
+                paying_seats=row[3],
+                free_seats=row[4],
+                gdpr_accepts_use=row[5],
+                cents_due=row[6],
+                bank_id=row[7],
+                uuid_hex=row[8],
+                timestamp=row[9])

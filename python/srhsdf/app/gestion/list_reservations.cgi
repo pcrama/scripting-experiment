@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import cgi
 import cgitb
+import html
 import itertools
 import os
 import sys
@@ -49,6 +50,10 @@ def make_url(sort_order, limit, offset, base_url=None, environ=None):
         return base_url
 
 
+def get_first(d, k):
+    return d.get(k, [None])[0]
+
+
 if __name__ == '__main__':
     if os.getenv('REQUEST_METHOD') != 'GET':
         redirect('https://www.srhbraine.be/concert-de-gala-2021/')
@@ -60,26 +65,43 @@ if __name__ == '__main__':
         params = cgi.parse()
         sort_order = params.get('sort_order', '')
         try:
-            limit = max(int(params['limit']), 5)
+            limit = max(int(get_first(params, 'limit')), 5)
         except Exception:
             limit = 5
         try:
-            offset = max(int(params['offset']), 0)
+            offset = max(int(get_first(params, 'offset')), 0)
         except Exception:
             offset = 0
         connection = create_db(CONFIGURATION)
 
         respond_html(html_document(
             'List of reservations',
-            (('table',
+            (('p', 'test'),
+             ('table',
               ('tr',
                ('th', (('a', 'href', make_url(update_sort_order('name', sort_order), limit, offset)),
                        'Nom')),
                ('th', (('a', 'href', make_url(update_sort_order('email', sort_order), limit, offset)),
-                       'Email'))),
-              ('tr',
-               ('td', "Quelqu'un"),
-               ('td', 'email@example.com'))),)))
+                       'Email')),
+               ('th', (('a', 'href', make_url(update_sort_order('date', sort_order), limit, offset)),
+                       'Date')),
+               ('th', (('a', 'href', make_url(update_sort_order('paying_seats', sort_order), limit, offset)),
+                       'Payant')),
+               ('th', (('a', 'href', make_url(update_sort_order('free_seats', sort_order), limit, offset)),
+                       'Gratuit')),
+               ('th', (('a', 'href', make_url(update_sort_order('bank_id', sort_order), limit, offset)),
+                       'Communication'))))
+             + tuple(('tr',
+                      ('td', r.name),
+                      ('td', r.email),
+                      ('td', r.date),
+                      ('td', r.paying_seats),
+                      ('td', r.free_seats),
+                      ('td', r.bank_id))
+                     for r in Reservation.select(connection,
+                                                 order_columns=','.join(sort_order),
+                                                 limit=limit,
+                                                 offset=offset)))))
     except Exception:
         if print_content_type('text/html; charset=utf-8'):
             print()
