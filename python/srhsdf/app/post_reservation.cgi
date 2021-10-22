@@ -118,13 +118,11 @@ def save_data_sqlite3(name, email, date, paying_seats, free_seats, gdpr_accepts_
     connection = ensure_connection(connection_or_root_dir)
     process_id = os.getpid()
     uuid_hex = uuid.uuid4().hex
-    def count_reservations():
-        return connection.execute('SELECT COUNT(*) FROM reservations').fetchone()[0]
     retries = 3
     while retries > 0:
         retries -= 1
         timestamp = time.time()
-        bank_id = generate_bank_id(timestamp, count_reservations(), process_id)
+        bank_id = generate_bank_id(timestamp, Reservation.length(connection), process_id)
         try:
             new_row = Reservation(name=name,
                                   email=email,

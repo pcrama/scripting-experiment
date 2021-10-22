@@ -63,6 +63,31 @@ class Reservation:
                 :gdpr_accepts_use, :cents_due, :bank_id, :uuid, :time)''',
             self.to_dict())
 
+
+    SORTABLE_COLUMNS = {'name': 'LOWER(name)',
+                        'email': 'LOWER(email)',
+                        'date': 'date',
+                        'time': 'time',
+                        'paying_seats': 'paying_seats',
+                        'free_seats': 'free_seats',
+                        'bank_id': 'bank_id'}
+
+
+    @classmethod
+    def column_ordering_clause(cls, col):
+        try:
+            clause = cls.SORTABLE_COLUMNS[col.lower()]
+            asc_or_desc = 'DESC' if col[0].isupper() else 'ASC'
+            return f'{clause} {asc_or_desc}'
+        except KeyError:
+            return None
+
+
+    @classmethod
+    def length(cls, connection):
+        return connection.execute('SELECT COUNT(*) FROM reservations').fetchone()[0]
+
+
     @classmethod
     def select(cls, connection, filter=None, order_columns=None, limit=None, offset=None):
         params = dict()
@@ -71,8 +96,11 @@ class Reservation:
             query.append('WHERE :filter')
             params['filter'] = filter
         if order_columns is not None:
-            query.append('ORDER BY :order_columns')
-            params['order_columns'] = order_columns
+            ordering = ','.join((y for y in (
+                cls.column_ordering_clause(x) for x in order_columns)
+                                if y is not None))
+            if ordering:
+                query.append(f'ORDER BY {ordering}')
         if limit is not None:
             query.append('LIMIT :limit')
             params['limit'] = limit
