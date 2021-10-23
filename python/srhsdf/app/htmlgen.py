@@ -29,9 +29,9 @@ def html_gen(data):
             if tag_name is None:
                 tag = elt
                 if is_tuple(tag):
-                    tag_name = str(elt[0])
+                    tag_name = str(tag[0])
                     attr_values = []
-                    for idx in range(1, 2, len(tag)):
+                    for idx in range(1, len(tag), 2):
                         attr_values.append((tag[idx], html.escape(tag[idx + 1], quote=True)))
                     yield '<' + tag_name + ' ' + ' '.join(f'{x}="{y}"' for (x, y) in attr_values)
                 else:
