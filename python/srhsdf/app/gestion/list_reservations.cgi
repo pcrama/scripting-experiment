@@ -93,23 +93,31 @@ if __name__ == '__main__':
                     header + sort_direction(column, sort_order)))
             for column, header in COLUMNS)
         total_bookings = Reservation.length(connection)
+        pagination_links = tuple((
+            x for x in
+            [('li', (('a', 'href', make_url(sort_order, limit, 0)), 'Début'))
+             if offset > 0
+             else None,
+             ('li',
+              (('a', 'href', make_url(sort_order, limit, offset - limit)), 'Précédent'))
+             if offset > limit else
+             None,
+             ('li',
+              (('a', 'href', make_url(sort_order, limit, offset + limit)), 'Suivant'))
+             if offset + limit < total_bookings else
+             None]
+            if x is not None))
         respond_html(html_document(
             'List of reservations',
-            (('ul',
-              *tuple(x for x in
-                     [('li', (('a', 'href', make_url(sort_order, limit, 0)), 'Début'))
-                      if offset > 0
-                      else None,
-                      ('li',
-                       (('a', 'href', make_url(sort_order, limit, offset - limit)), 'Précédent'))
-                      if offset > limit else
-                      None,
-                      ('li',
-                       (('a', 'href', make_url(sort_order, limit, offset + limit)), 'Suivant'))
-                      if offset + limit < total_bookings else
-                      None]
-                     if x is not None)),
+            (('ul', *pagination_links) if pagination_links else '',
              ('p', 'Il y a ', str(total_bookings), ' bulle', '' if total_bookings == 1 else 's', ' en tout.'),
+             (('form', 'action', os.getenv('SCRIPT_NAME')),
+              (('label', 'for', 'limit'), 'Limiter le tableau à ', ('em', 'n'), ' lignes:'),
+              (('input', 'id', 'limit', 'type', 'number', 'name', 'limit', 'min', '5', 'value', str(limit), 'max', '10000'),),
+              (('input', 'type', 'submit', 'value', 'Rafraichir la page'),),
+              *((('input', 'id', 'sort_order', 'name', 'sort_order', 'type', 'hidden', 'value', v),)
+                for v in sort_order),
+              (('input', 'id', 'offset', 'name', 'offset', 'type', 'hidden', 'value', str(offset)),)),
              ('table',
               ('tr', *table_header_row),
               *tuple(('tr',
