@@ -4,15 +4,21 @@ destination="$1"
 user="$2"
 group="$3"
 folder="$4"
+admin_user="$5"
+admin_pw="$6"
 
 if [ -z "$destination" -o -z "$user" -o -z "$group" -o -z "$folder" ] ;
 then
-    echo "Missing parameters: $0 '$destination' '$user' '$group' '$folder'"
+    echo -n "Missing parameters: $0 '$destination' '$user' '$group' '$folder'"
+    if [ -n "$admin_user" -o -n "$admin_pw" ];
+    then
+        echo " '$admin_user' '$admin_pw'"
+    else
+        echo
+    fi
     echo "Usage: $(basename "$0") <ssh-host> <user> <group> <folder> [<admin-user> <admin-pw>]"
     exit 1
 else
-    admin_user="$5"
-    admin_pw="$6"
     if [ -n "$admin_user" ];
     then
         protected_folder="$folder/gestion"

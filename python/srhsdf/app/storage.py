@@ -1,25 +1,35 @@
 # -*- coding: utf-8 -*-
 import os
 import sqlite3
+import time
+import uuid
 
 def create_db(configuration):
     root_dir = configuration['dbdir']
     con = sqlite3.connect(os.path.join(root_dir, 'db.db'))
     try:
-        con.execute('SELECT COUNT(*) FROM reservations')
+        con.execute(f'SELECT COUNT(*) FROM {Reservation.TABLE_NAME}')
+        con.execute(f'SELECT COUNT(*) FROM {Csrf.TABLE_NAME}')
     except Exception as e:
-        con.execute('''CREATE TABLE reservations
-                       (name TEXT NOT NULL,
-                        email TEXT,
-                        date TEXT NOT NULL,
-                        paying_seats INTEGER,
-                        free_seats INTEGER,
-                        gdpr_accepts_use INTEGER,
-                        cents_due INTEGER,
-                        bank_id TEXT NOT NULL,
-                        uuid TEXT NOT NULL,
-                        time REAL)''')
-        con.execute('''CREATE UNIQUE INDEX index_bank_id ON reservations (bank_id)''')
+        con.execute(f'''CREATE TABLE {Reservation.TABLE_NAME}
+                        (name TEXT NOT NULL,
+                         email TEXT,
+                         date TEXT NOT NULL,
+                         paying_seats INTEGER,
+                         free_seats INTEGER,
+                         gdpr_accepts_use INTEGER,
+                         cents_due INTEGER,
+                         bank_id TEXT NOT NULL,
+                         uuid TEXT NOT NULL,
+                         time REAL,
+                         active INTEGER,
+                         origin TEXT)''')
+        con.execute(f'CREATE UNIQUE INDEX index_bank_id ON {Reservation.TABLE_NAME} (bank_id)')
+        con.execute(f'''CREATE TABLE {Csrf.TABLE_NAME}
+                        (token TEXT NOT NULL PRIMARY KEY,
+                         timestamp REAL,
+                         user TEXT NOT NULL,
+                         ip TEXT NOT NULL)''')
     return con
 
 
@@ -29,8 +39,35 @@ def ensure_connection(connection_or_root_dir):
             create_db(connection_or_root_dir))
 
 
-class Reservation:
-    def __init__(self, name, email, date, paying_seats, free_seats, gdpr_accepts_use, cents_due, bank_id, uuid_hex, timestamp):
+class MiniOrm:
+    @classmethod
+    def length(cls, connection):
+        return connection.execute(f'SELECT COUNT(*) FROM {cls.TABLE_NAME}').fetchone()[0]
+
+
+    @staticmethod
+    def maybe_add_wildcards(x):
+        return x if '%' in x else f'%{x}%'
+
+
+    @staticmethod
+    def compare_with_like_lower(x):
+        return (f'LOWER({x})',
+                'like',
+                lambda val: MiniOrm.maybe_add_wildcards(val.lower()))
+
+
+    @staticmethod
+    def compare_as_bool(x):
+        return (x, '=', lambda val: 1 if val else 0)
+
+
+
+class Reservation(MiniOrm):
+    TABLE_NAME = 'reservations'
+
+
+    def __init__(self, name, email, date, paying_seats, free_seats, gdpr_accepts_use, cents_due, bank_id, uuid_hex, timestamp, active, origin):
         self.name = name
         self.email = email
         self.date = date
@@ -41,6 +78,8 @@ class Reservation:
         self.bank_id = bank_id
         self.uuid_hex = uuid_hex
         self.timestamp = timestamp
+        self.active = active
+        self.origin = origin
 
 
     def to_dict(self):
@@ -53,14 +92,17 @@ class Reservation:
                 'cents_due': self.cents_due,
                 'bank_id': self.bank_id,
                 'uuid': self.uuid_hex,
-                'time': self.timestamp}
+                'time': self.timestamp,
+                'active': self.active,
+                'origin': self.origin}
 
 
     def insert_data(self, connection):
         connection.execute(
-            '''INSERT INTO reservations VALUES (
+            f'''INSERT INTO {self.TABLE_NAME} VALUES (
                 :name, :email, :date, :paying_seats, :free_seats,
-                :gdpr_accepts_use, :cents_due, :bank_id, :uuid, :time)''',
+                :gdpr_accepts_use, :cents_due, :bank_id, :uuid, :time,
+                :active, :origin)''',
             self.to_dict())
 
 
@@ -70,7 +112,17 @@ class Reservation:
                         'time': 'time',
                         'paying_seats': 'paying_seats',
                         'free_seats': 'free_seats',
-                        'bank_id': 'bank_id'}
+                        'bank_id': 'bank_id',
+                        'origin': 'LOWER(origin)'}
+
+
+    FILTERABLE_COLUMNS = {'name': MiniOrm.compare_with_like_lower('name'),
+                          'email': MiniOrm.compare_with_like_lower('email'),
+                          'date': True,
+                          'bank_id': ('bank_id', 'like'),
+                          'active': MiniOrm.compare_as_bool('active'),
+                          'origin': ('LOWER(origin)', '=', str.lower),
+                          'gdpr_accepts_use': MiniOrm.compare_as_bool('gdpr_accepts_use')}
 
 
     @classmethod
@@ -84,17 +136,50 @@ class Reservation:
 
 
     @classmethod
-    def length(cls, connection):
-        return connection.execute('SELECT COUNT(*) FROM reservations').fetchone()[0]
+    def encode_column_value_for_search(cls, col, val, info):
+        try:
+            col_value = info[0]
+        except Exception:
+            col_value = col
+        try:
+            operator = info[2]
+        except Exception:
+            operator = '='
+        try:
+            target_value = info[3](val)
+        except Exception:
+            target_value = val
+        return (col_value, operator, target_value)
 
 
     @classmethod
-    def select(cls, connection, filter=None, order_columns=None, limit=None, offset=None):
+    def where_clause(cls, filtering):
+        params = []
+        clauses = []
+        for (col, val) in filtering:
+            try:
+                info = cls.FILTERABLE_COLUMNS[col]
+            except KeyError:
+                continue
+            var_name = f'filter_{col}'
+            col_value, operator, target_value = cls.encode_column_value_for_search(
+                col, val, info)
+            params[var_name] = target_value
+            clauses.append(f'{col_value} {operator} :{var_name}')
+        if clauses:
+            return ('(' + ' AND '.join(clauses) + ')', params)
+        else:
+            return ([], {})
+
+
+    @classmethod
+    def select(cls, connection, filtering=None, order_columns=None, limit=None, offset=None):
         params = dict()
-        query = ['SELECT * FROM reservations']
-        if filter is not None:
-            query.append('WHERE :filter')
-            params['filter'] = filter
+        query = [f'SELECT * FROM {cls.TABLE_NAME}']
+        if filtering is not None:
+            clauses, extra_params = cls.where_clause(filtering)
+            query.append(f'WHERE {clauses}')
+            params.update(extra_params)
         if order_columns is not None:
             ordering = ','.join((y for y in (
                 cls.column_ordering_clause(x) for x in order_columns)
@@ -114,8 +199,80 @@ class Reservation:
                 date=row[2],
                 paying_seats=row[3],
                 free_seats=row[4],
-                gdpr_accepts_use=row[5],
+                gdpr_accepts_use=row[5] != 0,
                 cents_due=row[6],
                 bank_id=row[7],
                 uuid_hex=row[8],
-                timestamp=row[9])
+                timestamp=row[9],
+                active=row[10] != 0,
+                origin=row[11])
+
+
+class Csrf(MiniOrm):
+    TABLE_NAME = 'csrfs'
+    SESSION_IN_SECONDS = 7200
+
+    def __init__(self, token=None, timestamp=None, user=None, ip=None):
+        self.token = token or uuid.uuid4().hex
+        self.timestamp = timestamp or time.time()
+        self.user = user or os.getenv('REMOTE_USER')
+        self.ip = ip or os.getenv('REMOTE_ADDR')
+
+
+    @classmethod
+    def gc(cls, connection):
+        connection.execute(
+            f'DELETE FROM {cls.TABLE_NAME} WHERE timestamp <= 0')
+
+
+    def save(self, connection):
+        with connection:
+            connection.execute(
+                f'INSERT OR REPLACE INTO {self.TABLE_NAME} VALUES '
+                '(:token, :timestamp, :user, :ip)',
+                {'token': self.token,
+                 'timestamp': time.time(),
+                 'user': self.user,
+                 'ip': self.ip})
+            self.gc(connection)
+
+
+    @classmethod
+    def new(cls, connection):
+        result = cls()
+        result.save(connection)
+        return result
+
+
+    @classmethod
+    def get(cls, connection, token):
+        try:
+            data = connection.execute(
+                f'SELECT * from {cls.TABLE_NAME} '
+                'WHERE token = :token AND timestamp > :timestamp',
+                {'token': token,
+                 'timestamp': time.time() - cls.SESSION_IN_SECONDS}
+            ).fetchone()
+            result = cls(token=data[0], timestamp=data[1], user=data[2], ip=data[3])
+            result.save(connection)
+            return result
+        except Exception:
+            raise KeyError(token)
+
+
+    @classmethod
+    def get_by_user_and_ip(cls, connection, user, ip):
+        try:
+            data = connection.execute(
+                f'SELECT * from {cls.TABLE_NAME} '
+                'WHERE user = :user AND ip = :ip '
+                'ORDER BY timestamp DESC '
+                'LIMIT 1',
+                {'user': user,
+                 'ip': ip}
+            ).fetchone()
+            result = cls(token=data[0], timestamp=data[1], user=data[2], ip=data[3])
+        except Exception:
+            result = cls(user=user, ip=ip)
+        result.save(connection)
+        return result

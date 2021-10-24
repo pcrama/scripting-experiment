@@ -18,6 +18,7 @@ from htmlgen import (
     respond_html,
 )
 from storage import (
+    Csrf,
     Reservation,
     create_db,
 )
@@ -84,10 +85,12 @@ if __name__ == '__main__':
         except Exception:
             offset = 0
         connection = create_db(CONFIGURATION)
+        csrf_token = Csrf.get_by_user_and_ip(
+            connection, os.getenv('REMOTE_USER'), os.getenv('REMOTE_ADDR'))
 
         COLUMNS = [('name', 'Nom'), ('email', 'Email'), ('date', 'Date'),
                    ('paying_seats', 'Payant'), ('free_seats', 'Gratuit'),
-                   ('bank_id', 'Communication')]
+                   ('bank_id', 'Communication'), ('origin', 'Origine')]
         table_header_row = tuple(
             ('th', (('a', 'href', make_url(update_sort_order(column, sort_order), limit, offset)),
                     header + sort_direction(column, sort_order)))
@@ -126,11 +129,36 @@ if __name__ == '__main__':
                       ('td', r.date),
                       ('td', r.paying_seats),
                       ('td', r.free_seats),
-                      ('td', r.bank_id))
+                      ('td', r.bank_id),
+                      ('td', r.origin if r.origin else (('span', 'class', 'null_value'),
+                                                        'formulaire web')))
                      for r in Reservation.select(connection,
                                                  order_columns=sort_order,
                                                  limit=limit,
-                                                 offset=offset))))))
+                                                 offset=offset))),
+             ('hr',),
+             ('p', 'Ajouter une réservation:'),
+             (('form', 'method', 'post', 'action', 'add_unchecked_reservation.cgi'),
+              (('input', 'type', 'hidden', 'id', 'csrf_token', 'name', 'csrf_token', 'value', csrf_token.token),),
+              (('label', 'for', 'name'), 'Nom'),
+              (('input', 'id', 'name', 'name', 'name', 'type', 'text', 'placeholder', 'Nom de la bulle', 'required', 'required', 'style', 'width:100%;'),),
+              ('br',),
+              (('label', 'for', 'comment'), 'Commentaire'),
+              (('input', 'id', 'comment', 'name', 'comment', 'type', 'text', 'placeholder', 'Commentaire', 'required', 'required', 'style', 'width:100%;'),),
+              ('br',),
+              (('input', 'id', 'samedi', 'name', 'date', 'type', 'radio', 'value', '2021-12-04'),),
+              (('label', 'for', 'samedi'), 'Samedi 4 décembre 2021 à 20h'),
+              ('br',),
+              (('input', 'id', 'dimanche', 'name', 'date', 'type', 'radio', 'value', '2021-12-05'),),
+              (('label', 'for', 'dimanche'), 'Dimanche 5 décembre 2021 à 15h'),
+              ('br',),
+              (('label', 'for', 'paying_seats'), 'Places payantes:'),
+              (('input', 'id', 'paying_seats', 'name', 'paying_seats', 'type', 'number', 'min', '0'),),
+              ('br',),
+              (('label', 'for', 'free_seats'), 'Places gratuites:'),
+              (('input', 'id', 'free_seats', 'name', 'free_seats', 'type', 'number', 'min', '0'),),
+              ('br',),
+              (('input', 'type', 'submit', 'value', 'Confirmer'),)))))
     except Exception:
         if print_content_type('text/html; charset=utf-8'):
             print()
