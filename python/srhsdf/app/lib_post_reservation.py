@@ -5,6 +5,7 @@ import time
 
 from htmlgen import (
     cents_to_euro,
+    format_bank_id,
     html_document,
     respond_html,
 )
@@ -145,7 +146,7 @@ def respond_with_reservation_confirmation(
                 'p', 'Veuillez effectuer un virement pour ',
                 cents_to_euro(cents_due),
                 '€ au compte BExx XXXX YYYY ZZZZ en mentionnant la communication '
-                'structurée ', ('code', new_row.bank_id), '.')
+                'structurée ', ('code', format_bank_id(new_row.bank_id)), '.')
     respond_html(html_document(
         'Réservation effectuée',
         (('p', 'Votre réservation au nom de ', name) + places,

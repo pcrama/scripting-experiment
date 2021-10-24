@@ -112,11 +112,12 @@ function generic_test_valid_reservation_for_test_date
     total_reservations_count="$9"
     test_output="$test_dir/$test_name.html"
     do_curl 'post_reservation.cgi' "$test_output.tmp" "-X POST -F name=$spectator_name -F email=$spectator_email -F date=$concert_date -F paying_seats=$paying_seats -F free_seats=$free_seats -F gdpr_accepts_use=$gdpr_accepts_use"
-    communication="$(sed -n -e 's;.*<code>\([0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]\)</code>.*;\1;p' "$test_output.tmp")"
+    communication="$(sed -n -e 's;.*<code>+++\([0-9][0-9][0-9]\)/\([0-9][0-9][0-9][0-9]\)/\([0-9][0-9][0-9][0-9][0-9]\)+++</code>.*;\1\2\3;p' "$test_output.tmp")"
+    formatted_communication="$(sed -n -e 's;.*<code>\(+++[0-9][0-9][0-9]/[0-9][0-9][0-9][0-9]/[0-9][0-9][0-9][0-9][0-9]+++\)</code>.*;\1;p' "$test_output.tmp")"
     if [ -z "$communication" ]; then
        die "test_$test_name: no bank ID"
     fi
-    sed -e "s/$communication/COMMUNICATION/g" "$test_output.tmp" > "$test_output"
+    sed -e "s;$formatted_communication;COMMUNICATION;g" "$test_output.tmp" > "$test_output"
     diff -wq "$test_output" "$golden/$(basename "$test_output")"
     get_db_file
     if [ "$(count_reservations)" != "$total_reservations_count" ]; then
@@ -296,7 +297,7 @@ function test_09_new_reservation_with_correct_CSRF_token_succeeds
     do_curl_as_admin 'gestion/add_unchecked_reservation.cgi' \
                      "$test_output" \
                      "-X POST -F name=TestCreatedByAdmin -F comment=ByAdmin -F date=2099-01-01 -F paying_seats=0 -F free_seats=1 -F csrf_token=$csrf_token"
-    communication="$(sed -n -e 's;.*<code>\([0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]\)</code>.*;\1;p' "$test_output")"
+    communication="$(sed -n -e 's;.*<code>\(+++[0-9][0-9][0-9]/[0-9][0-9][0-9][0-9]/[0-9][0-9][0-9][0-9][0-9]+++\)</code>.*;\1;p' "$test_output")"
     if [ -n "$communication" ]; then
        die "test_09_new_reservation_with_correct_CSRF_token_succeeds: bank ID in output"
     fi
@@ -314,6 +315,20 @@ function test_09_new_reservation_with_correct_CSRF_token_succeeds
     fi
     diff -wq "$test_output" "$golden/$(basename "$test_output")"
     echo "test_09_new_reservation_with_correct_CSRF_token_succeeds: ok"
+}
+
+# 10: Admin exports data in CSV format
+# - Verify output CSV
+function test_10_export_as_csv
+{
+    test_output="$test_dir/10_export_as_csv.csv"
+    do_curl_as_admin 'gestion/export_csv.cgi' "$test_output.tmp"
+    # Replace variable or random parts of collected output by deterministic identifiers
+    substitutions="$(sql_query "SELECT name, bank_id FROM reservations" \
+                         | sed -e 's;\(.*\)|\(...\)\(....\)\(.....\);-e s,+++\2/\3/\4+++,COMMUNICATION-\1,;')"
+    sed $substitutions -e "s/,$admin_user,/,TEST_ADMIN,/" "$test_output.tmp" > "$test_output"
+    diff -wq "$test_output" "$golden/$(basename "$test_output")"
+    echo "test_10_export_as_csv: ok"
 }
 
 # Deploy
@@ -337,6 +352,7 @@ test_06_list_reservations
 test_07_new_reservation_without_CSRF_token_fails
 test_08_new_reservation_with_wrong_CSRF_token_fails
 test_09_new_reservation_with_correct_CSRF_token_succeeds
+test_10_export_as_csv
 
 # Clean up
 ssh $destination "rm -r '$host_path_prefix/$folder'"

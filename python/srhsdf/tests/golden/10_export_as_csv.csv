@@ -1,0 +1,5 @@
+Nom,Email,Date,Payants,Gratuits,Dû,Communication,Origine,Commentaire,Actif,Email RGPD
+Saturday,Saturday@gmail.com,2021-12-04,4,2,20.00€,COMMUNICATION-Saturday,,,True,Saturday@gmail.com
+Sunday,SundayMail@gmx.com,2021-12-05,1,1,5.00€,COMMUNICATION-Sunday,,,True,
+TestCreatedByAdmin,,2099-01-01,0,1,0.00€,COMMUNICATION-TestCreatedByAdmin,TEST_ADMIN,ByAdmin,True,
+TestName,Test.Email@example.com,2099-01-01,3,5,15.00€,COMMUNICATION-TestName,,,True,Test.Email@example.com

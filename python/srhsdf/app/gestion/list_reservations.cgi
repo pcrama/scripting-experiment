@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 import cgi
 import cgitb
-import html
 import itertools
 import os
 import sys
@@ -67,7 +66,7 @@ def sort_direction(col, sort_order):
 
 
 if __name__ == '__main__':
-    if os.getenv('REQUEST_METHOD') != 'GET':
+    if os.getenv('REQUEST_METHOD') != 'GET' or os.getenv('REMOTE_USER') is None:
         redirect('https://www.srhbraine.be/concert-de-gala-2021/')
 
     CONFIGURATION = config.get_configuration()
@@ -136,6 +135,16 @@ if __name__ == '__main__':
                                                  order_columns=sort_order,
                                                  limit=limit,
                                                  offset=offset))),
+             ('hr',),
+             ('p',
+              # name is a fake parameter to encourage clients to believe Excel
+              # can really open it.
+              (('a', 'href', 'export_csv.cgi?name=export.csv'),
+                    'Exporter en format CSV (Excel ou autres tableurs)'),
+              '. Excel a du mal avec les accents et autres caractères spéciaux, voyez ',
+              (('a', 'href', 'https://www.nextofwindows.com/how-to-display-csv-files-with-unicode-utf-8-encoding-in-excel'),
+               'cette page'),
+              " pour plus d'explications."),
              ('hr',),
              ('p', 'Ajouter une réservation:'),
              (('form', 'method', 'post', 'action', 'add_unchecked_reservation.cgi'),

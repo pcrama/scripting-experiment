@@ -15,6 +15,13 @@ def print_content_type(content_type):
     return True
 
 
+def format_bank_id(x):
+    bank_id = ''.join(c for c in x if c.isdigit())
+    if len(bank_id) != 12:
+        return x
+    return f'+++{bank_id[0:3]}/{bank_id[3:7]}/{bank_id[7:12]}+++'
+
+
 def cents_to_euro(cents):
     return f'{cents // 100}.{cents % 100:02}'
 

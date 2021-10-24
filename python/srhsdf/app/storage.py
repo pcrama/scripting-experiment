@@ -113,7 +113,8 @@ class Reservation(MiniOrm):
                         'paying_seats': 'paying_seats',
                         'free_seats': 'free_seats',
                         'bank_id': 'bank_id',
-                        'origin': 'LOWER(origin)'}
+                        'origin': 'LOWER(origin)',
+                        'active': 'active'}
 
 
     FILTERABLE_COLUMNS = {'name': MiniOrm.compare_with_like_lower('name'),
