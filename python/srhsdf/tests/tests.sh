@@ -99,6 +99,18 @@ function get_csrf_token_of_user {
     sql_query "SELECT token FROM csrfs WHERE user='$1' ORDER BY timestamp DESC LIMIT 1;"
 }
 
+function do_diff {
+    reference="$golden/$(basename "$test_output")"
+    if diff -wq "$1" "$reference" ;
+    then
+        echo "Content of '$1' is as expected."
+    else
+        echo "diff '$1' '$reference'"
+        die "File comparison failed, accept with
+    cp '$1' '$reference'"
+    fi
+}
+
 function generic_test_valid_reservation_for_test_date
 {
     test_name="$1"
@@ -118,7 +130,7 @@ function generic_test_valid_reservation_for_test_date
        die "test_$test_name: no bank ID"
     fi
     sed -e "s;$formatted_communication;COMMUNICATION;g" "$test_output.tmp" > "$test_output"
-    diff -wq "$test_output" "$golden/$(basename "$test_output")"
+    do_diff "$test_output"
     get_db_file
     if [ "$(count_reservations)" != "$total_reservations_count" ]; then
         die "test_$test_name: Reservations table should contain $total_reservations_count row."
@@ -176,7 +188,7 @@ function test_01_list_empty_reservations
             "$test_output.tmp" \
             > "$test_output"
     fi
-    diff -wq "$test_output" "$golden/$(basename "$test_output")"
+    do_diff "$test_output"
     get_db_file
     if [ "$(count_reservations)" != "0" ]; then
         die "Reservations table is not empty."
@@ -195,7 +207,7 @@ function test_02_invalid_date_for_reservation
 {
     test_output="$test_dir/02_invalid_date_for_reservation.html"
     do_curl 'post_reservation.cgi' "$test_output" "-X POST -F name=TestName -F email=Test.Email@example.com -F date=1234-56-78 -F paying_seats=3 -F free_seats=5 -F gdpr_accepts_use=1"
-    diff -wq "$test_output" "$golden/$(basename "$test_output")"
+    do_diff "$test_output"
     get_db_file
     if [ "$(count_reservations)" != "0" ]; then
         die "test_02_invalid_date_for_reservation: Reservations table is not empty."
@@ -266,7 +278,7 @@ function test_06_list_reservations
             "$test_output.tmp" \
             > "$test_output"
     fi
-    diff -wq "$test_output" "$golden/$(basename "$test_output")"
+    do_diff "$test_output"
     echo "test_06_list_reservations: ok"
 }
 
@@ -313,7 +325,7 @@ function test_09_new_reservation_with_correct_CSRF_token_succeeds
        ]; then
         die "test_09_new_reservation_with_correct_CSRF_token_succeeds: Wrong data saved in DB"
     fi
-    diff -wq "$test_output" "$golden/$(basename "$test_output")"
+    do_diff "$test_output"
     echo "test_09_new_reservation_with_correct_CSRF_token_succeeds: ok"
 }
 
@@ -327,7 +339,7 @@ function test_10_export_as_csv
     substitutions="$(sql_query "SELECT name, bank_id FROM reservations" \
                          | sed -e 's;\(.*\)|\(...\)\(....\)\(.....\);-e s,+++\2/\3/\4+++,COMMUNICATION-\1,;')"
     sed $substitutions -e "s/,$admin_user,/,TEST_ADMIN,/" "$test_output.tmp" > "$test_output"
-    diff -wq "$test_output" "$golden/$(basename "$test_output")"
+    do_diff "$test_output"
     echo "test_10_export_as_csv: ok"
 }
 
