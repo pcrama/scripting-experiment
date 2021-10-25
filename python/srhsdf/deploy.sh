@@ -36,10 +36,14 @@ else
         setup_access=""
     fi
     staging_dir="$(mktemp --directory)"
-    tar cf - --exclude "#*" --exclude "*~" --exclude "*.bak" --exclude "*cache*" \
+    (cd "$(dirname "$0")/app/gestion" \
+         && emacs --batch \
+                  --eval "(progn (find-file \"index.org\") (org-html-export-to-html))")
+    tar czf - --exclude "#*" --exclude "*~" --exclude "*.bak" --exclude "*cache*" --exclude "index.org" \
         -C "$(dirname "$0")/app" \
         . \
-        | tar xf - -C "$staging_dir"
+        | tar xzf - -C "$staging_dir"
+    rm -f "$(dirname "$0")/app/gestion/index.html"
     find "$staging_dir" -type f '(' -name '*.cgi' -o -name '*.py' ')' -print0 | xargs -0 dos2unix
     tar cf - --"owner=$user" --"group=$group" -C "$staging_dir" . \
         | ssh "$destination" "mkdir -p '$folder'; tar xvf - -C '$folder' $setup_password $setup_access"

@@ -1,0 +1,44 @@
+#+options: ^:{}
+#+author: Philippe Crama
+#+title: Concert de Gala 2021
+
+* Introduction
+
+Voyez [[file+emacs:list_reservations.cgi][la liste des réservations]].  C'est le point d'entrée principale pour le
+suivi des réservations.  Cette page permet aussi d'exporter toutes les
+réservations en format CSV pour l'importer dans Excel et d'ajouter des
+réservations prises au téléphone.
+
+J'aimerais que le comité passe en revue la liste des [[#questions_a_valider_20211025][questions à valider]].
+J'ai fait plusieurs choix arbitraires pendant l'implémentation qu'il faut
+confirmer.
+
+* Mode d'emploi
+** Du point de vue du comité
+J'ai créé un compte =secretaire= qui permet d'effectuer toutes les tâches
+administratives.  Celles-ci sont protégées par un mot de passe et sont
+normalement inaccessibles au public.
+
+*** Suivi des réservations
+1. Aller sur la page [[file+emacs:list_reservations.cgi][liste des réservations]].  Cha
+2. Des liens "Début", "Précédent" et "Suivant" permettent de parcourir la liste.  Il y a moyen d'afficher 
+* Questions à valider
+:PROPERTIES:
+:CUSTOM_ID: questions_a_valider_20211025
+:END:
+** TODO Prix des entrées et âge minimum
+J'ai fixé arbitrairement les conditions suivantes, just pour donner un exemple:
+- entrée gratuite en-dessous de 12 ans
+- entrée payante à partir de 12 ans, 5€ par place
+
+C'est facile à changer, il suffit de me dire quoi.
+
+* Tâches à finaliser avant la "mise en production"
+- [ ] Augmenter le nombre de bulles affichées par défaut dans
+  [[file+emacs:list_reservations.cgi][la liste des réservations]].
+- [ ] Corriger le numéro de compte dans [[file+emacs:../lib_post_reservation.py][../lib_post_reservation.py]].
+- [ ] Effacer les données de test
+
+  #+begin_src example
+    DELETE FROM reservations WHERE date = '2099-01-01' OR date = '2099-01-02';
+  #+end_src
