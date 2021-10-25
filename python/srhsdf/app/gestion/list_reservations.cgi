@@ -65,6 +65,10 @@ def sort_direction(col, sort_order):
         return ''
 
 
+def pluriel_naif(x, c):
+    return x if c == 1 else f'{x}s'
+
+
 if __name__ == '__main__':
     if os.getenv('REQUEST_METHOD') != 'GET' or os.getenv('REMOTE_USER') is None:
         redirect('https://www.srhbraine.be/concert-de-gala-2021/')
@@ -95,6 +99,8 @@ if __name__ == '__main__':
                     header + sort_direction(column, sort_order)))
             for column, header in COLUMNS)
         total_bookings = Reservation.length(connection)
+        active_reservations = Reservation.length(connection, [('active', 1)])
+        reservation_summary = Reservation.summary_by_date(connection)
         pagination_links = tuple((
             x for x in
             [('li', (('a', 'href', make_url(sort_order, limit, 0)), 'Début'))
@@ -111,8 +117,19 @@ if __name__ == '__main__':
             if x is not None))
         respond_html(html_document(
             'List of reservations',
-            (('ul', *pagination_links) if pagination_links else '',
-             ('p', 'Il y a ', str(total_bookings), ' bulle', '' if total_bookings == 1 else 's', ' en tout.'),
+            (('p',
+              'Il y a ', str(total_bookings), pluriel_naif(' bulle', total_bookings), ' en tout',
+              *(' dont ', str(active_reservations), ' ',
+                'est active' if active_reservations == 1 else 'sont actives'),
+              '.')
+             if total_bookings > 0
+             else '',
+             ('ul', *tuple(('li', row[0], ':',
+                            str(row[1]), pluriel_naif(' place', row[1]), pluriel_naif(' réservée', row[1]))
+                           for row in reservation_summary))
+             if total_bookings > 0
+             else '',
+             ('ul', *pagination_links) if pagination_links else '',
              (('form', 'action', os.getenv('SCRIPT_NAME')),
               (('label', 'for', 'limit'), 'Limiter le tableau à ', ('em', 'n'), ' lignes:'),
               (('input', 'id', 'limit', 'type', 'number', 'name', 'limit', 'min', '5', 'value', str(limit), 'max', '10000'),),

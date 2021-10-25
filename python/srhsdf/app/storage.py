@@ -41,8 +41,14 @@ def ensure_connection(connection_or_root_dir):
 
 class MiniOrm:
     @classmethod
-    def length(cls, connection):
-        return connection.execute(f'SELECT COUNT(*) FROM {cls.TABLE_NAME}').fetchone()[0]
+    def length(cls, connection, filtering=None):
+        params = dict()
+        query = [f'SELECT COUNT(*) FROM {cls.TABLE_NAME}']
+        if filtering is not None:
+            clauses, extra_params = cls.where_clause(filtering)
+            query.append(f'WHERE {clauses}')
+            params.update(extra_params)
+        return connection.execute(' '.join(query), params).fetchone()[0]
 
 
     @staticmethod
@@ -106,6 +112,13 @@ class Reservation(MiniOrm):
             self.to_dict())
 
 
+    @classmethod
+    def summary_by_date(cls, connection):
+        return connection.execute(
+            f"""SELECT date, SUM(paying_seats + free_seats) FROM {cls.TABLE_NAME}
+                WHERE active != 0 GROUP BY date ORDER BY date""")
+
+
     SORTABLE_COLUMNS = {'name': 'LOWER(name)',
                         'email': 'LOWER(email)',
                         'date': 'date',
@@ -143,11 +156,11 @@ class Reservation(MiniOrm):
         except Exception:
             col_value = col
         try:
-            operator = info[2]
+            operator = info[1]
         except Exception:
             operator = '='
         try:
-            target_value = info[3](val)
+            target_value = info[2](val)
         except Exception:
             target_value = val
         return (col_value, operator, target_value)
@@ -155,7 +168,7 @@ class Reservation(MiniOrm):
 
     @classmethod
     def where_clause(cls, filtering):
-        params = []
+        params = dict()
         clauses = []
         for (col, val) in filtering:
             try:
