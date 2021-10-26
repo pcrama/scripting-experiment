@@ -45,9 +45,9 @@ db_file="$test_dir/db.db"
 
 cat <<EOF
 Storing test output in '$test_dir', clean with
-    rm -r '$test_dir'
+    rm -r '$test_dir';
 Deploying to '$ssh_app_folder', clean with
-    ssh '$destination' "rm -r '$ssh_app_folder'"
+    ssh '$destination' "rm -r '$ssh_app_folder'";
 EOF
 
 # Make web request
@@ -70,12 +70,16 @@ function do_curl_as_admin {
 }
 
 function die {
-    echo $1
+    >&2 echo $1
     exit 2
 }
 
 function get_db_file {
     scp "$destination:$ssh_app_folder/db.db" "$db_file"
+}
+
+function put_db_file {
+    scp "$db_file" "$destination:$ssh_app_folder/db.db"
 }
 
 function sql_query {
@@ -167,6 +171,25 @@ function generic_test_new_reservation_without_valid_CSRF_token_fails
     grep -q '^< Content-Length: 0' "$test_stderr"
     grep -q '^< Location: https://www.srhbraine.be/concert-de-gala-2021/' "$test_stderr"
     echo "test_$test_name: ok"
+}
+
+# Assumes up to date DB is available (see get_db_file), validates that the
+# CSRF token is included.  Output to stdout.
+function make_list_reservations_output_deterministic
+{
+    input="$1"
+    substitutions="$(sql_query "SELECT name, bank_id FROM reservations" \
+                         | sed -e 's;\(.*\)|\(.*\);-e s,\2,COMMUNICATION-\1,;')"
+    csrf_token="$(sed -n -e 's/.*csrf_token" value="\([a-f0-9A-F]*\)".*/\1/p' "$input")"
+    if [ -z "$csrf_token" ];
+    then
+        die "No csrf_token in '$input'"
+    else
+        sed -e 's/csrf_token" value="'"$csrf_token"'"/csrf_token" value="CSRF_TOKEN"/g' \
+            $substitutions \
+            -e 's/$admin_user/TEST_ADMIN/' \
+            "$input"
+    fi
 }
 
 # Test definitions
@@ -265,19 +288,7 @@ function test_06_list_reservations
     if [ "$(count_csrfs)" != "1" -o "$(get_user_of_csrf_token "$csrf_token")" != "$admin_user" ]; then
         die "CSRF problem."
     fi
-    sunday_bank_id="$(sql_query "SELECT bank_id FROM reservations WHERE name = 'Sunday';")"
-    testname_bank_id="$(sql_query "SELECT bank_id FROM reservations WHERE name = 'TestName';")"
-    csrf_token="$(sed -n -e 's/.*csrf_token" value="\([a-f0-9A-F]*\)".*/\1/p' "$test_output.tmp")"
-    if [ -z "$csrf_token" ];
-    then
-        die "No csrf_token in '$test_output.tmp'"
-    else
-        sed -e 's/csrf_token" value="'"$csrf_token"'"/csrf_token" value="CSRF_TOKEN"/g' \
-            -e "s/$sunday_bank_id/COMMUNICATION Sunday/g" \
-            -e "s/$testname_bank_id/COMMUNICATION TestName/g" \
-            "$test_output.tmp" \
-            > "$test_output"
-    fi
+    make_list_reservations_output_deterministic "$test_output.tmp" > "$test_output"
     do_diff "$test_output"
     echo "test_06_list_reservations: ok"
 }
@@ -343,6 +354,19 @@ function test_10_export_as_csv
     echo "test_10_export_as_csv: ok"
 }
 
+# 11: Deactivate first reservation to check it does not show up in the list anymore
+function test_11_deactivate_a_reservation
+{
+    sql_query 'UPDATE reservations SET active=0 WHERE bank_id = (
+                   SELECT bank_id FROM reservations ORDER BY time ASC LIMIT 1)'
+    put_db_file
+    test_output="$test_dir/11_deactivate_a_reservation.html"
+    do_curl_as_admin 'gestion/list_reservations.cgi?limit=17&sort_order=PAYING_SEATS&sort_order=name' "$test_output.tmp"
+    make_list_reservations_output_deterministic "$test_output.tmp" > "$test_output"
+    do_diff "$test_output"
+    echo "test_11_deactivate_a_reservation: ok"
+}
+
 # Deploy
 "$(dirname "$0")/../deploy.sh" "$destination" "$user" "$group" "$ssh_app_folder" "$admin_user" "$admin_pw"
 echo '{ "paying_seat_cents": 500 }' \
@@ -365,6 +389,7 @@ test_07_new_reservation_without_CSRF_token_fails
 test_08_new_reservation_with_wrong_CSRF_token_fails
 test_09_new_reservation_with_correct_CSRF_token_succeeds
 test_10_export_as_csv
+test_11_deactivate_a_reservation
 
 # Clean up
 ssh $destination "rm -r '$host_path_prefix/$folder'"

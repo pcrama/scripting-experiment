@@ -31,10 +31,39 @@ normalement inaccessibles au public.
      payantes et /m/ places gratuites.
    - Une bulle peut être active (c'est son état par défaut) ou annulée (par
      exemple pour corriger une erreur de saisie).  Pour le moment, je suis le
-     seul à pouvoir annuler une réservation.
+     seul à pouvoir annuler une réservation (càd la désactiver).  Seules les
+     bulles actives sont montrées.  Les données complètes sont disponibles
+     dans l'export CSV.
+   - Le nombre de places réservées dans le résumé en haut de la page ne
+     comprend que les réservations actives (payantes et gratuites additionnées
+     ensemble).
    - Le nombre de lignes dans le tableau est limité pour limiter le temps que
-     met la page à charger.
-2. Des liens "Début", "Précédent" et "Suivant" permettent de parcourir la liste.  Il y a moyen d'afficher 
+     met la page à charger, il est possible de le configurer.
+   - Des liens "Début", "Précédent" et "Suivant" permettent de parcourir la
+     liste.
+   - Les en-têtes des colonnes permettent de trier les lignes selon la valeur
+     de la colonne sélectionnée: en ordre croissant (⬆) ou décroissant (⬇) ou
+     de ne pas tenir compte de la colonne pour le tri (pas de flèche).  Passez
+     d'une possibilité à l'autre en cliquant plusieurs fois sur l'en-tête.  La
+     dernière colonne ainsi sélectionnée (dont la flèche est un peu plus
+     épaisse) est la première colonne prise en compte pour le tri.
+   - L'export en format CSV permet de télécharger toutes les réservations
+     (actives et désactivées) dans un fichier que Excel peut importer.
+     Malheureusement, le fichier contient des caractères spéciaux et il faut
+     suivre une [[https://www.nextofwindows.com/how-to-display-csv-files-with-unicode-utf-8-encoding-in-excel][procédure un peu compliquée]] pour ouvrir le fichier
+     correctement.
+
+*** Ajouter une nouvelle réservation à la place d'un spectateur
+Le formulaire au bas de la page permet d'ajouter une nouvelle
+réservation, par exemple lorsqu'un spectateur le demande par téléphone.
+
+⚠ *ATTENTION* ⚠: Pour un maximum de flexibilité, je n'ai pas implémenté de
+validation des données fournies dans ce formulaire.  Relisez-vous bien avant
+d'utiliser le bouton "Confirmer".
+
+Le champ commentaire est libre, j'imaginais qu'il pourrait servir pour noter
+le numéro de téléphone, mais ce champ n'est pas obligatoire.
+
 * Questions à valider
 :PROPERTIES:
 :CUSTOM_ID: questions_a_valider_20211025

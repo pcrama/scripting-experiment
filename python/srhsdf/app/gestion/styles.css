@@ -28,7 +28,19 @@ a.navigation {
 }
 
 table {
-    border: 0px;
+    border-collapse: collapse;
+}
+
+table tr:first-child {
+    border-top: 2px solid black;
+}
+
+th {
+    border-bottom: 1px solid grey;
+}
+
+table tr:last-child {
+    border-bottom: 2px solid black;
 }
 
 tr th {
