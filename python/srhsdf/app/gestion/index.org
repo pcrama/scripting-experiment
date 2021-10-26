@@ -20,7 +20,20 @@ administratives.  Celles-ci sont protégées par un mot de passe et sont
 normalement inaccessibles au public.
 
 *** Suivi des réservations
-1. Aller sur la page [[file+emacs:list_reservations.cgi][liste des réservations]].  Cha
+1. Aller sur la page [[file+emacs:list_reservations.cgi][liste des réservations]] qui ressemble à ceci:
+
+   #+CAPTION: Capture d'écran de la liste des réservations
+   #+ATTR_HTML: :alt Capture d'écran de la liste des réservations
+   [[file+emacs:images/01_reservation_list.png]]
+
+   Quelques explications:
+   - Une bulle est une réservation faite par une personne pour /n/ places
+     payantes et /m/ places gratuites.
+   - Une bulle peut être active (c'est son état par défaut) ou annulée (par
+     exemple pour corriger une erreur de saisie).  Pour le moment, je suis le
+     seul à pouvoir annuler une réservation.
+   - Le nombre de lignes dans le tableau est limité pour limiter le temps que
+     met la page à charger.
 2. Des liens "Début", "Précédent" et "Suivant" permettent de parcourir la liste.  Il y a moyen d'afficher 
 * Questions à valider
 :PROPERTIES:
@@ -34,6 +47,7 @@ J'ai fixé arbitrairement les conditions suivantes, just pour donner un exemple:
 C'est facile à changer, il suffit de me dire quoi.
 
 * Tâches à finaliser avant la "mise en production"
+- [ ] Configurer le prix des places
 - [ ] Augmenter le nombre de bulles affichées par défaut dans
   [[file+emacs:list_reservations.cgi][la liste des réservations]].
 - [ ] Corriger le numéro de compte dans [[file+emacs:../lib_post_reservation.py][../lib_post_reservation.py]].

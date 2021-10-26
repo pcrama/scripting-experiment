@@ -52,12 +52,21 @@ def make_url(sort_order, limit, offset, base_url=None, environ=None):
         return base_url
 
 
+def make_navigation_a_elt(sort_order, limit, offset, text):
+    return (('a',
+             'class', 'navigation',
+             'href', make_url(sort_order, limit, offset)),
+            text)
+
+
 def get_first(d, k):
     return d.get(k, [None])[0]
 
 
 def sort_direction(col, sort_order):
     col = col.lower()
+    if sort_order and sort_order[0].lower() == col:
+        return ' ⬇' if sort_order[0].isupper() else ' ⬆'
     try:
         sort_col = next(x for x in sort_order if x.lower() == col)
         return ' ↓' if sort_col[0].isupper() else ' ↑'
@@ -95,23 +104,23 @@ if __name__ == '__main__':
                    ('paying_seats', 'Payant'), ('free_seats', 'Gratuit'),
                    ('bank_id', 'Communication'), ('origin', 'Origine')]
         table_header_row = tuple(
-            ('th', (('a', 'href', make_url(update_sort_order(column, sort_order), limit, offset)),
-                    header + sort_direction(column, sort_order)))
+            ('th', make_navigation_a_elt(update_sort_order(column, sort_order), limit, offset,
+                                         header + sort_direction(column, sort_order)))
             for column, header in COLUMNS)
         total_bookings = Reservation.length(connection)
         active_reservations = Reservation.length(connection, [('active', 1)])
         reservation_summary = Reservation.summary_by_date(connection)
         pagination_links = tuple((
             x for x in
-            [('li', (('a', 'href', make_url(sort_order, limit, 0)), 'Début'))
+            [('li', make_navigation_a_elt(sort_order, limit, 0, 'Début'))
              if offset > 0
              else None,
              ('li',
-              (('a', 'href', make_url(sort_order, limit, offset - limit)), 'Précédent'))
+              make_navigation_a_elt(sort_order, limit, offset - limit, 'Précédent'))
              if offset > limit else
              None,
              ('li',
-              (('a', 'href', make_url(sort_order, limit, offset + limit)), 'Suivant'))
+              make_navigation_a_elt(sort_order, limit, offset + limit, 'Suivant'))
              if offset + limit < total_bookings else
              None]
             if x is not None))
@@ -129,7 +138,6 @@ if __name__ == '__main__':
                            for row in reservation_summary))
              if total_bookings > 0
              else '',
-             ('ul', *pagination_links) if pagination_links else '',
              (('form', 'action', os.getenv('SCRIPT_NAME')),
               (('label', 'for', 'limit'), 'Limiter le tableau à ', ('em', 'n'), ' lignes:'),
               (('input', 'id', 'limit', 'type', 'number', 'name', 'limit', 'min', '5', 'value', str(limit), 'max', '10000'),),
@@ -137,6 +145,7 @@ if __name__ == '__main__':
               *((('input', 'id', 'sort_order', 'name', 'sort_order', 'type', 'hidden', 'value', v),)
                 for v in sort_order),
               (('input', 'id', 'offset', 'name', 'offset', 'type', 'hidden', 'value', str(offset)),)),
+             (('ul', 'class', 'navbar'), *pagination_links) if pagination_links else '',
              ('table',
               ('tr', *table_header_row),
               *tuple(('tr',

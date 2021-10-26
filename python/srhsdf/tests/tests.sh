@@ -237,7 +237,7 @@ function test_04_valid_reservation_for_saturday
 {
     generic_test_valid_reservation_for_test_date 04_valid_reservation_for_saturday \
                                                  Saturday Saturday@gmail.com \
-                                                 2021-12-04 4 2 2000 1 2
+                                                 2021-12-04 4 1 2000 1 2
 }
 
 # 05: Register for Sunday

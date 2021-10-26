@@ -4,6 +4,8 @@
 
 This is a simplistic set of CGI scripts adapted for my web host.
 
+See also [[file+emacs:app/gestion/index.org][usage instructions and checklists (in French)]].
+
 * Deployment
 
 Use the ~deploy.sh~ script like this:

@@ -59,15 +59,17 @@ def html_document(title, body):
     for x in html_gen((('html', 'lang', 'fr'),
                        ('head',
                         (('meta', 'charset', 'utf-8'),),
-                        ('title', title)),
-                       ('body', )
-                       + body
-                       + (('hr', ),
-                          ('p',
-                           'Retour au ',
-                           (('a', 'href', 'https://www.srhbraine.be/'),
-                            "site de la Société Royale d'Harmonie de Braine-l'Alleud"),
-                           '.')))):
+                        (('meta', 'name', 'viewport', 'content', 'width=device-width, initial-scale=1.0'),),
+                        ('title', title),
+                        (('link', 'rel', 'stylesheet', 'href', 'styles.css'),)),
+                       ('body',
+                        *body,
+                        ('hr', ),
+                        ('p',
+                         'Retour au ',
+                         (('a', 'href', 'https://www.srhbraine.be/'),
+                          "site de la Société Royale d'Harmonie de Braine-l'Alleud"),
+                         '.')))):
         yield x
 
 
