@@ -24,8 +24,9 @@ host_path_prefix="$2"
 destination="$3"
 user="$4"
 group="$5"
-admin_user="$(or_default "$6" test_admin)"
-admin_pw="$(or_default "$7" test_password)"
+pseudo_random="$(date '+%s')"
+admin_user="$(or_default "$6" "user_$pseudo_random")"
+admin_pw="$(or_default "$7" "pw_$pseudo_random")"
 
 if [ -z "$host_path_prefix" -o -z "$base_url" ];
 then
@@ -187,7 +188,7 @@ function make_list_reservations_output_deterministic
     else
         sed -e 's/csrf_token" value="'"$csrf_token"'"/csrf_token" value="CSRF_TOKEN"/g' \
             $substitutions \
-            -e 's/$admin_user/TEST_ADMIN/' \
+            -e "s/$admin_user/TEST_ADMIN/g" \
             "$input"
     fi
 }
