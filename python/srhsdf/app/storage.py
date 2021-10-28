@@ -133,6 +133,7 @@ class Reservation(MiniOrm):
     FILTERABLE_COLUMNS = {'name': MiniOrm.compare_with_like_lower('name'),
                           'email': MiniOrm.compare_with_like_lower('email'),
                           'date': True,
+                          'uuid': True,
                           'bank_id': ('bank_id', 'like'),
                           'active': MiniOrm.compare_as_bool('active'),
                           'origin': ('LOWER(origin)', '=', str.lower),

@@ -5,6 +5,7 @@ import cgitb
 import itertools
 import os
 import sys
+import urllib.parse
 
 # hack to get at my utilities:
 sys.path.append('..')
@@ -39,17 +40,18 @@ def make_url(sort_order, limit, offset, base_url=None, environ=None):
     if base_url is None:
         environ = environ or os.environ
         base_url = f'https://{environ["SERVER_NAME"]}{environ["SCRIPT_NAME"]}'
-    params = '&'.join(f'{k}={v}'
-                      for k, v in
-                      itertools.chain(
-                          (('limit', limit),
-                           ('offset', offset)),
-                          (('sort_order', s) for s in sort_order))
-                      if v is not None)
-    if params:
-        return f'{base_url}?{params}'
-    else:
-        return base_url
+    params = list((k, v) for k, v in itertools.chain(
+        (('limit', limit),
+         ('offset', offset)),
+        (('sort_order', s) for s in sort_order))
+                  if v is not None)
+    split_result = urllib.parse.urlsplit(base_url)
+    return urllib.parse.urlunsplit((
+        split_result.scheme,
+        split_result.netloc,
+        split_result.path,
+        urllib.parse.urlencode(params),
+        split_result.fragment))
 
 
 def make_navigation_a_elt(sort_order, limit, offset, text):

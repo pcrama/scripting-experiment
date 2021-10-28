@@ -57,7 +57,15 @@ EOF
 # - $3: curl options
 # - $4: credentials
 function _do_curl {
-    curl --silent "https://$4$base_url/$folder/$1" $3 \
+    local end_point
+    case "$1" in
+        http://* | https://* ) if [ -n "$4" ] ; then
+                                   die "Unable to handle credentials in _do_curl with end_point='$1'"
+                               fi
+                               end_point="$1" ;;
+        * ) end_point="https://$4$base_url/$folder/$1" ;;
+    esac
+    curl --silent "$end_point" $3 \
         | sed -e "s/$folder/TEST_DIR/g" \
               > "$2"
 }
@@ -68,6 +76,29 @@ function do_curl {
 
 function do_curl_as_admin {
     _do_curl "$1" "$2" "$3" "$admin_user:$admin_pw@"
+}
+
+function do_curl_with_redirect
+{
+    local credentials end_point test_output options test_stderr location
+    if [ "$1" = "--admin" ];
+    then
+        credentials="$admin_user:$admin_pw@"
+        shift
+    else
+        credentials=""
+    fi
+    end_point="$1"
+    test_output="$2"
+    options="$3"
+    test_stderr="$test_output.stderr"
+    _do_curl "$end_point" "$test_output" "$options --verbose" "$credentials" \
+             2> "$test_stderr"
+    grep -q '^< HTTP/1.1 302 Found' "$test_stderr"
+    grep -q '^< Content-Length: 0' "$test_stderr"
+    location="$(sed -n -e 's/^< Location: *//p' "$test_stderr")"
+    do_curl "$location" "$test_output"
+    echo "$location"
 }
 
 function die {
@@ -128,7 +159,9 @@ function generic_test_valid_reservation_for_test_date
     gdpr_accepts_use="$8"
     total_reservations_count="$9"
     test_output="$test_dir/$test_name.html"
-    do_curl 'post_reservation.cgi' "$test_output.tmp" "-X POST -F name=$spectator_name -F email=$spectator_email -F date=$concert_date -F paying_seats=$paying_seats -F free_seats=$free_seats -F gdpr_accepts_use=$gdpr_accepts_use"
+    do_curl_with_redirect 'post_reservation.cgi' \
+                          "$test_output.tmp" \
+                          "-X POST -F name=$spectator_name -F email=$spectator_email -F date=$concert_date -F paying_seats=$paying_seats -F free_seats=$free_seats -F gdpr_accepts_use=$gdpr_accepts_use"
     communication="$(sed -n -e 's;.*<code>+++\([0-9][0-9][0-9]\)/\([0-9][0-9][0-9][0-9]\)/\([0-9][0-9][0-9][0-9][0-9]\)+++</code>.*;\1\2\3;p' "$test_output.tmp")"
     formatted_communication="$(sed -n -e 's;.*<code>\(+++[0-9][0-9][0-9]/[0-9][0-9][0-9][0-9]/[0-9][0-9][0-9][0-9][0-9]+++\)</code>.*;\1;p' "$test_output.tmp")"
     if [ -z "$communication" ]; then
@@ -145,7 +178,7 @@ function generic_test_valid_reservation_for_test_date
        ]; then
         die "test_$test_name: Wrong data saved in DB"
     fi
-    if [ "$(count_csrfs)" != "1" ]; then
+    if [ "$(count_csrfs)" -gt "1" ]; then
         die "test_$test_name: CSRF problem: new CSRF token created."
     fi
     echo "test_$test_name: ok"
@@ -217,7 +250,7 @@ function test_01_list_empty_reservations
     if [ "$(count_reservations)" != "0" ]; then
         die "Reservations table is not empty."
     fi
-    if [ "$(count_csrfs)" != "1" -o "$(get_user_of_csrf_token "$csrf_token")" != "$admin_user" ]; then
+    if [ "$(count_csrfs)" -gt "1" -o "$(get_user_of_csrf_token "$csrf_token")" != "$admin_user" ]; then
         die "CSRF problem."
     fi
     echo "test_01_list_empty_reservations: ok"
@@ -236,7 +269,7 @@ function test_02_invalid_date_for_reservation
     if [ "$(count_reservations)" != "0" ]; then
         die "test_02_invalid_date_for_reservation: Reservations table is not empty."
     fi
-    if [ "$(count_csrfs)" != "1" ]; then
+    if [ "$(count_csrfs)" -gt "1" ]; then
         die "test_02_invalid_date_for_reservation: CSRF problem: new CSRF token created."
     fi
     echo "test_02_invalid_date_for_reservation: ok"
@@ -286,7 +319,7 @@ function test_06_list_reservations
     if [ "$(count_reservations)" != "3" ]; then
         die "Reservations table wrong."
     fi
-    if [ "$(count_csrfs)" != "1" -o "$(get_user_of_csrf_token "$csrf_token")" != "$admin_user" ]; then
+    if [ "$(count_csrfs)" -gt "1" -o "$(get_user_of_csrf_token "$csrf_token")" != "$admin_user" ]; then
         die "CSRF problem."
     fi
     make_list_reservations_output_deterministic "$test_output.tmp" > "$test_output"
@@ -318,15 +351,16 @@ function test_09_new_reservation_with_correct_CSRF_token_succeeds
 {
     test_output="$test_dir/09_new_reservation_with_correct_CSRF_token_succeeds.html"
     csrf_token="$(get_csrf_token_of_user "$admin_user")"
-    do_curl_as_admin 'gestion/add_unchecked_reservation.cgi' \
-                     "$test_output" \
-                     "-X POST -F name=TestCreatedByAdmin -F comment=ByAdmin -F date=2099-01-01 -F paying_seats=0 -F free_seats=1 -F csrf_token=$csrf_token"
+    do_curl_with_redirect --admin \
+                          'gestion/add_unchecked_reservation.cgi' \
+                          "$test_output" \
+                          "-X POST -F name=TestCreatedByAdmin -F comment=ByAdmin -F date=2099-01-01 -F paying_seats=0 -F free_seats=1 -F csrf_token=$csrf_token"
     communication="$(sed -n -e 's;.*<code>\(+++[0-9][0-9][0-9]/[0-9][0-9][0-9][0-9]/[0-9][0-9][0-9][0-9][0-9]+++\)</code>.*;\1;p' "$test_output")"
     if [ -n "$communication" ]; then
        die "test_09_new_reservation_with_correct_CSRF_token_succeeds: bank ID in output"
     fi
     get_db_file
-    if [ "$(count_csrfs)" != "1" ]; then
+    if [ "$(count_csrfs)" -gt "1" ]; then
         die ": CSRF problem: new CSRF token created."
     fi
     if [ "$(count_reservations)" != "4" ]; then

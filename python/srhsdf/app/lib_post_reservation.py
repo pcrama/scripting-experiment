@@ -2,11 +2,11 @@
 import os
 import uuid
 import time
+import urllib
 
 from htmlgen import (
-    cents_to_euro,
-    format_bank_id,
     html_document,
+    redirect,
     respond_html,
 )
 from storage import(
@@ -120,6 +120,20 @@ def respond_with_reservation_failed():
           "Merci de bien vouloir ré-essayer plus tard."),)))
 
 
+def make_show_reservation_url(bank_id, uuid_hex, server_name=None, script_name=None):
+    server_name = os.environ["SERVER_NAME"] if server_name is None else server_name
+    script_name = os.environ["SCRIPT_NAME"] if script_name is None else script_name
+    base_url = urllib.parse.urljoin(
+        f'https://{server_name}{script_name}', 'show_reservation.cgi')
+    split_result = urllib.parse.urlsplit(base_url)
+    return urllib.parse.urlunsplit((
+        'https',
+        server_name,
+        urllib.parse.urljoin(script_name, 'show_reservation.cgi'),
+        urllib.parse.urlencode((('bank_id', bank_id), ('uuid_hex', uuid_hex))),
+        ''))
+
+
 def respond_with_reservation_confirmation(
         name, email, date, paying_seats, free_seats, gdpr_accepts_use, connection, configuration, origin=None):
     cents_due = compute_price(paying_seats, date, configuration)
@@ -129,27 +143,10 @@ def respond_with_reservation_confirmation(
     except Exception:
         respond_with_reservation_failed()
         cgitb.handler()
-    places = (' pour ',)
-    if paying_seats > 0:
-        places += (str(paying_seats),
-                   ' place payante ' if paying_seats == 1 else ' places payantes ')
-    if free_seats > 0:
-        if paying_seats > 0:
-            places += ('et ',)
-        places += (str(free_seats),
-                   ' place gratuite ' if free_seats == 1 else ' places gratuites ')
-    if paying_seats > 0:
-        places += ('au prix de ', cents_to_euro(cents_due), '€ ')
-    places += ('a été enregistrée.',)
-    virement = '' \
-        if paying_seats < 1 else (
-                'p', 'Veuillez effectuer un virement pour ',
-                cents_to_euro(cents_due),
-                '€ au compte BExx XXXX YYYY ZZZZ en mentionnant la communication '
-                'structurée ', ('code', format_bank_id(new_row.bank_id)), '.')
-    respond_html(html_document(
-        'Réservation effectuée',
-        (('p', 'Votre réservation au nom de ', name) + places,
-         virement,
-         ('p', 'Un tout grand merci pour votre présence le ', date, ': le soutien '
-          'de nos auditeurs nous est indispensable!'))))
+
+    redirect(make_show_reservation_url(
+        new_row.bank_id,
+        new_row.uuid_hex,
+        script_name=(os.environ["SCRIPT_NAME"]
+                     if origin is None else
+                     os.path.dirname(os.environ["SCRIPT_NAME"]))))
