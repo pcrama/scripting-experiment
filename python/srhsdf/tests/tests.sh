@@ -27,6 +27,8 @@ group="$5"
 pseudo_random="$(date '+%s')"
 admin_user="$(or_default "$6" "user_$pseudo_random")"
 admin_pw="$(or_default "$7" "pw_$pseudo_random")"
+bank_account="BExx-$pseudo_random"
+info_email="mrx.$pseudo_random@example.com"
 
 if [ -z "$host_path_prefix" -o -z "$base_url" ];
 then
@@ -149,6 +151,7 @@ function do_diff {
 
 function generic_test_valid_reservation_for_test_date
 {
+    local test_name spectator_name spectator_email concert_date paying_seats free_seats cents_due gdpr_accepts_use total_reservations_count test_output communication formatted_communication
     test_name="$1"
     spectator_name="$2"
     spectator_email="$3"
@@ -167,7 +170,11 @@ function generic_test_valid_reservation_for_test_date
     if [ -z "$communication" ]; then
        die "test_$test_name: no bank ID"
     fi
-    sed -e "s;$formatted_communication;COMMUNICATION;g" "$test_output.tmp" > "$test_output"
+    sed -e "s;$formatted_communication;COMMUNICATION;g" \
+        -e "s;$bank_account;BANK_ACCOUNT;g" \
+        -e "s;mailto:$info_email;TEST_EMAIL;g" \
+        "$test_output.tmp" \
+        > "$test_output"
     do_diff "$test_output"
     get_db_file
     if [ "$(count_reservations)" != "$total_reservations_count" ]; then
@@ -349,15 +356,16 @@ function test_08_new_reservation_with_wrong_CSRF_token_fails
 # - Verify new data created
 function test_09_new_reservation_with_correct_CSRF_token_succeeds
 {
+    local test_output csrf_token communication
     test_output="$test_dir/09_new_reservation_with_correct_CSRF_token_succeeds.html"
     csrf_token="$(get_csrf_token_of_user "$admin_user")"
     do_curl_with_redirect --admin \
                           'gestion/add_unchecked_reservation.cgi' \
-                          "$test_output" \
+                          "$test_output.tmp" \
                           "-X POST -F name=TestCreatedByAdmin -F comment=ByAdmin -F date=2099-01-01 -F paying_seats=0 -F free_seats=1 -F csrf_token=$csrf_token"
-    communication="$(sed -n -e 's;.*<code>\(+++[0-9][0-9][0-9]/[0-9][0-9][0-9][0-9]/[0-9][0-9][0-9][0-9][0-9]+++\)</code>.*;\1;p' "$test_output")"
+    communication="$(sed -n -e 's;.*<code>\(+++[0-9][0-9][0-9]/[0-9][0-9][0-9][0-9]/[0-9][0-9][0-9][0-9][0-9]+++\)</code>.*;\1;p' "$test_output.tmp")"
     if [ -n "$communication" ]; then
-       die "test_09_new_reservation_with_correct_CSRF_token_succeeds: bank ID in output"
+       die "test_09_new_reservation_with_correct_CSRF_token_succeeds: bank ID '$communication' in output"
     fi
     get_db_file
     if [ "$(count_csrfs)" -gt "1" ]; then
@@ -371,6 +379,7 @@ function test_09_new_reservation_with_correct_CSRF_token_succeeds
        ]; then
         die "test_09_new_reservation_with_correct_CSRF_token_succeeds: Wrong data saved in DB"
     fi
+    sed -e "s;mailto:$info_email;TEST_EMAIL;g" "$test_output.tmp" > "$test_output"
     do_diff "$test_output"
     echo "test_09_new_reservation_with_correct_CSRF_token_succeeds: ok"
 }
@@ -379,6 +388,7 @@ function test_09_new_reservation_with_correct_CSRF_token_succeeds
 # - Verify output CSV
 function test_10_export_as_csv
 {
+    local test_output substitutions
     test_output="$test_dir/10_export_as_csv.csv"
     do_curl_as_admin 'gestion/export_csv.cgi' "$test_output.tmp"
     # Replace variable or random parts of collected output by deterministic identifiers
@@ -392,6 +402,7 @@ function test_10_export_as_csv
 # 11: Deactivate first reservation to check it does not show up in the list anymore
 function test_11_deactivate_a_reservation
 {
+    local test_output
     sql_query 'UPDATE reservations SET active=0 WHERE bank_id = (
                    SELECT bank_id FROM reservations ORDER BY time ASC LIMIT 1)'
     put_db_file
@@ -404,7 +415,7 @@ function test_11_deactivate_a_reservation
 
 # Deploy
 "$(dirname "$0")/../deploy.sh" "$destination" "$user" "$group" "$ssh_app_folder" "$admin_user" "$admin_pw"
-echo '{ "paying_seat_cents": 500 }' \
+echo '{ "paying_seat_cents": 500, "bank_account": "'$bank_account'", "info_email": "'$info_email'" }' \
     | ssh "$destination" \
           "touch '$ssh_app_folder/configuration.json'; cat > '$ssh_app_folder/configuration.json'"
 

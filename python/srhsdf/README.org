@@ -2,7 +2,9 @@
 
 * Introduction
 
-This is a simplistic set of CGI scripts adapted for my web host.
+This is a simplistic set of CGI scripts adapted for my web host and as a
+learning exercise to see how much features and ease-of-use a web framework
+deliver.
 
 See also [[file+emacs:app/gestion/index.org][usage instructions and checklists (in French)]].
 
@@ -26,6 +28,11 @@ in 2021.
 
 The trick to be able to book dates for the fake dates is that the name must
 start with ~Test~ and that the email address must end with ~@example.com~.
+
+There are some automated test in [[file+emacs:tests/tests.sh][this shell script]].  It exercises various
+end-points and compares the HTML output with known good HTML output.  The
+tests are unfortunately not real unit tests: they have to be run in sequence
+as the state of one test is often assumed in the next test.
 
 * Limitations
 - No maximum number of seats per concert enforced.

@@ -18,10 +18,12 @@ from storage import(
     create_db,
 )
 
+CONCERT_PAGE = 'https://www.srhbraine.be/concert-de-gala-2021/'
 
 if __name__ == '__main__':
+    
     if os.getenv('REQUEST_METHOD') != 'GET':
-        redirect('https://www.srhbraine.be/concert-de-gala-2021/')
+        redirect(CONCERT_PAGE)
     CONFIGURATION = config.get_configuration()
 
     cgitb.enable(display=CONFIGURATION['cgitb_display'], logdir=CONFIGURATION['logdir'])
@@ -55,13 +57,18 @@ if __name__ == '__main__':
     places += ('a été enregistrée.',)
     virement = '' \
         if reservation.paying_seats < 1 else (
-                'p', 'Veuillez effectuer un virement pour ',
+                'p', 'Veuillez confirmer votre réservation en virant ',
                 cents_to_euro(reservation.cents_due),
-                '€ au compte BExx XXXX YYYY ZZZZ en mentionnant la communication '
-                'structurée ', ('code', format_bank_id(reservation.bank_id)), '.')
+                '€ sur le compte ', CONFIGURATION['bank_account'], ' en mentionnant la '
+                'communication structurée ', ('code', format_bank_id(reservation.bank_id)), '.')
     respond_html(html_document(
         'Réservation effectuée',
         (('p', 'Votre réservation au nom de ', reservation.name) + places,
          virement,
+         ('p', (('a', 'href', CONCERT_PAGE), 'Cette page'), ' sera tenue à jour avec '
+          'les mesures de sécurité en vigueur lors de notre concert. Merci de la consulter '
+          'peu avant notre spectacle. ',
+          (('a', 'href', f"mailto:{CONFIGURATION['info_email']}"), 'Contactez-nous'),
+          ' si vous avez encore des questions.'),
          ('p', 'Un tout grand merci pour votre présence le ', reservation.date,
           ': le soutien de nos auditeurs nous est indispensable!'))))

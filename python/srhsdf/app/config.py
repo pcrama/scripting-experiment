@@ -14,6 +14,8 @@ def get_configuration():
         'dbdir': os.getenv('TEMP', SCRIPT_DIR),
         'cgitb_display': 1,
         'paying_seat_cents': 500,
+        'bank_account': 'BExx XXXX YYYY ZZZZ',
+        'info_email': 'nobody@example.com',
     }
     try:
         with open(os.path.join(SCRIPT_DIR, 'configuration.json')) as f:
