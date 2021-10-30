@@ -112,12 +112,14 @@ def compute_price(paying_seats, date, configuration):
     return paying_seats * configuration['paying_seat_cents']
 
 
-def respond_with_reservation_failed():
+def respond_with_reservation_failed(configuration):
     respond_html(html_document(
         'Erreur interne au serveur',
         (('p',
           "Malheureusement une erreur s'est produite et votre réservation n'a pas été enregistrée.  "
-          "Merci de bien vouloir ré-essayer plus tard."),)))
+          "Merci de bien vouloir ré-essayer plus tard. ",
+          (('a', 'href', f'mailto:{configuration["info_email"]}'), "Contactez-nous"),
+          " si ce problème persiste."),)))
 
 
 def make_show_reservation_url(bank_id, uuid_hex, server_name=None, script_name=None):
@@ -141,7 +143,7 @@ def respond_with_reservation_confirmation(
         new_row = save_data_sqlite3(
             name, email, date, paying_seats, free_seats, gdpr_accepts_use, cents_due, origin, connection)
     except Exception:
-        respond_with_reservation_failed()
+        respond_with_reservation_failed(configuration)
         cgitb.handler()
 
     redirect(make_show_reservation_url(

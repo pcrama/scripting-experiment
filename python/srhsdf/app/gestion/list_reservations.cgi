@@ -80,6 +80,9 @@ def pluriel_naif(x, c):
     return x if c == 1 else f'{x}s'
 
 
+DEFAULT_LIMIT = 20
+MAX_LIMIT = 500
+
 if __name__ == '__main__':
     if os.getenv('REQUEST_METHOD') != 'GET' or os.getenv('REMOTE_USER') is None:
         redirect('https://www.srhbraine.be/concert-de-gala-2021/')
@@ -91,9 +94,9 @@ if __name__ == '__main__':
         params = cgi.parse()
         sort_order = params.get('sort_order', '')
         try:
-            limit = max(int(get_first(params, 'limit')), 5)
+            limit = min(int(get_first(params, 'limit') or DEFAULT_LIMIT), MAX_LIMIT)
         except Exception:
-            limit = 5
+            limit = DEFAULT_LIMIT
         try:
             offset = max(int(get_first(params, 'offset')), 0)
         except Exception:

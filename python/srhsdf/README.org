@@ -22,6 +22,32 @@ Use the ~deploy.sh~ script like this:
   the destination.
 - ~destination_folder~ :: where to deploy.
 
+Host an HTML form that will =POST= its content to the =post_reservation.cgi=
+script:
+#+begin_example
+  <form action="https://YOUR_HOST/DEPLOYMENT_DIR/post_reservation.cgi" method="POST">
+    <label for="name">Nom:</label><br>
+    <input type="text" id="name" name="name" placeholder="Il est obligatoire de saisir votre nom" required="required" style="width:100%;"><br>
+    <label for="email">Email:</label><br>
+    <input type="email" id="email" name="email" placeholder="Nous pourrions avoir besoin de votre email pour le tracing" required="required" style="width:100%;"><br>
+    <br><input type="radio" id="samedi" name="date" value="2099-01-01" checked="checked">
+    <label for="samedi">TEST: Samedi 1 janvier 2099 à 20h.</label><br>
+    <input type="radio" id="dimanche" name="date" value="2099-01-02">
+    <label for="dimanche">TEST: Dimanche 2 janvier 2099 à 15h.</label><br>
+    <label for="paying_seats">Places payantes (5€ à partir de 12 ans):</label>
+    <input type="number" id="paying_seats" name="paying_seats" min="0" max="10" value="0"><br>
+    <label for="free_seats">Places gratuites (moins de 12 ans):</label>
+    <input type="number" id="free_seats" name="free_seats" min="0" max="10" value="0"><br>
+    <div style="display: grid;">
+      <div style="grid-row: 1; grid-column: 1;"><input type="checkbox" id="gdpr_accepts_use" name="gdpr_accepts_use" value="true"></div>
+      <div style="grid-row: 1; grid-column: 2;">
+        <label for="gdpr_accepts_use">J'autorise la Société Royale d'Harmonie de Braine-l'Alleud à utiliser mon adresse email pour m'avertir de ses futures activités.</label>
+      </div>
+    </div><br>
+    <input type="submit" value="Confirmer">
+  </form>
+#+end_example
+
 * Test mode
 There are 4 dates for the concert: 2 fake dates in 2099 and the 2 real dates
 in 2021.

@@ -3,6 +3,7 @@
 import cgi
 import cgitb
 import os
+import re
 
 import config
 from htmlgen import (
@@ -62,43 +63,43 @@ def validate_data(name, email, date, paying_seats, free_seats, gdpr_accepts_use,
     (name, email, date, paying_seats, free_seats, gdpr_accepts_use) = normalize_data(
         name, email, date, paying_seats, free_seats, gdpr_accepts_use)
     if not(name and email):
-        raise ValidationException('No contact information')
+        raise ValidationException('Vos données de contact sont incomplètes')
+    INVALID_EMAIL = "L'adresse email renseignée n'a pas le format requis"
     try:
-        at_sign = email.index('@', 1) # email address must contain '@' but may not start with it
-        host_dot = email.index('.', at_sign + 1)
-    except ValueError:
-        email_is_bad = email != ''
+        email_match = re.fullmatch(
+            '[^@]+@(\\w+\\.)+\\w\\w+', email, flags=re.IGNORECASE | re.UNICODE)
+    except Exception:
+        raise ValidationException(INVALID_EMAIL)
     else:
-        email_is_bad = False
-    if email_is_bad:
-        raise ValidationException('Invalid email address')
+        if email_match is None:
+            raise ValidationException(INVALID_EMAIL)
     if paying_seats + free_seats < 1:
-        raise ValidationException('No seats reserved')
+        raise ValidationException("Vous n'avez pas indiqué combien de sièges vous vouliez réserver")
     if date not in (('2099-01-01', '2099-01-02')
                     if is_test_reservation(name, email)
                     else ('2021-12-04', '2021-12-05')):
-        raise ValidationException('No representation')
-    reservations_count, reserved_seats  = connection.execute(
-        'SELECT COUNT(*), SUM(paying_seats + free_seats) FROM reservations WHERE LOWER(name) = :name OR LOWER(email) = :email',
-        {'name': name.lower(), 'email': email.lower()}
-    ).fetchone()
+        raise ValidationException("Il n'y a pas de concert ̀à cette date")
+    reservations_count, reserved_seats  = Reservation.count_reservations(connection, name, email)
     if (reservations_count or 0) > 10:
-        raise ValidationException('Too many distinct reservations')
+        raise ValidationException('Il y a déjà trop de réservations à votre nom')
     if (reserved_seats or 0) + paying_seats + free_seats > 60:
-        raise ValidationException('Too many seats reserved')
+        raise ValidationException('Vous réservez ou avez réservé trop de sièges')
     return (name, email, date, paying_seats, free_seats, gdpr_accepts_use)
 
 
-def respond_with_validation_error(form, e):
+def respond_with_validation_error(form, e, configuration):
     respond_html(html_document(
         'Données invalides dans le formulaire',
         (('p', "Votre formulaire contient l'erreur suivante:"),
-         ('p', (('code', 'lang', 'en'), str(e))))
-        + ((('p', 'Formulaire vide.'),)
-           if len(form) < 1 else
-           (('p', "Voici les données reçues"),
-            ('ul', *tuple(('li', ('code', k), ': ', repr(form[k]))
-                          for k in sorted(form.keys())))))))
+         ('p', (('code', 'lang', 'en'), str(e))),
+        *((('p', 'Formulaire vide.'),)
+          if len(form) < 1 else
+          (('p', "Voici les données reçues"),
+           ('ul', *tuple(('li', ('code', k), ': ', repr(form[k]))
+                         for k in sorted(form.keys()))))),
+         ('p',
+          (('a', 'href', f'mailto:{configuration["info_email"]}'), "Contactez-nous"),
+          " si vous désirez de l'aide pour enregistrer votre réservation."))))
 
 
 if __name__ == '__main__':
@@ -124,7 +125,7 @@ if __name__ == '__main__':
             (name, email, date, paying_seats, free_seats, gdpr_accepts_use) = validate_data(
                 name, email, date, paying_seats, free_seats, gdpr_accepts_use, db_connection)
         except ValidationException as e:
-            respond_with_validation_error(form, e)
+            respond_with_validation_error(form, e, CONFIGURATION)
         else:
             respond_with_reservation_confirmation(
                 name,

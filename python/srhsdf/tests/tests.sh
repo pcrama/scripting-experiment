@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 set -e
 
@@ -68,7 +68,7 @@ function _do_curl {
         * ) end_point="https://$4$base_url/$folder/$1" ;;
     esac
     curl --silent "$end_point" $3 \
-        | sed -e "s/$folder/TEST_DIR/g" \
+        | sed -e "s/$folder/TEST_DIR/g" -e "s/$base_url/TEST_HOST/g" -e "s;mailto:$info_email;TEST_EMAIL;g"\
               > "$2"
 }
 
@@ -172,7 +172,6 @@ function generic_test_valid_reservation_for_test_date
     fi
     sed -e "s;$formatted_communication;COMMUNICATION;g" \
         -e "s;$bank_account;BANK_ACCOUNT;g" \
-        -e "s;mailto:$info_email;TEST_EMAIL;g" \
         "$test_output.tmp" \
         > "$test_output"
     do_diff "$test_output"
@@ -361,9 +360,9 @@ function test_09_new_reservation_with_correct_CSRF_token_succeeds
     csrf_token="$(get_csrf_token_of_user "$admin_user")"
     do_curl_with_redirect --admin \
                           'gestion/add_unchecked_reservation.cgi' \
-                          "$test_output.tmp" \
+                          "$test_output" \
                           "-X POST -F name=TestCreatedByAdmin -F comment=ByAdmin -F date=2099-01-01 -F paying_seats=0 -F free_seats=1 -F csrf_token=$csrf_token"
-    communication="$(sed -n -e 's;.*<code>\(+++[0-9][0-9][0-9]/[0-9][0-9][0-9][0-9]/[0-9][0-9][0-9][0-9][0-9]+++\)</code>.*;\1;p' "$test_output.tmp")"
+    communication="$(sed -n -e 's;.*<code>\(+++[0-9][0-9][0-9]/[0-9][0-9][0-9][0-9]/[0-9][0-9][0-9][0-9][0-9]+++\)</code>.*;\1;p' "$test_output")"
     if [ -n "$communication" ]; then
        die "test_09_new_reservation_with_correct_CSRF_token_succeeds: bank ID '$communication' in output"
     fi
@@ -379,7 +378,6 @@ function test_09_new_reservation_with_correct_CSRF_token_succeeds
        ]; then
         die "test_09_new_reservation_with_correct_CSRF_token_succeeds: Wrong data saved in DB"
     fi
-    sed -e "s;mailto:$info_email;TEST_EMAIL;g" "$test_output.tmp" > "$test_output"
     do_diff "$test_output"
     echo "test_09_new_reservation_with_correct_CSRF_token_succeeds: ok"
 }

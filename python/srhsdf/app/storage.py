@@ -113,6 +113,15 @@ class Reservation(MiniOrm):
 
 
     @classmethod
+    def count_reservations(cls, connection, name, email):
+        return connection.execute(
+            f'''SELECT COUNT(*), SUM(paying_seats + free_seats) FROM {cls.TABLE_NAME}
+                WHERE LOWER(name) = :name OR LOWER(email) = :email''',
+            {'name': name.lower(), 'email': email.lower()}
+        ).fetchone()
+
+
+    @classmethod
     def summary_by_date(cls, connection):
         return connection.execute(
             f"""SELECT date, SUM(paying_seats + free_seats) FROM {cls.TABLE_NAME}
