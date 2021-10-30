@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 destination="$1"
 user="$2"

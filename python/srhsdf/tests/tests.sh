@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 set -e
 
@@ -68,7 +68,7 @@ function _do_curl {
         * ) end_point="https://$4$base_url/$folder/$1" ;;
     esac
     curl --silent "$end_point" $3 \
-        | sed -e "s/$folder/TEST_DIR/g" \
+        | sed -e "s/$folder/TEST_DIR/g" -e "s/$base_url/TEST_HOST/g" \
               > "$2"
 }
 
