@@ -20,7 +20,7 @@ def normalize_data(name, email, date, paying_seats, free_seats, gdpr_accepts_use
         if x is None:
             return ''
         else:
-            return ' '.join(x.split())
+            return ' '.join(x.split())[:256]
     def safe_non_negative_int_less_or_equal_than_50(x):
         try:
             x = int(x)

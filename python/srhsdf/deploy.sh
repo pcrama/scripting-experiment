@@ -1,5 +1,11 @@
 #!/bin/bash
 
+if [ "$1" = "--for-tests" ];
+then
+    excludes='--exclude *.png --exclude *.html'
+    shift
+fi
+
 destination="$1"
 user="$2"
 group="$3"
@@ -39,13 +45,13 @@ else
     (cd "$(dirname "$0")/app/gestion" \
          && emacs --batch \
                   --eval "(progn (find-file \"index.org\") (org-html-export-to-html))")
-    tar czf - --exclude "#*" --exclude "*~" --exclude "*.bak" --exclude "*cache*" --exclude "index.org" \
+    tar czf - --exclude "#*" --exclude "*~" --exclude "*.bak" --exclude "*cache*" --exclude "index.org" $excludes \
         -C "$(dirname "$0")/app" \
         . \
         | tar xzf - -C "$staging_dir"
     rm -f "$(dirname "$0")/app/gestion/index.html"
     find "$staging_dir" -type f '(' -name '*.cgi' -o -name '*.py' ')' -print0 | xargs -0 dos2unix
-    tar cf - --"owner=$user" --"group=$group" -C "$staging_dir" . \
-        | ssh "$destination" "mkdir -p '$folder'; tar xvf - -C '$folder' $setup_password $setup_access"
+    tar czf - --"owner=$user" --"group=$group" -C "$staging_dir" . \
+        | ssh "$destination" "mkdir -p '$folder'; tar xvzf - -C '$folder' $setup_password $setup_access"
     rm -r "$staging_dir" || echo "Unable to clean up staging_dir='$staging_dir'"
 fi

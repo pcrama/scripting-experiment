@@ -138,7 +138,8 @@ function get_csrf_token_of_user {
 }
 
 function do_diff {
-    reference="$golden/$(basename "$test_output")"
+    local reference
+    reference="$golden/$(basename "$1")"
     if diff -wq "$1" "$reference" ;
     then
         echo "Content of '$1' is as expected."
@@ -165,6 +166,7 @@ function generic_test_valid_reservation_for_test_date
     do_curl_with_redirect 'post_reservation.cgi' \
                           "$test_output.tmp" \
                           "-X POST -F name=$spectator_name -F email=$spectator_email -F date=$concert_date -F paying_seats=$paying_seats -F free_seats=$free_seats -F gdpr_accepts_use=$gdpr_accepts_use"
+    get_db_file
     communication="$(sed -n -e 's;.*<code>+++\([0-9][0-9][0-9]\)/\([0-9][0-9][0-9][0-9]\)/\([0-9][0-9][0-9][0-9][0-9]\)+++</code>.*;\1\2\3;p' "$test_output.tmp")"
     formatted_communication="$(sed -n -e 's;.*<code>\(+++[0-9][0-9][0-9]/[0-9][0-9][0-9][0-9]/[0-9][0-9][0-9][0-9][0-9]+++\)</code>.*;\1;p' "$test_output.tmp")"
     if [ -z "$communication" ]; then
@@ -175,9 +177,18 @@ function generic_test_valid_reservation_for_test_date
         "$test_output.tmp" \
         > "$test_output"
     do_diff "$test_output"
-    get_db_file
     if [ "$(count_reservations)" != "$total_reservations_count" ]; then
         die "test_$test_name: Reservations table should contain $total_reservations_count row."
+    fi
+    if [ "${spectator_name:0:1}" = "<" ]; then
+        # Handle curl(1) syntax reading parameter values from file: strip
+        # leading `<' character and read file content
+        spectator_name="$(cat "${spectator_name:1}")"
+    fi
+    if [ "${spectator_email:0:1}" = "<" ]; then
+        # Handle curl(1) syntax reading parameter values from file: strip
+        # leading `<' character and read file content
+        spectator_email="$(cat "${spectator_email:1}")"
     fi
     if [ "$(sql_query "SELECT name, email, date, paying_seats, free_seats, gdpr_accepts_use, cents_due, active, bank_id FROM reservations WHERE bank_id = '$communication';")" \
              != "$spectator_name|$spectator_email|$concert_date|$paying_seats|$free_seats|$gdpr_accepts_use|$cents_due|1|$communication" \
@@ -192,6 +203,7 @@ function generic_test_valid_reservation_for_test_date
 
 function generic_test_new_reservation_without_valid_CSRF_token_fails
 {
+    local test_name csrf_arg test_output test_stderr csrf_token
     test_name="$1"
     csrf_arg="$2"
     test_output="$test_dir/$test_name.will-be-empty"
@@ -204,7 +216,7 @@ function generic_test_new_reservation_without_valid_CSRF_token_fails
     if [ "$(count_reservations)" != "3" ]; then
         die "Reservations table wrong."
     fi
-    if [ "$(count_csrfs)" != "1" -o "$(get_user_of_csrf_token "$csrf_token")" != "$admin_user" ]; then
+    if [ "$(count_csrfs)" != "1" ]; then
         die "CSRF problem."
     fi
     grep -q '^< HTTP/1.1 302 Found' "$test_stderr"
@@ -217,8 +229,11 @@ function generic_test_new_reservation_without_valid_CSRF_token_fails
 # CSRF token is included.  Output to stdout.
 function make_list_reservations_output_deterministic
 {
+    local input substitutions csrf_token
     input="$1"
+    # tr -d -c '...': slugify name to ensure it can become a proper sed(1) command
     substitutions="$(sql_query "SELECT name, bank_id FROM reservations" \
+                         | tr -d -c 'a-zA-Z0-9|\n' \
                          | sed -e 's;\(.*\)|\(.*\);-e s,\2,COMMUNICATION-\1,;')"
     csrf_token="$(sed -n -e 's/.*csrf_token" value="\([a-f0-9A-F]*\)".*/\1/p' "$input")"
     if [ -z "$csrf_token" ];
@@ -240,6 +255,7 @@ function make_list_reservations_output_deterministic
 # - Verify reservations is empty
 function test_01_list_empty_reservations
 {
+    local test_output csrf_token
     test_output="$test_dir/01_list_reservations_empty_db.html"
     do_curl_as_admin 'gestion/list_reservations.cgi' "$test_output.tmp"
     csrf_token="$(sed -n -e 's/.*csrf_token" value="\([a-f0-9A-F]*\)".*/\1/p' "$test_output.tmp")"
@@ -268,6 +284,7 @@ function test_01_list_empty_reservations
 # - No new CSRF token
 function test_02_invalid_date_for_reservation
 {
+    local test_output
     test_output="$test_dir/02_invalid_date_for_reservation.html"
     do_curl 'post_reservation.cgi' "$test_output" "-X POST -F name=TestName -F email=Test.Email@example.com -F date=1234-56-78 -F paying_seats=3 -F free_seats=5 -F gdpr_accepts_use=1"
     do_diff "$test_output"
@@ -319,8 +336,10 @@ function test_05_valid_reservation_for_sunday
 # - Verify CSRF is in DB (no new CSRF token created)
 function test_06_list_reservations
 {
+    local test_output csrf_token
     test_output="$test_dir/06_list_reservations.html"
     do_curl_as_admin 'gestion/list_reservations.cgi?limit=7&offset=1&sort_order=date&sort_order=name' "$test_output.tmp"
+    csrf_token="$(sed -n -e 's/.*csrf_token" value="\([a-f0-9A-F]*\)".*/\1/p' "$test_output.tmp")"
     get_db_file
     if [ "$(count_reservations)" != "3" ]; then
         die "Reservations table wrong."
@@ -411,8 +430,42 @@ function test_11_deactivate_a_reservation
     echo "test_11_deactivate_a_reservation: ok"
 }
 
+# 12: Register with a name with special characters to test HTML escaping & SQL injection resistence
+# - Verify output HTML
+# - Verify reservations contains 1 row with correct information
+# - No new CSRF token
+# - Verify updated administrative list
+function test_12_bobby_tables_and_co
+{
+    local reservation_name reservation_email sql_output test_output csrf_token
+    reservation_name="$test_dir/12_input_name"
+    reservation_email="$test_dir/12_input_email"
+    sql_output="$test_dir/12_sqlite3_output"
+    test_output="$test_dir/12_list_reservations.html"
+    # Have curl(1) read the value of some fields from temporary file to be able to
+    # pass special characters that my shell quoting skills can't handle:
+    echo '"; drop table reservations; select count(1) from csrfs where "2"<"' > "$reservation_name"
+    echo '</body></html><!--@example.com' > "$reservation_email"
+    generic_test_valid_reservation_for_test_date 12_bobby_tables_and_co \
+                                                 "<$reservation_name" \
+                                                 "<$reservation_email" \
+                                                 2021-12-05 7 2 3500 0 5
+    do_curl_as_admin 'gestion/list_reservations.cgi?limit=9' "$test_output.tmp"
+    csrf_token="$(sed -n -e 's/.*csrf_token" value="\([a-f0-9A-F]*\)".*/\1/p' "$test_output.tmp")"
+    get_db_file
+    sql_query 'select email,name from reservations where email like "%body%html%"' \
+              > "$sql_output"
+    do_diff "$sql_output"
+    if [ "$(count_csrfs)" -gt "1" -o "$(get_user_of_csrf_token "$csrf_token")" != "$admin_user" ]; then
+        die "CSRF problem."
+    fi
+    make_list_reservations_output_deterministic "$test_output.tmp" > "$test_output"
+    do_diff "$test_output"
+    echo "test_12_bobby_tables_and_co: ok"
+}
+
 # Deploy
-"$(dirname "$0")/../deploy.sh" "$destination" "$user" "$group" "$ssh_app_folder" "$admin_user" "$admin_pw"
+"$(dirname "$0")/../deploy.sh" "--for-tests" "$destination" "$user" "$group" "$ssh_app_folder" "$admin_user" "$admin_pw"
 echo '{ "paying_seat_cents": 500, "bank_account": "'$bank_account'", "info_email": "'$info_email'" }' \
     | ssh "$destination" \
           "touch '$ssh_app_folder/configuration.json'; cat > '$ssh_app_folder/configuration.json'"
@@ -434,6 +487,7 @@ test_08_new_reservation_with_wrong_CSRF_token_fails
 test_09_new_reservation_with_correct_CSRF_token_succeeds
 test_10_export_as_csv
 test_11_deactivate_a_reservation
+test_12_bobby_tables_and_co
 
 # Clean up
 ssh $destination "rm -r '$host_path_prefix/$folder'"
