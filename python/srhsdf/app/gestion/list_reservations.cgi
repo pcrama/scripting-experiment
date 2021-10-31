@@ -138,7 +138,7 @@ if __name__ == '__main__':
               '.')
              if total_bookings > 0
              else '',
-             ('ul', *tuple(('li', row[0], ':',
+             ('ul', *tuple(('li', row[0], ': ',
                             str(row[1]), pluriel_naif(' place', row[1]), pluriel_naif(' réservée', row[1]))
                            for row in reservation_summary))
              if total_bookings > 0

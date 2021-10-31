@@ -6,31 +6,13 @@ import uuid
 
 def create_db(configuration):
     root_dir = configuration['dbdir']
-    con = sqlite3.connect(os.path.join(root_dir, 'db.db'))
-    try:
-        con.execute(f'SELECT COUNT(*) FROM {Reservation.TABLE_NAME}')
-        con.execute(f'SELECT COUNT(*) FROM {Csrf.TABLE_NAME}')
-    except Exception as e:
-        con.execute(f'''CREATE TABLE {Reservation.TABLE_NAME}
-                        (name TEXT NOT NULL,
-                         email TEXT,
-                         date TEXT NOT NULL,
-                         paying_seats INTEGER,
-                         free_seats INTEGER,
-                         gdpr_accepts_use INTEGER,
-                         cents_due INTEGER,
-                         bank_id TEXT NOT NULL,
-                         uuid TEXT NOT NULL,
-                         time REAL,
-                         active INTEGER,
-                         origin TEXT)''')
-        con.execute(f'CREATE UNIQUE INDEX index_bank_id ON {Reservation.TABLE_NAME} (bank_id)')
-        con.execute(f'''CREATE TABLE {Csrf.TABLE_NAME}
-                        (token TEXT NOT NULL PRIMARY KEY,
-                         timestamp REAL,
-                         user TEXT NOT NULL,
-                         ip TEXT NOT NULL)''')
-    return con
+    connection = sqlite3.connect(os.path.join(root_dir, 'db.db'))
+    for table in (Csrf, Reservation):
+        try:
+            connection.execute(f'SELECT COUNT(*) FROM {table.TABLE_NAME}')
+        except Exception as e:
+            table.create_in_db(connection)
+    return connection
 
 
 def ensure_connection(connection_or_root_dir):
@@ -40,6 +22,13 @@ def ensure_connection(connection_or_root_dir):
 
 
 class MiniOrm:
+    @classmethod
+    def create_in_db(cls, connection):
+        with connection:
+            for s in cls.CREATION_STATEMENTS:
+                connection.execute(s)
+
+
     @classmethod
     def length(cls, connection, filtering=None):
         params = dict()
@@ -72,6 +61,21 @@ class MiniOrm:
 class Reservation(MiniOrm):
     TABLE_NAME = 'reservations'
 
+    CREATION_STATEMENTS = [
+        f'''CREATE TABLE {TABLE_NAME}
+            (name TEXT NOT NULL,
+             email TEXT,
+             date TEXT NOT NULL,
+             paying_seats INTEGER,
+             free_seats INTEGER,
+             gdpr_accepts_use INTEGER,
+             cents_due INTEGER,
+             bank_id TEXT NOT NULL,
+             uuid TEXT NOT NULL,
+             time REAL,
+             active INTEGER,
+             origin TEXT)''',
+        f'CREATE UNIQUE INDEX index_bank_id_{TABLE_NAME} ON {TABLE_NAME} (bank_id)']
 
     def __init__(self, name, email, date, paying_seats, free_seats, gdpr_accepts_use, cents_due, bank_id, uuid_hex, timestamp, active, origin):
         self.name = name
@@ -235,6 +239,12 @@ class Reservation(MiniOrm):
 class Csrf(MiniOrm):
     TABLE_NAME = 'csrfs'
     SESSION_IN_SECONDS = 7200
+    CREATION_STATEMENTS = [
+        f'''CREATE TABLE {TABLE_NAME}
+            (token TEXT NOT NULL PRIMARY KEY,
+             timestamp REAL,
+             user TEXT NOT NULL,
+             ip TEXT NOT NULL)''']
 
     def __init__(self, token=None, timestamp=None, user=None, ip=None):
         self.token = token or uuid.uuid4().hex

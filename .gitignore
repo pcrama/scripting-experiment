@@ -1,3 +1,7 @@
+[#]*[#]
+*~
+*.bak
+
 # Ignore virtual environment for python script
 /python/virtualenv/
 
