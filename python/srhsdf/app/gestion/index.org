@@ -87,17 +87,18 @@ Si tous les champs sont bien remplis et que l'utilisateur clique sur
 Si certains champs sont mal remplis ou que la même personne (nom ou adresse
 email) essaie de faire "trop" de réservations, elle verra ce message d'erreur:
 
-XXXXXX
+#+CAPTION: Message d'erreur
+#+ATTR_HTML: :alt Message d'erreur
+[[file+emacs:images/04_message_erreur.png]]
 
 * Questions à valider
 :PROPERTIES:
 :CUSTOM_ID: questions_a_valider_20211025
 :END:
 
-** TODO Prix des entrées et âge minimum
-J'ai fixé arbitrairement les conditions suivantes, just pour donner un exemple:
+** Prix des entrées et âge minimum
 - entrée gratuite en-dessous de 12 ans
-- entrée payante à partir de 12 ans, 5€ par place
+- entrée payante à partir de 12 ans, 12€ par place
 
 C'est facile à changer, il suffit de me dire quoi.
 
@@ -114,19 +115,19 @@ Afin d'essayer de limiter des abus potentiels du formulaire, j'ai limité
   faudrait leur envoyer un mail) et vérifier les noms plus sérieusement que
   d'exiger que le champ ne soit pas vide me paraît impossible.
 
-* TODO Tâches à finaliser avant la "mise en production"
-- [ ] Configurer le prix des places via ~paying_seat_cents~.
-- [ ] Configurer le numéro de compte via ~bank_account~.
-- [ ] Configurer l'adresse email de contact via ~info_email~.
+* DONE Tâches à finaliser avant la "mise en production"
+- [X] Configurer le prix des places via ~paying_seat_cents~.
+- [X] Configurer le numéro de compte via ~bank_account~.
+- [X] Configurer l'adresse email de contact via ~info_email~.
 - [X] Augmenter à 20 le nombre de bulles affichées par défaut dans
   [[file+emacs:list_reservations.cgi][la liste des réservations]].
-- [ ] Effacer les données de test
+- [X] Effacer les données de test
   #+begin_example
     DELETE FROM reservations WHERE date = '2099-01-01' OR date = '2099-01-02';
   #+end_example
-- [ ] Corriger la [[https://www.srhbraine.be/concert-de-gala-2021/][page web de notre concert de Gala]]
-  - [ ] Numéro de téléphone
-  - [ ] Titre de la page
-  - [ ] Mesures d'hygiène et de sécurité
-  - [ ] Les dates dans le formulaire
-  - [ ] Le prix dans le formulaire
+- [X] Corriger la [[https://www.srhbraine.be/concert-de-gala-2021/][page web de notre concert de Gala]]
+  - [X] Numéro de téléphone
+  - [X] Titre de la page
+  - [X] Mesures d'hygiène et de sécurité
+  - [X] Les dates dans le formulaire
+  - [X] Le prix dans le formulaire
