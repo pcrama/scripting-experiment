@@ -203,7 +203,7 @@ function generic_test_valid_reservation_for_test_date
 
 function generic_test_new_reservation_without_valid_CSRF_token_fails
 {
-    local test_name csrf_arg test_output test_stderr csrf_token
+    local test_name csrf_arg test_output test_stderr
     test_name="$1"
     csrf_arg="$2"
     test_output="$test_dir/$test_name.will-be-empty"
@@ -215,9 +215,6 @@ function generic_test_new_reservation_without_valid_CSRF_token_fails
     get_db_file
     if [ "$(count_reservations)" != "3" ]; then
         die "Reservations table wrong."
-    fi
-    if [ "$(count_csrfs)" != "1" ]; then
-        die "CSRF problem."
     fi
     grep -q '^< HTTP/1.1 302 Found' "$test_stderr"
     grep -q '^< Content-Length: 0' "$test_stderr"

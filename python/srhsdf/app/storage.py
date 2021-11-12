@@ -310,3 +310,58 @@ class Csrf(MiniOrm):
             result = cls(user=user, ip=ip)
         result.save(connection)
         return result
+
+
+class BankStatement(MiniOrm):
+    TABLE_NAME = 'bankstatements'
+
+    CREATION_STATEMENTS = [
+        f'''CREATE TABLE {TABLE_NAME}
+            (bank_id TEXT,
+             timestamp REAL,
+             name TEXT,
+             cents_amount INTEGER,
+             origin TEXT,
+             comment TEXT,
+             id INTEGER PRIMARY KEY)''',
+        f'CREATE INDEX index_bank_id_{TABLE_NAME} ON {TABLE_NAME} (bank_id)']
+
+    SORTABLE_COLUMNS = {'bank_id': 'LOWER(bank_id)',
+                        'name': 'LOWER(name)',
+                        'cents_amount': 'cents_amount',
+                        'origin': 'LOWER(origin)',
+                        'comment': 'LOWER(comment)'}
+
+    FILTERABLE_COLUMNS = {'bank_id': True,
+                          'name': MiniOrm.compare_with_like_lower('name'),
+                          'cents_amount': True,
+                          'origin': MiniOrm.compare_with_like_lower('origin'),
+                          'comment': MiniOrm.compare_with_like_lower('comment')}
+
+    def __init__(self, bank_id, timestamp, name, cents_amount, origin, comment, bsid=None):
+        self.bank_id = bank_id
+        self.timestamp = timestamp
+        self.name = name
+        self.cents_amount = cents_amount
+        self.origin = origin
+        self.comment = comment
+        self.bsid = bsid
+
+
+    def save(self, connection):
+        connection.execute(
+            f'''INSERT INTO {self.TABLE_NAME} VALUES (
+                :bank_id, :timestamp, :name, :cents_amount, :origin,
+                :comment, :bsid)''',
+            self.to_dict())
+
+
+    def to_dict(self):
+        return {
+            'bank_id': self.bank_id,
+            'timestamp': self.timestamp,
+            'name': self.name,
+            'cents_amount': self.cents_amount,
+            'origin': self.origin,
+            'comment': self.comment,
+            'id': self.bsid}
