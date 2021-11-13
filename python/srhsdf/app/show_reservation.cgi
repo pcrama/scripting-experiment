@@ -28,21 +28,25 @@ if __name__ == '__main__':
 
     cgitb.enable(display=CONFIGURATION['cgitb_display'], logdir=CONFIGURATION['logdir'])
 
-    if print_content_type('text/html; charset=utf-8'):
-        print('Content-Language: en')
-        print()
-
-    db_connection = create_db(CONFIGURATION)
-
     # Get form data
     form = cgi.FieldStorage()
     bank_id = form.getfirst('bank_id', default='')
     uuid_hex = form.getfirst('uuid_hex', default='')
 
-    reservation = next(Reservation.select(
-        db_connection,
-        filtering=[('bank_id', bank_id), ('uuid', uuid_hex)],
-        limit=1))
+    db_connection = create_db(CONFIGURATION)
+
+    try:
+        reservation = next(Reservation.select(
+            db_connection,
+            filtering=[('bank_id', bank_id), ('uuid', uuid_hex)],
+            limit=1))
+    except StopIteration:
+        redirect(CONCERT_PAGE)
+
+    if print_content_type('text/html; charset=utf-8'):
+        print('Content-Language: en')
+        print()
+
     places = (' pour ',)
     if reservation.paying_seats > 0:
         places += (str(reservation.paying_seats),

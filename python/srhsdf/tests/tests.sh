@@ -80,6 +80,18 @@ function do_curl_as_admin {
     _do_curl "$1" "$2" "$3" "$admin_user:$admin_pw@"
 }
 
+function assert_redirect_to_concert_page
+{
+    local test_stderr
+    test_stderr="$1"
+    grep -q '^< HTTP/1.1 302 Found' "$test_stderr" \
+        || die "Not a redirect: $test_stderr"
+    grep -q '^< Content-Length: 0' "$test_stderr" \
+        || die "Content-Length != 0: $test_stderr"
+    grep -q '^< Location: https://www.srhbraine.be/concert-de-gala-2021/' "$test_stderr" \
+        || die "Target is not concert page: $test_stderr"
+}
+
 function do_curl_with_redirect
 {
     local credentials end_point test_output options test_stderr location
@@ -216,9 +228,7 @@ function generic_test_new_reservation_without_valid_CSRF_token_fails
     if [ "$(count_reservations)" != "3" ]; then
         die "Reservations table wrong."
     fi
-    grep -q '^< HTTP/1.1 302 Found' "$test_stderr"
-    grep -q '^< Content-Length: 0' "$test_stderr"
-    grep -q '^< Location: https://www.srhbraine.be/concert-de-gala-2021/' "$test_stderr"
+    assert_redirect_to_concert_page "$test_stderr"
     echo "test_$test_name: ok"
 }
 
@@ -461,6 +471,30 @@ function test_12_bobby_tables_and_co
     echo "test_12_bobby_tables_and_co: ok"
 }
 
+# 13: Try to display a reservation with insufficient or wrong input data to identify it
+# Must redirect to concert page
+function test_13_show_reservation_redirects_to_concert_page_on_error
+{
+    local valid_uuid other_valid_uuid valid_bank_id test_output test_stderr
+    valid_uuid="$(sql_query 'select uuid from reservations limit 1')"
+    other_valid_uuid="$(sql_query "select uuid from reservations where uuid != '$valid_uuid' limit 1")"
+    valid_bank_id="$(sql_query "select bank_id from reservations where uuid = '$valid_uuid' limit 1")"
+    test_output="$test_dir/13_show_reservation_redirects_to_concert_page_on_error.html"
+    test_stderr="$test_dir/13_show_reservation_redirects_to_concert_page_on_error.stderr.log"
+    do_curl 'show_reservation.cgi' "$test_output" --verbose 2> "$test_stderr"
+    assert_redirect_to_concert_page "$test_stderr"
+    do_curl "show_reservation.cgi?bank_id=$valid_bank_id" "$test_output" --verbose 2> "$test_stderr"
+    assert_redirect_to_concert_page "$test_stderr"
+    do_curl "show_reservation.cgi?uuid_hex=$valid_uuid" "$test_output" --verbose 2> "$test_stderr"
+    assert_redirect_to_concert_page "$test_stderr"
+    do_curl "show_reservation.cgi?uuid_hex=$other_valid_uuid&bank_id=$valid_bank_id" "$test_output" --verbose 2> "$test_stderr"
+    assert_redirect_to_concert_page "$test_stderr"
+    do_curl "show_reservation.cgi?uuid_hex=$valid_uuid&bank_id=$valid_bank_id" "$test_output" --verbose 2> "$test_stderr"
+    grep -q '^< HTTP/1.1 200' "$test_stderr" \
+         || die "Failed to get show_reservation.cgi?uuid_hex=$valid_uuid&bank_id=$valid_bank_id"
+    echo "test_13_show_reservation_redirects_to_concert_page_on_error: ok"
+}
+
 # Deploy
 "$(dirname "$0")/../deploy.sh" "--for-tests" "$destination" "$user" "$group" "$ssh_app_folder" "$admin_user" "$admin_pw"
 echo '{ "paying_seat_cents": 500, "bank_account": "'$bank_account'", "info_email": "'$info_email'" }' \
@@ -485,6 +519,7 @@ test_09_new_reservation_with_correct_CSRF_token_succeeds
 test_10_export_as_csv
 test_11_deactivate_a_reservation
 test_12_bobby_tables_and_co
+test_13_show_reservation_redirects_to_concert_page_on_error
 
 # Clean up
 ssh $destination "rm -r '$host_path_prefix/$folder'"
