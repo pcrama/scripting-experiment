@@ -1,0 +1,18 @@
+In directory above this one, use this to create =life/life.sln=.
+#+begin_src shell :exports code
+  dotnet new 'Solution File' --output life
+#+end_src
+
+In this directory (i.e. next to =life.sln=):
+#+begin_src shell :exports code
+  dotnet new nugetconfig
+  dotnet new gitconfig
+  dotnet new classlib --language 'f#' --name life.interpreter
+#+end_src
+
+Then create a test project and add a reference to the main project:
+#+begin_src shell :exports code
+  dotnet new nunit --language 'f#' --name life.interpreter.test
+  cd life.interpreter.test
+  dotnet add reference ../life.interpreter/
+#+end_src
