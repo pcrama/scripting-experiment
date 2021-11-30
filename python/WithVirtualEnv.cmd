@@ -32,9 +32,11 @@ REM
 REM     #!/bin/sh
 REM     # Wrapper for yourscript.py to activate virtual environment (i.e. isolated Python dependencies)
 REM     # See yourscript.py for usage information and command line help
-REM     activation='<path to virtualenv>/bin/activate'
-REM     test -r "$activation" && source "$activation" && exec python3 "$(dirname "$0")/yourscript.py" "$@"
-REM     echo 'Please install the virtual environment in <path to virtualenv> and the required libraries yourself'
+REM     mydir="$(realpath "$(dirname "$0")")"
+REM     virtualenv="$mydir/virtualenv"
+REM     activation="$virtualenv/bin/activate"
+REM     test -r "$activation" && source "$activation" && exec python3 "$mydir/yourscript.py" "$@"
+REM     echo 'Please install the virtual environment in $virtualenv and the required libraries yourself'
 REM     exit 1
 
 SETLOCAL EnableExtensions
@@ -73,13 +75,15 @@ SET dest=%~dpn2.sh
 REM Please excuse the awful quoting... I tried many simpler ways to get a
 REM proper shebang in the generated script and failed.
 SET "shebang=#^!"
-ECHO !shebang!/bin/sh>                                                                                          "%dest%"
-ECHO # %header%>>                                                                                               "%dest%"
-ECHO # %seealso%>>                                                                                              "%dest%"
-ECHO activation=^'%venvdir%/bin/activate^'>>                                                                    "%dest%"
-ECHO test -r "$activation" ^&^& source "$activation" ^&^& exec python3 ^"$(dirname ^"$0^")/%wrappee%^" ^"$@^">> "%dest%"
-ECHO echo ^'Please install the virtual environment in %venvdir% and the required libraries yourself^'>>         "%dest%"
-ECHO exit ^1>>                                                                                                  "%dest%"
+ECHO !shebang!/bin/sh>                                                                                    "%dest%"
+ECHO # %header%>>                                                                                         "%dest%"
+ECHO # %seealso%>>                                                                                        "%dest%"
+ECHO mydir=^"$(realpath ^"$(dirname ^"$0^")^")^">>                                                        "%dest%"
+ECHO virtualenv=^"$mydir/virtualenv^">>                                                                   "%dest%"
+ECHO activation=^"$virtualenv/bin/activate^">>                                                            "%dest%"
+ECHO test -r "$activation" ^&^& source "$activation" ^&^& exec python3 ^"$mydir/%wrappee%^" ^"$@^">>      "%dest%"
+ECHO echo ^"Please install the virtual environment in $virtualenv and the required libraries yourself^">> "%dest%"
+ECHO exit ^1>>                                                                                            "%dest%"
 
 EXIT /B
 
