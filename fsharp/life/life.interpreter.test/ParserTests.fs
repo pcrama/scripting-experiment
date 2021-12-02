@@ -29,10 +29,10 @@ let TestParse1ExpectingSuccess () =
 [<Test>]
 let TestParse1ExpectingFailure () =
     Assert.AreEqual(
-        Error ("Unterminated list", { text = "(1"; index = 2 }),
+        PError ("Unterminated list", { text = "(1"; index = 2 }),
         callParse1 "(1")
     Assert.AreEqual(
-        Error ("Unterminated list", { text = "(1(2)"; index = 5 }),
+        PError ("Unterminated list", { text = "(1(2)"; index = 5 }),
         callParse1 "(1(2)")
 
 [<Test>]
@@ -52,7 +52,23 @@ let TestParseListExpectingSuccess() =
            (Cons (Integer 1, Cons (String "two", Cons (Symbol "three", Nil))))
 
 [<Test>]
-let TestParseTokenizeNumber() =
-    Assert.AreEqual(
-        Token ({ text = "2147483647"; index = 10 }, Literal (Integer 2147483647)),
-        tokenizeNumber '2' { text = "2147483647"; index = 1 })
+let TestParseTokenizeNumberSuccess() =
+    let doTest t i r =
+        Assert.AreEqual(
+            Token ({ text = t; index = i }, Literal (Integer r)),
+            tokenizeNumber t.[0] { text = t; index = 1 })
+    doTest "2147483647" 10 2147483647
+    doTest "2147483647   " 10 2147483647
+    doTest "+02147483647 " 12 2147483647
+    doTest "-2147483647  " 11 -2147483647
+    doTest "-2147483648  " 11 -2147483648
+
+[<Test>]
+let TestParseTokenizeNumberOverflow() =
+    let doTest t i =
+        Assert.AreEqual(
+            TError ("Integer overflow", { text = t; index = i }),
+            tokenizeNumber t.[0] { text = t; index = 1 })
+    doTest "9999999999" 9
+    doTest "2147483648" 9
+    doTest "-2147483649" 10

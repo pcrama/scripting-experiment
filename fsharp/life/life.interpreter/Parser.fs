@@ -26,7 +26,7 @@ let dlistToConses d = d Nil
 
 let isDigit c = System.Char.IsDigit c
 
-let digitValue = System.Globalization.CharUnicodeInfo.GetDigitValue
+let digitValue = System.Globalization.CharUnicodeInfo.GetDigitValue >> uint32
 
 let isTokenSeparator c = c = '(' || c = ')' || c = ';' || System.Char.IsWhiteSpace c
 
@@ -69,26 +69,32 @@ type Token =
 
 let inInclusiveRange lower x upper = lower <= x && x <= upper
 
-type Error = string * Input
+type ErrorT = string * Input
 
 type TokenizeResult =
     | InputExhausted
     | Token of nextInput : Input * token : Token
-    | Error of Error
+    | TError of ErrorT
 
 let tokenizeNumber c z =
     let rec goDigits w acc sign digitCount =
-        let computeReturn y = Token (y, Literal(Integer(acc * sign)))
+        let computeReturn y = Token (y, Literal(Integer(int acc * sign)))
+        let maxAcc = if sign = 1 then 0x80000000u - 1u else 0x80000000u
         match peekOption w with
-            | None when digitCount = 0 -> Error ("Expected a number but no digits found", w)
+            | None when digitCount = 0 -> TError ("Expected a number but no digits found", w)
             | None -> computeReturn w
-            | Some c when isDigit c -> goDigits (advanceInput w) (10 * acc + digitValue c) sign (digitCount + 1)
+            | Some c when isDigit c ->
+                let digit = digitValue c
+                // 10u * acc + digitValue c > maxAcc <=> acc > (maxAcc - digitValue c) / 10u
+                if acc > (maxAcc - digit) / 10u
+                then TError ("Integer overflow", w)
+                else goDigits (advanceInput w) (10u * acc + digit) sign (digitCount + 1)
             | Some c when isTokenSeparator c -> computeReturn w
-            | Some c -> Error ($"The character '{c}' is not a digit while trying to tokenize a number.",
-                               w)
+            | Some c -> TError ($"The character '{c}' is not a digit while trying to tokenize a number.",
+                                w)
     match c with
-        | '-' -> goDigits z 0 -1 0
-        | '+' -> goDigits z 0 +1 0
+        | '-' -> goDigits z 0u -1 0
+        | '+' -> goDigits z 0u +1 0
         | _ -> goDigits z (digitValue c) +1 1
 
 let reverseAndJoin (x : string list) =
@@ -104,7 +110,7 @@ let tokenizeLiteralString z =
             then z.text.Substring(start, z.index - start) :: acc
             else acc
         match peekOption z with
-            | None -> Error ("Unterminated literal string", z)
+            | None -> TError ("Unterminated literal string", z)
             | Some '\\' -> advanceInput z |> goEscapedGetX (updatedAcc z)
             | Some '"' -> Token (advanceInput z, Literal(String(updatedAcc z |> reverseAndJoin)))
             | Some _ -> advanceInput z |> go acc start
@@ -113,30 +119,30 @@ let tokenizeLiteralString z =
         let hexDigitValue c =
             if isDigit c
             then digitValue c
-            else (System.Char.ToLower c |> int) - (int 'a') + 10
+            else (System.Char.ToLower c |> uint32) - uint32 'a' + 10u
         match peekOption z with
-            | None -> Error ("Unterminated hexadecimal escaped byte in literal string", z)
+            | None -> TError ("Unterminated hexadecimal escaped byte in literal string", z)
             | Some c when (isDigit c
                            || inInclusiveRange 'A' c 'F'
                            || inInclusiveRange 'a' c 'f') -> advanceInput z |>
-                                                             firstGoCall(((16 * hexDigitValue highNibble
+                                                             firstGoCall(((16u * hexDigitValue highNibble
                                                                            + hexDigitValue c)
                                                                           |> char
                                                                           |> string)
                                                                          ::acc)
-            | Some c -> Error ($"Expected hexadecimal digit after '\\x' in literal string, not '{c}", z)
+            | Some c -> TError ($"Expected hexadecimal digit after '\\x' in literal string, not '{c}", z)
     and goEscapedGetHighNibble acc z =
         match peekOption z with
-            | None -> Error ("Unterminated hexadecimal escaped byte in literal string", z)
+            | None -> TError ("Unterminated hexadecimal escaped byte in literal string", z)
             | Some c when (isDigit c
                            || inInclusiveRange 'A' c 'F'
                            || inInclusiveRange 'a' c 'f') -> advanceInput z |> goEscapedGetLowNibble c acc
-            | Some c -> Error ($"Expected hexadecimal digit after '\\x' in literal string, not '{c}", z)
+            | Some c -> TError ($"Expected hexadecimal digit after '\\x' in literal string, not '{c}", z)
     and goEscapedGetX acc z =
         match peekOption z with
-            | None -> Error ("Unterminated hexadecimal escaped byte in literal string", z)
+            | None -> TError ("Unterminated hexadecimal escaped byte in literal string", z)
             | Some 'x' -> advanceInput z |> goEscapedGetHighNibble acc
-            | Some c -> Error ($"Expected 'x' after '\\' in literal string, not '{c}", z)
+            | Some c -> TError ($"Expected 'x' after '\\' in literal string, not '{c}", z)
     firstGoCall [] z
 
 let tokenizeSymbol z =
@@ -144,7 +150,7 @@ let tokenizeSymbol z =
     let rec go w =
         let computeReturn() = Token (w, Literal(Symbol(z.text.Substring(start, w.index - start))))
         match peekOption w with
-            | None when w.index = start -> Error ("Expected a symbol, got end of input", w)
+            | None when w.index = start -> TError ("Expected a symbol, got end of input", w)
             | None -> computeReturn()
             | Some c when c = '_' || System.Char.IsLetterOrDigit c -> advanceInput w |> go
             | Some _ -> computeReturn()
@@ -165,22 +171,22 @@ let rec tokenize y =
                     | c when (c = '_'
                               || inInclusiveRange 'A' c 'Z'
                               || inInclusiveRange 'a' c 'z') -> tokenizeSymbol z
-                    | c -> Error ($"Unexpected character '{c}'", z)
+                    | c -> TError ($"Unexpected character '{c}'", z)
 
 type ParseResult =
     | Parsed of nextInput: Input * value : Value
-    | Error of Error
+    | PError of ErrorT
 
 // LeftParen is already consumed
 let rec parseList (s : Input) result =
     let loop i v = parseList i (dappend result v)
     match tokenize s with
-        | InputExhausted -> Error ("Unterminated list", s)
-        | TokenizeResult.Error e -> Error e
+        | InputExhausted -> PError ("Unterminated list", s)
+        | TError e -> PError e
         | Token (nextInput, LeftParen) ->
             match parseList nextInput dnil with
                 | Parsed (further, v) -> loop further v
-                | Error e -> Error e
+                | PError e as parseError -> parseError
         | Token (nextInput, RightParen) ->
             Parsed (nextInput, dlistToConses result)
         | Token (nextInput, Literal v) ->
@@ -188,20 +194,20 @@ let rec parseList (s : Input) result =
 
 let parse input =
     match tokenize input with
-        | TokenizeResult.InputExhausted -> Error ("End of input while parsing", input)
-        | TokenizeResult.Error e -> Error e
+        | TokenizeResult.InputExhausted -> PError ("End of input while parsing", input)
+        | TError e -> PError e
         | TokenizeResult.Token (nextInput, Literal v) ->
             Parsed (nextInput, v)
         | TokenizeResult.Token (nextInput, LeftParen) ->
             parseList nextInput dnil
         | TokenizeResult.Token (_, tok) ->
-            Error ($"Unexpected token {tok}", input)
+            PError ($"Unexpected token {tok}", input)
 
 let parse1 input =
     match parse input with
         | Parsed (nextInput, v) ->
             match tokenize nextInput with
                 | TokenizeResult.InputExhausted -> Parsed (nextInput, v)
-                | TokenizeResult.Error e -> Error e
-                | _ -> Error ("Trailing garbage after expression", nextInput)
+                | TError e -> PError e
+                | _ -> PError ("Trailing garbage after expression", nextInput)
         | err -> err
