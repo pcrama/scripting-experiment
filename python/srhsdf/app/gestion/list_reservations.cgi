@@ -5,6 +5,7 @@ import cgitb
 import itertools
 import os
 import sys
+import time
 import urllib.parse
 
 # hack to get at my utilities:
@@ -107,7 +108,8 @@ if __name__ == '__main__':
 
         COLUMNS = [('name', 'Nom'), ('email', 'Email'), ('date', 'Date'),
                    ('paying_seats', 'Payant'), ('free_seats', 'Gratuit'),
-                   ('bank_id', 'Communication'), ('origin', 'Origine')]
+                   ('bank_id', 'Communication'), ('origin', 'Origine'),
+                   ('time', 'Réservé le')]
         table_header_row = tuple(
             ('th', make_navigation_a_elt(update_sort_order(column, sort_order), limit, offset,
                                          header + sort_direction(column, sort_order)))
@@ -161,7 +163,8 @@ if __name__ == '__main__':
                       ('td', r.free_seats),
                       ('td', r.bank_id),
                       ('td', r.origin if r.origin else (('span', 'class', 'null_value'),
-                                                        'formulaire web')))
+                                                        'formulaire web')),
+                      ('td', time.strftime('%d/%m/%Y %H:%M', time.gmtime(r.timestamp))))
                      for r in Reservation.select(connection,
                                                  filtering=[('active', '1')],
                                                  order_columns=sort_order,
