@@ -1,4 +1,4 @@
-module life.interpreter.test
+module ParserTests
 
 open NUnit.Framework
 open life.interpreter.Parser
