@@ -1,0 +1,135 @@
+#+options: ^:{}
+#+author: Philippe Crama
+#+title: Concert de Gala 2021
+
+* Introduction
+
+Voyez [[file+emacs:list_reservations.cgi][la liste des réservations]].  C'est le point d'entrée principal pour le
+suivi des réservations.  Cette page permet aussi d'ajouter des réservations
+prises au téléphone ou d'exporter toutes les réservations en format CSV pour
+l'importer dans Excel.
+
+J'aimerais que le comité passe en revue la liste des [[#questions_a_valider_20211025][questions à valider]].
+J'ai fait plusieurs choix arbitraires pendant l'implémentation qu'il faut
+confirmer.
+
+* Mode d'emploi
+** Du point de vue du comité
+J'ai créé un compte =secretaire= qui permet d'effectuer toutes les tâches
+administratives.  Celles-ci sont protégées par un mot de passe et sont
+normalement inaccessibles au public.
+
+*** Suivi des réservations
+1. Aller sur la page [[file+emacs:list_reservations.cgi][liste des réservations]] qui ressemble à ceci:
+
+   #+CAPTION: Liste des réservations et accès administratif
+   #+ATTR_HTML: :alt Liste des réservations et accès administratif
+   [[file+emacs:images/01_reservation_list.png]]
+
+   Quelques explications:
+   - Une bulle est une réservation faite par une personne pour /n/ places
+     payantes et /m/ places gratuites.
+   - Une bulle peut être active (c'est son état par défaut) ou annulée (par
+     exemple pour corriger une erreur de saisie).  Pour le moment, je suis le
+     seul à pouvoir annuler une réservation (càd la désactiver).  Seules les
+     bulles actives sont montrées.  Les données complètes sont disponibles
+     dans l'export CSV.
+   - Le nombre de places réservées dans le résumé en haut de la page ne
+     comprend que les réservations actives (payantes et gratuites additionnées
+     ensemble).
+   - Le nombre de lignes dans le tableau est limité pour limiter le temps que
+     met la page à charger, mais cette limite peut être modifiée par
+     l'utilisateur.
+   - Des liens "Début", "Précédent" et "Suivant" permettent de parcourir la
+     liste.  Ces liens n'apparaissent que si ils sont nécessaires.
+   - Les en-têtes des colonnes permettent de trier les lignes selon la valeur
+     de la colonne sélectionnée: en ordre croissant (⬆) ou décroissant (⬇) ou
+     de ne pas tenir compte de la colonne pour le tri (pas de flèche).  Passez
+     d'une possibilité à l'autre en cliquant plusieurs fois sur l'en-tête.  La
+     colonne sélectionnée en dernière (dont la flèche est un peu plus
+     épaisse) est la première colonne prise en compte pour le tri.
+   - L'export en format CSV permet de télécharger toutes les réservations
+     (actives et désactivées) dans un fichier que Excel peut importer.
+     Malheureusement, le fichier contient des caractères spéciaux et il faut
+     suivre une [[https://www.nextofwindows.com/how-to-display-csv-files-with-unicode-utf-8-encoding-in-excel][procédure un peu compliquée]] pour ouvrir le fichier
+     correctement.
+
+*** Ajouter une nouvelle réservation à la place d'un spectateur
+Le formulaire au bas de la page permet d'ajouter une nouvelle
+réservation, par exemple lorsqu'un spectateur le demande par téléphone.
+
+⚠ *ATTENTION* ⚠: Pour un maximum de flexibilité, je n'ai pas implémenté de
+validation des données fournies dans ce formulaire.  Relisez-vous bien avant
+d'utiliser le bouton "Confirmer".  En cas de problème, je pourrais aller faire
+des corrections dans la base de données des réservations mais j'aimerais
+l'éviter le plus possible.
+
+Le champ commentaire est libre, j'imaginais qu'il pourrait servir pour noter
+le numéro de téléphone, mais ce champ n'est pas obligatoire.
+
+** Du point de vue du public
+Normalement, notre publicité et [[https://www.srhbraine.be/][notre site]] doivent guider les spectateurs vers
+la [[https://www.srhbraine.be/soiree-italienne-2022/][page web de notre concert de Gala]] avec le formulaire suivant:
+
+#+CAPTION: Formulaire d'inscription sur le site de la SRH
+#+ATTR_HTML: :alt Formulaire d'inscription sur le site de la SRH
+[[file+emacs:images/02_formulaire_reservation.png]]
+
+*** Réservation normale
+Si tous les champs sont bien remplis et que l'utilisateur clique sur
+"Confirmer", il voit ce message:
+
+#+CAPTION: Confirmation de la réservation
+#+ATTR_HTML: :alt Confirmation de la réservation
+[[file+emacs:images/03_confirmation.png]]
+
+*** Problèmes potentiels
+Si certains champs sont mal remplis ou que la même personne (nom ou adresse
+email) essaie de faire "trop" de réservations, elle verra un message d'erreur
+similaire à celui-ci:
+
+#+CAPTION: Erreur lors de la réservation
+#+ATTR_HTML: :alt Erreur lors de la réservation
+[[file+emacs:images/04_formulaire_invalide.png]]
+
+* Questions à valider
+:PROPERTIES:
+:CUSTOM_ID: questions_a_valider_20211025
+:END:
+
+** Prix des entrées et âge minimum
+- entrée gratuite en-dessous de 12 ans
+- entrée payante à partir de 12 ans, 12€ par place
+
+C'est facile à changer, il suffit de me dire quoi.
+
+** TODO Limites dans les réservations
+Afin d'essayer de limiter des abus potentiels du formulaire, j'ai limité
+(c'est assez facile à contourner quand-même...)
+- le nombre de réservations distinctes que l'on peut faire sous un nom ou une
+  adresse email (10 en tout).
+- le nombre de places qu'un nom ou une adresse email peut réserver en tout
+  (maximum 60).
+- l'adresse email et le nom sont obligatoires, mais si quelqu'un s'annonce
+  avec des données telles que ~Mr X~ ou ~w@x.yz~, la réservation sera acceptée
+  quand-même.  Vérifier des adresses email plus strictement est plus lourd (il
+  faudrait leur envoyer un mail) et vérifier les noms plus sérieusement que
+  d'exiger que le champ ne soit pas vide me paraît impossible.
+
+* DONE Tâches à finaliser avant la "mise en production"
+- [X] Configurer le prix des places via ~paying_seat_cents~.
+- [X] Configurer le numéro de compte via ~bank_account~.
+- [X] Configurer l'adresse email de contact via ~info_email~.
+- [X] Augmenter à 20 le nombre de bulles affichées par défaut dans
+  [[file+emacs:list_reservations.cgi][la liste des réservations]].
+- [X] Effacer les données de test
+  #+begin_example
+    DELETE FROM reservations WHERE date = '2099-01-01' OR date = '2099-01-02';
+  #+end_example
+- [X] Corriger la [[https://www.srhbraine.be/soiree-italienne-2022/][page web de notre concert de Gala]]
+  - [X] Numéro de téléphone
+  - [X] Titre de la page
+  - [X] Mesures d'hygiène et de sécurité
+  - [X] Les dates dans le formulaire
+  - [X] Le prix dans le formulaire
+  - [X] Lien vers la version finale des scripts CGI

@@ -1,0 +1,95 @@
+#+TITLE: Simple web application to manage reservations for Italian Dinner
+
+* Introduction
+
+This is a simplistic set of CGI scripts adapted for my web host and as a
+learning exercise to see how much features and ease-of-use a web framework
+deliver.
+
+See also [[file+emacs:app/gestion/index.org][usage instructions and checklists (in French)]].
+
+* Deployment
+
+Use the ~deploy.sh~ script like this:
+#+begin_src shell :exports code
+  ./deploy.sh 'user@host' 'username' 'groupname' 'destination_folder'
+#+end_src
+
+- ~user@host~ :: anything that `ssh` accepts.
+- ~username~ and ~groupname~ :: CGI scripts are only executed if they belong
+  to a specific user/group that does not correspond to the user/group of the
+  system where development happens.  These parameters set the user/group in
+  the destination.
+- ~destination_folder~ :: where to deploy.
+
+Host an HTML form that will =POST= its content to the =post_reservation.cgi=
+script:
+#+begin_example
+  <form action="https://YOUR_HOST/DEPLOYMENT_DIR/post_reservation.cgi" method="POST">
+    <label for="name">Nom:</label><br>
+    <input type="text" id="name" name="name" placeholder="Il est obligatoire de saisir votre nom" required="required" style="width:100%;"><br>
+    <label for="email">Email:</label><br>
+    <input type="email" id="email" name="email" placeholder="Nous pourrions avoir besoin de votre email pour le tracing" required="required" style="width:100%;"><br>
+    <label for="places">Nombre de convives:</label><br>
+    <input type="number" id="places" name="places"><br>
+    <br><input type="radio" id="samedi" name="date" value="2099-01-01" checked="checked">
+    <label for="samedi">TEST: Samedi 1 janvier 2099 à 20h.</label><br>
+    <input type="radio" id="dimanche" name="date" value="2099-01-02">
+    <label for="dimanche">TEST: Dimanche 2 janvier 2099 à 15h.</label><br>
+    Afin d'accélérer la vente des repas et de nous aider à prévoir les bonnes quantités,
+    merci de nous signaler à l'avance votre commande à titre indicatif afin que nous
+    vous préparions les tickets du service:
+    <ul><li>Entrées
+      <ol>
+      <li>
+      <label for="fondus">Fondus au fromage:</label>
+      <input type="number" id="fondus" name="fondus" min="0" max="20" value="0"></li>
+      <li>
+      <label for="assiettes">Assiettes italiennes:</label>
+      <input type="number" id="assiettes" name="assiettes" min="0" max="20" value="0"></li>
+      </ol></li>
+      <li>Plats
+      <ol>
+      <li>
+      <label for="bolo">Spaghetti Bolognaise:</label>
+      <input type="number" id="bolo" name="bolo" min="0" max="20" value="0"></li>
+      <li>
+      <label for="scampis">Spaghettis avec de la sauce aux scampis:</label>
+      <input type="number" id="scampis" name="scampis" min="0" max="20" value="0"></li>
+      </ol></li>
+      <li>Desserts
+      <ol>
+      <li>
+      <label for="pannacotta">Panna Cotta:</label>
+      <input type="number" id="pannacotta" name="pannacotta" min="0" max="20" value="0"></li>
+      <li>
+      <label for="tranches">Tranches Napolitaines:</label>
+      <input type="number" id="tranches" name="tranches" min="0" max="20" value="0"></li>
+      </ol></li></ul>
+    <div style="display: grid;">
+      <div style="grid-row: 1; grid-column: 1;"><input type="checkbox" id="gdpr_accepts_use" name="gdpr_accepts_use" value="true"></div>
+      <div style="grid-row: 1; grid-column: 2;">
+        <label for="gdpr_accepts_use">J'autorise la Société Royale d'Harmonie de Braine-l'Alleud à utiliser mon adresse email pour m'avertir de ses futures activités.</label>
+      </div>
+    </div><br>
+    <input type="submit" value="Confirmer">
+  </form>
+#+end_example
+
+* Test mode
+There are 4 dates for the dinner: 2 fake dates in 2099 and the 2 real dates
+in 2022.
+
+The trick to be able to book dates for the fake dates is that the name must
+start with ~Test~ and that the email address must end with ~@example.com~.
+
+There are some automated test in [[file+emacs:tests/tests.sh][this shell script]].  It exercises various
+end-points and compares the HTML output with known good HTML output.  The
+tests are unfortunately not real unit tests: they have to be run in sequence
+as the state of one test is often assumed in the next test.
+
+* Limitations
+- No maximum number of seats per concert enforced.
+- Minimal validation on name and email: we count on the fact that few people
+  will find the form and that we will weed out fake registrations by seeing
+  who pays.

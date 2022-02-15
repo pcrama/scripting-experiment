@@ -1,0 +1,57 @@
+ul.navbar {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+ul.navbar li {
+    float: left;
+}
+
+ul.navbar li a {
+    text-align: center;
+    padding: 0.1em 1em;
+    color: blue;
+}
+
+ul.navbar li:hover {
+    border: 1px solid blue;
+}
+
+ul.navbar li:not(hover) {
+    border: 1px solid white;
+}
+
+a.navigation {
+    display: block;
+}
+
+table {
+    border-collapse: collapse;
+}
+
+table tr:first-child {
+    border-top: 2px solid black;
+}
+
+th {
+    border-bottom: 1px solid grey;
+}
+
+table tr:last-child {
+    border-bottom: 2px solid black;
+}
+
+tr th {
+    background-color: white;
+}
+
+tr:nth-child(odd) {
+    background-color: #ddd;
+}
+
+td {
+    padding-left: 0.1em;
+    padding-right: 0.1em;
+}

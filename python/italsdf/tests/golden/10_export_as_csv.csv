@@ -1,0 +1,5 @@
+Nom,Email,Places,Date,Fondus,Charcuterie,Bolo,Scampis,Pannacotta,Napolitaines,Origine,Commentaire,Actif,Email RGPD
+Saturday04,Saturday@gmail.com,5,2022-03-19,3,2,0,0,0,0,,,True,
+Sunday05,SundayMail@gmx.com,2,2022-03-20,0,0,0,0,0,0,,,True,SundayMail@gmx.com
+TestCreatedByAdmin,,8,2099-01-01,1,2,4,8,4,4,TEST_ADMIN,ByAdmin,True,
+TestName03,Test.Email@example.com,3,2099-01-01,3,0,1,2,2,1,,,True,Test.Email@example.com
