@@ -2,7 +2,7 @@
 open System
 
 type Result =
-| Win = 0 
+| Win = 0
 | Loss = 1
 | Tie = 2
 
@@ -100,7 +100,7 @@ let isStraight (cards: Card list) =
         // Ace; 5; 4; 3; 2 Ace is Straight [5; 4; 3; 2; Ace]
         | [1; 1; 1; 9] -> Straight Value.V5 |> Some
         | _ -> None
-    
+
 // Assumes cards are already sorted from highest to lowest
 let isStraightFlush (cards: Card list) =
     match (isStraight cards, isFlush cards) with
@@ -138,7 +138,7 @@ let isGrouped (cards: Card list) =
                   |> List.map getCardValue)
             |> Some
         | _ -> None
-        
+
 let parseHand (s: string) =
   let cards = s.Split ' ' |> Seq.map Card |> Seq.sortDescending |> Seq.toList
   firstSome [isRoyalFlush
@@ -209,7 +209,7 @@ module Tests = begin
                     testCase "Highest card loses" <| (fun _ -> Assert.Equal("", Result.Loss, Pokerhand("3S 5H 6H TS AC").compareWith(Pokerhand("4S 5H 6H TS AC"))))
                     testCase "Highest full house wins 1" (fun _ -> Assert.Equal("", Result.Loss, Pokerhand("3S 3H TH TS 3D").compareWith(Pokerhand("3D 3S 3H JH JC"))))
                     testCase "Highest full house wins 2" (fun _ -> Assert.Equal("", Result.Win, Pokerhand("4S 4H 4H TS TD").compareWith(Pokerhand("3D 3S 3H JH JC"))))
-                    testCase "Equal cards is tie" <| (fun _ -> Assert.Equal("", Result.Tie, Pokerhand("2S AH 4H 5S 6C").compareWith(Pokerhand("AD 4C 5H 6H 2C"))))    
+                    testCase "Equal cards is tie" <| (fun _ -> Assert.Equal("", Result.Tie, Pokerhand("2S AH 4H 5S 6C").compareWith(Pokerhand("AD 4C 5H 6H 2C"))))
                   ]
                 ]
 
