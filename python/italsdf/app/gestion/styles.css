@@ -31,27 +31,54 @@ table {
     border-collapse: collapse;
 }
 
-table tr:first-child {
+table.list tr:first-child {
     border-top: 2px solid black;
 }
 
-th {
+table.list th {
     border-bottom: 1px solid grey;
 }
 
-table tr:last-child {
+table.list tr:last-child {
     border-bottom: 2px solid black;
 }
 
-tr th {
+table.list tr th {
     background-color: white;
 }
 
-tr:nth-child(odd) {
+table.list tr:nth-child(odd) {
     background-color: #ddd;
 }
 
-td {
+table.list td {
     padding-left: 0.1em;
     padding-right: 0.1em;
+}
+
+table.tickets, table.tickets tr, table.tickets td {
+    border-collapse: collapse;
+    border: black dotted 2px;
+    text-align: center;
+    vertical-align: middle;
+}
+
+@media print {
+    table.tickets td {
+        page-break-inside: avoid;
+        width: 5cm;
+        height: 2cm;
+    }
+    table.tickets {
+        page-break-inside: auto;
+    }
+    table.tickets tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+    }
+
+    div.no-print-page-break {
+        page-break-inside: avoid;
+        page-break-after: avoid;
+    }
 }

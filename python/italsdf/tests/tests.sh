@@ -40,19 +40,6 @@ fi
 # Where 'golden' reference files are stored
 golden="$(dirname "$0")/golden"
 
-# Temporary dir to store test outputs and also used as deployment directory name
-test_dir="$(mktemp --directory)"
-folder="$(basename "$test_dir")"
-ssh_app_folder="$host_path_prefix/$folder"
-db_file="$test_dir/db.db"
-
-cat <<EOF
-Storing test output in '$test_dir', clean with
-    rm -r '$test_dir';
-Deploying to '$ssh_app_folder', clean with
-    ssh '$destination' "rm -r '$ssh_app_folder'";
-EOF
-
 # Make web request
 # - $1: end point
 # - $2: output file
@@ -223,6 +210,21 @@ function generic_test_new_reservation_without_valid_CSRF_token_fails
     if [ "$(count_reservations)" != "3" ]; then
         die "Reservations table wrong."
     fi
+    assert_redirect_to_concert_page "$test_stderr"
+    echo "test_$test_name: ok"
+}
+
+function generic_test_generate_tickets_without_valid_CSRF_token_fails
+{
+    local test_name csrf_arg test_output test_stderr
+    test_name="$1"
+    csrf_arg="$2"
+    test_output="$test_dir/$test_name.will-be-empty"
+    test_stderr="$test_dir/$test_name.stderr.log"
+    do_curl_as_admin 'gestion/generate_tickets.cgi' \
+                     "$test_output" \
+                     "-X POST -F fondus=20 -F assiettes=20 -F bolo=20 -F scampis=20 -F pannacotta=20 -F tranches=20 $csrf_arg --verbose" \
+                     2> "$test_stderr"
     assert_redirect_to_concert_page "$test_stderr"
     echo "test_$test_name: ok"
 }
@@ -473,6 +475,68 @@ function test_13_show_reservation_redirects_to_concert_page_on_error
     echo "test_13_show_reservation_redirects_to_concert_page_on_error: ok"
 }
 
+# 14: Admin tries to generate tickets without CSRF token
+# - Verify output HTML
+# - Verify CSRF is in DB (no new CSRF token created)
+function test_14_generate_tickets_without_CSRF_token_fails
+{
+    generic_test_generate_tickets_without_valid_CSRF_token_fails 07_generate_tickets_without_CSRF_token_fails ""
+}
+
+# 15: Admin tries to create generate tickets with wrong CSRF token
+# - Verify output HTML
+# - Verify CSRF is in DB (no new CSRF token created)
+function test_15_generate_tickets_with_wrong_CSRF_token_fails
+{
+    generic_test_generate_tickets_without_valid_CSRF_token_fails 15_generate_tickets_without_CSRF_token_fails "-F csrf_token=deadbeefc0ffeeb01"
+}
+
+function test_16_generate_tickets_with_correct_CSRF_token_succeeds
+{
+    local csrf_token test_output
+    csrf_token="$(get_csrf_token_of_user "$admin_user")"
+    test_output="$test_dir/16_generate_tickets.html"
+    do_curl_as_admin 'gestion/generate_tickets.cgi' \
+                     "$test_output" \
+                     "-X POST -F fondus=20 -F assiettes=20 -F bolo=20 -F scampis=20 -F pannacotta=20 -F tranches=20 -F csrf_token=$csrf_token"
+    do_diff "$test_output"
+    echo "test_16_generate_tickets_with_correct_CSRF_token_succeeds: ok"
+}
+
+# 17: Get input form to setup ticket generation
+# - Verify output HTML
+# - Verify CSRF is in DB (no new CSRF token created)
+function test_17_generate_tickets_form_input
+{
+    local test_output csrf_token
+    test_output="$test_dir/17_generate_tickets_form_input.html"
+    do_curl_as_admin 'gestion/generate_tickets.cgi' "$test_output.tmp"
+    csrf_token="$(sed -n -e 's/.*csrf_token" value="\([a-f0-9A-F]*\)".*/\1/p' "$test_output.tmp")"
+    get_db_file
+    if [ "$(count_csrfs)" -gt "1" -o "$(get_user_of_csrf_token "$csrf_token")" != "$admin_user" ]; then
+        die "CSRF problem."
+    fi
+    sed -e 's/csrf_token" value="'"$csrf_token"'"/csrf_token" value="CSRF_TOKEN"/g' "$test_output.tmp" > "$test_output"
+    do_diff "$test_output"
+    echo "test_17_generate_tickets_form_input: ok"
+}
+
+# First run local unit tests to avoid deploying if it's already broken
+(cd "$(dirname "$0")" && python -m unittest discover) || die "Unit tests failed"
+
+# Temporary dir to store test outputs and also used as deployment directory name
+test_dir="$(mktemp --directory)"
+folder="$(basename "$test_dir")"
+ssh_app_folder="$host_path_prefix/$folder"
+db_file="$test_dir/db.db"
+
+cat <<EOF
+Storing test output in '$test_dir', clean with
+    rm -r '$test_dir';
+Deploying to '$ssh_app_folder', clean with
+    ssh '$destination' "rm -r '$ssh_app_folder'";
+EOF
+
 # Deploy
 "$(dirname "$0")/../deploy.sh" "--for-tests" "$destination" "$user" "$group" "$ssh_app_folder" "$admin_user" "$admin_pw"
 echo '{ "paying_seat_cents": 500, "bank_account": "'$bank_account'", "info_email": "'$info_email'" }' \
@@ -481,6 +545,8 @@ echo '{ "paying_seat_cents": 500, "bank_account": "'$bank_account'", "info_email
 
 # tests are flaky: sometimes the first curl call returns an empty document.
 sleep 1
+do_curl_as_admin 'gestion/list_reservations.cgi' "$test_dir/dummy_fetch.html"
+
 
 if [ -n "$dash_x" ];
 then
@@ -501,6 +567,10 @@ test_10_export_as_csv
 test_11_deactivate_a_reservation
 test_12_bobby_tables_and_co
 test_13_show_reservation_redirects_to_concert_page_on_error
+test_14_generate_tickets_without_CSRF_token_fails
+test_15_generate_tickets_with_wrong_CSRF_token_fails
+test_16_generate_tickets_with_correct_CSRF_token_succeeds
+test_17_generate_tickets_form_input
 
 # Clean up
 ssh $destination "rm -r '$host_path_prefix/$folder'"

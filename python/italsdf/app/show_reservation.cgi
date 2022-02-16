@@ -7,6 +7,7 @@ import os
 import config
 from htmlgen import (
     html_document,
+    pluriel_naif,
     print_content_type,
     redirect,
     respond_html,
@@ -15,14 +16,11 @@ from storage import(
     Reservation,
     create_db,
 )
+from pricing import (
+    price_in_euros,
+)
 
 CONCERT_PAGE = 'https://www.srhbraine.be/soiree-italienne-2022/'
-
-
-def pluriel_naif(nombre, nom_et_pluriel):
-    return f'1 {nom_et_pluriel[0]}' \
-        if nombre == 1 \
-        else f'{nombre} {nom_et_pluriel[1]}'
 
     
 def commande(categorie, nombre1, nom1, nombre2, nom2):

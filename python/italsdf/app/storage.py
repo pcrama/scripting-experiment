@@ -167,11 +167,17 @@ class Reservation(MiniOrm):
 
 
     @classmethod
-    def count_main_meals(cls, connection, name, email):
+    def count_menu_data(cls, connection, date=None):
+        if date is None:
+            date_condition = ''
+            bindings = {}
+        else:
+            date_condition = ' AND date = :date'
+            bindings = {'date': date}
         return connection.execute(
-            f'''SELECT COUNT(*), SUM(bolo + scampis) FROM {cls.TABLE_NAME}
-                WHERE active != 0 AND (LOWER(name) = :name OR LOWER(email) = :email)''',
-            {'name': name.lower(), 'email': email.lower()}
+            f'''SELECT COUNT(*), SUM(fondus), SUM(assiettes), SUM(bolo), SUM(scampis), SUM(pannacotta), SUM(tranches) FROM {cls.TABLE_NAME}
+                WHERE active != 0{date_condition}''',
+            bindings
         ).fetchone()
 
 
@@ -210,7 +216,6 @@ class Reservation(MiniOrm):
                           'email': MiniOrm.compare_with_like_lower('email'),
                           'date': True,
                           'uuid': True,
-                          'bank_id': ('bank_id', 'like'),
                           'active': MiniOrm.compare_as_bool('active'),
                           'origin': ('LOWER(origin)', '=', str.lower),
                           'gdpr_accepts_use': MiniOrm.compare_as_bool('gdpr_accepts_use')}

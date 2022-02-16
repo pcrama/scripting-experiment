@@ -10,8 +10,6 @@ import sys
 sys.path.append('..')
 import config
 from htmlgen import (
-    cents_to_euro,
-    format_bank_id,
     print_content_type,
     redirect,
 )

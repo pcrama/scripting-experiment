@@ -12,8 +12,8 @@ import urllib.parse
 sys.path.append('..')
 import config
 from htmlgen import (
-    cents_to_euro,
     html_document,
+    pluriel_naif,
     print_content_type,
     redirect,
     respond_html,
@@ -77,10 +77,6 @@ def sort_direction(col, sort_order):
         return ''
 
 
-def pluriel_naif(x, c):
-    return x if c == 1 else f'{x}s'
-
-
 DEFAULT_LIMIT = 20
 MAX_LIMIT = 500
 
@@ -137,14 +133,14 @@ if __name__ == '__main__':
         respond_html(html_document(
             'List of reservations',
             (('p',
-              'Il y a ', str(total_bookings), pluriel_naif(' bulle', total_bookings), ' en tout',
+              'Il y a ', pluriel_naif(total_bookings, 'bulle'), ' en tout',
               *(' dont ', str(active_reservations), ' ',
                 'est active' if active_reservations == 1 else 'sont actives'),
               '.')
              if total_bookings > 0
              else '',
              ('ul', *tuple(('li', row[0], ': ',
-                            str(row[1]), pluriel_naif(' place', row[1]), pluriel_naif(' réservée', row[1]))
+                            pluriel_naif(row[1], ['place réservée', 'places réservées']))
                            for row in reservation_summary))
              if total_bookings > 0
              else '',
@@ -156,7 +152,7 @@ if __name__ == '__main__':
                 for v in sort_order),
               (('input', 'id', 'offset', 'name', 'offset', 'type', 'hidden', 'value', str(offset)),)),
              (('ul', 'class', 'navbar'), *pagination_links) if pagination_links else '',
-             ('table',
+             (('table', 'class', 'list'),
               ('tr', *table_header_row),
               *tuple(('tr',
                       ('td', r.name),
@@ -225,7 +221,9 @@ if __name__ == '__main__':
               (('label', 'for', 'tranches'), 'Tranche Napolitaine:'),
               (('input', 'id', 'tranches', 'name', 'tranches', 'type', 'number', 'min', '0', 'value', '0'),),
               ('br',),
-              (('input', 'type', 'submit', 'value', 'Confirmer'),)))))
+              (('input', 'type', 'submit', 'value', 'Confirmer'),)),
+             ('hr',),
+             (('a', 'href', 'generate_tickets.cgi'), 'Générer les tickets nourriture pour impression'))))
     except Exception:
         if print_content_type('text/html; charset=utf-8'):
             print()
