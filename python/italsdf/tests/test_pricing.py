@@ -72,7 +72,7 @@ class PriceInCentsTests(unittest.TestCase):
         with self.subTest(count=2):
             self.assertEqual(pricing.price_in_cents(make_reservation(bolo=2), bolo=6), 12)
         with self.subTest(count=3):
-            self.assertEqual(pricing.price_in_cents(make_reservation(bolo=3)), 4500)
+            self.assertEqual(pricing.price_in_cents(make_reservation(bolo=3)), 3000)
 
 
     def test_scampis(self):
@@ -83,7 +83,7 @@ class PriceInCentsTests(unittest.TestCase):
         with self.subTest(count=2):
             self.assertEqual(pricing.price_in_cents(make_reservation(scampis=2), scampis=6), 12)
         with self.subTest(count=3):
-            self.assertEqual(pricing.price_in_cents(make_reservation(scampis=3)), 5400)
+            self.assertEqual(pricing.price_in_cents(make_reservation(scampis=3)), 4500)
 
 
     def test_pannacotta(self):
@@ -94,7 +94,7 @@ class PriceInCentsTests(unittest.TestCase):
         with self.subTest(count=2):
             self.assertEqual(pricing.price_in_cents(make_reservation(pannacotta=2), pannacotta=6), 12)
         with self.subTest(count=3):
-            self.assertEqual(pricing.price_in_cents(make_reservation(pannacotta=3)), 1800)
+            self.assertEqual(pricing.price_in_cents(make_reservation(pannacotta=3)), 1500)
 
 
     def test_tranches(self):
@@ -105,21 +105,23 @@ class PriceInCentsTests(unittest.TestCase):
         with self.subTest(count=2):
             self.assertEqual(pricing.price_in_cents(make_reservation(tranches=2), tranches=6), 12)
         with self.subTest(count=3):
-            self.assertEqual(pricing.price_in_cents(make_reservation(tranches=3)), 1800)
+            self.assertEqual(pricing.price_in_cents(make_reservation(tranches=3)), 1500)
 
     def test_combinations_but_no_full_menus(self):
         for combination, expected in (
-                ({'assiettes': 3, 'bolo': 4}, 8400),
+                ({'assiettes': 3, 'bolo': 4}, 6400),
                 ({'fondus': 1, 'assiettes': 2}, 2400),
-                ({'fondus': 1, 'assiettes': 1, 'pannacotta': 1, 'tranches': 1}, 2800)):
+                ({'fondus': 1, 'assiettes': 1, 'pannacotta': 1, 'tranches': 1}, 2600)):
             with self.subTest(**combination):
                 self.assertEqual(pricing.price_in_cents(make_reservation(**combination)), expected)
 
     def test_simple_menus_pricing(self):
         for combination, expected in (
-                ({'assiettes': 1, 'bolo': 1, 'tranches': 1}, 2500),
-                ({'assiettes': 1, 'scampis': 1, 'tranches': 1}, 2800),
-                ({'fondus': 2, 'scampis': 2, 'pannacotta': 2}, 5600)):
+                ({'assiettes': 1, 'bolo': 1, 'tranches': 1}, 2000),
+                ({'assiettes': 1, 'scampis': 1, 'tranches': 1}, 2500),
+                ({'fondus': 2, 'scampis': 2, 'pannacotta': 2}, 5000),
+                ({'fondus': 2, 'scampis': 2, 'bolo': 1, 'pannacotta': 2}, 6000),
+                ({'fondus': 2, 'scampis': 1, 'bolo': 1, 'pannacotta': 2, 'tranches': 1}, 5000)):
             with self.subTest(**combination):
                 self.assertEqual(pricing.price_in_cents(make_reservation(**combination)), expected)
 

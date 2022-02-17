@@ -30,15 +30,15 @@ def make_reservation(**overrides):
 
 
 class TestOneReservation(unittest.TestCase):
-    R1 = make_reservation(
+    R1 = make_reservation( # 3 bolo menus + 4 scampis + 8 desserts = 60 + 60 + 40 = 160
         fondus=1, assiettes=2, bolo=3, scampis=4, pannacotta=5, tranches=6)
 
-    R2 = make_reservation(
+    R2 = make_reservation( # 2 starters + 1 bolo + 1 scampis = 16 + 10 + 15 = 41
         name='other', date='2022-03-20', fondus=1, assiettes=1, bolo=1, scampis=1)
 
     E1 = [(('div', 'class', 'no-print-page-break'),
            ('h3', 'testing', ' ', '2022-03-19'),
-           ('p', 'Total: ', '195.00 €', ' pour ', '21 tickets', '.')),
+           ('p', 'Total: ', '160.00 €', ' pour ', '21 tickets', '.')),
           (('table', 'class', 'tickets'),
            ('tr',
             ('td', 'Fondus au fromage'), ('td', 'Charcuterie'), ('td', 'Charcuterie'), ('td', 'Spaghettis Bolognaise')),
@@ -55,7 +55,7 @@ class TestOneReservation(unittest.TestCase):
 
     E2 = [(('div', 'class', 'no-print-page-break'),
            ('h3', 'other', ' ', '2022-03-20'),
-           ('p', 'Total: ', '49.00 €', ' pour ', '4 tickets', '.')),
+           ('p', 'Total: ', '41.00 €', ' pour ', '4 tickets', '.')),
           (('table', 'class', 'tickets'),
            ('tr',
             ('td', 'Fondus au fromage'), ('td', 'Charcuterie'), ('td', 'Spaghettis Bolognaise'), ('td', 'Spaghettis aux scampis')))]

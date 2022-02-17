@@ -1,15 +1,21 @@
 import htmlgen
 
+CENTS_STARTER = 800
+CENTS_BOLO = 1000
+CENTS_SCAMPIS = 1500
+CENTS_DESSERT = 500
+CENTS_MENU_BOLO = 2000
+CENTS_MENU_SCAMPIS = 2500
 
 def price_in_cents(r,
-                   fondus=800,
-                   assiettes=800,
-                   bolo=1500,
-                   scampis=1800,
-                   pannacotta=600,
-                   tranches=600,
-                   menu_bolo=2500,
-                   menu_scampis=2800):
+                   fondus=CENTS_STARTER,
+                   assiettes=CENTS_STARTER,
+                   bolo=CENTS_BOLO,
+                   scampis=CENTS_SCAMPIS,
+                   pannacotta=CENTS_DESSERT,
+                   tranches=CENTS_DESSERT,
+                   menu_bolo=CENTS_MENU_BOLO,
+                   menu_scampis=CENTS_MENU_SCAMPIS):
     complete_menus = min([r.fondus + r.assiettes, r.bolo + r.scampis, r.pannacotta + r.tranches])
     if complete_menus == 0:
         correction = 0
