@@ -26,52 +26,37 @@ Host an HTML form that will =POST= its content to the =post_reservation.cgi=
 script:
 #+begin_example
   <form action="https://YOUR_HOST/DEPLOYMENT_DIR/post_reservation.cgi" method="POST">
+    <input name="date" type="hidden" value="2099-01-01">
     <label for="name">Nom:</label><br>
-    <input type="text" id="name" name="name" placeholder="Il est obligatoire de saisir votre nom" required="required" style="width:100%;"><br>
+    <input id="name" style="width: 100%;" name="name" required="required" type="text" placeholder="Il est obligatoire de saisir votre nom"><br>
     <label for="email">Email:</label><br>
-    <input type="email" id="email" name="email" placeholder="Nous pourrions avoir besoin de votre email pour le tracing" required="required" style="width:100%;"><br>
+    <input id="email" style="width: 100%;" name="email" required="required" type="email" placeholder="Nous pourrions avoir besoin de votre email pour le tracing"><br>
     <label for="places">Nombre de convives:</label><br>
-    <input type="number" id="places" name="places"><br>
-    <br><input type="radio" id="samedi" name="date" value="2099-01-01" checked="checked">
-    <label for="samedi">TEST: Samedi 1 janvier 2099 à 20h.</label><br>
-    <input type="radio" id="dimanche" name="date" value="2099-01-02">
-    <label for="dimanche">TEST: Dimanche 2 janvier 2099 à 15h.</label><br>
-    Afin d'accélérer la vente des repas et de nous aider à prévoir les bonnes quantités,
-    merci de nous signaler à l'avance votre commande à titre indicatif afin que nous
-    vous préparions les tickets du service:
-    <ul><li>Entrées
-      <ol>
-      <li>
-      <label for="fondus">Fondus au fromage:</label>
-      <input type="number" id="fondus" name="fondus" min="0" max="20" value="0"></li>
-      <li>
-      <label for="assiettes">Assiettes italiennes:</label>
-      <input type="number" id="assiettes" name="assiettes" min="0" max="20" value="0"></li>
-      </ol></li>
+    <input id="places" name="places" type="number"><p></p>
+    <ul>
+      <li>Entrées
+        <ol>
+        <li><label style="display: inline-block; width: 14em;" for="assiettes">Assiette italienne (8€):</label> <input id="assiettes" style="width: 5em;" max="20" min="0" name="assiettes" type="number" value="0"></li>
+        <li><label style="display: inline-block; width: 14em;" for="fondus">Croquettes au fromage (8€):</label> <input id="fondus" style="width: 5em;" max="20" min="0" name="fondus" type="number" value="0"></li>
+        </ol>
+      </li>
       <li>Plats
-      <ol>
-      <li>
-      <label for="bolo">Spaghetti Bolognaise:</label>
-      <input type="number" id="bolo" name="bolo" min="0" max="20" value="0"></li>
-      <li>
-      <label for="scampis">Spaghettis avec de la sauce aux scampis:</label>
-      <input type="number" id="scampis" name="scampis" min="0" max="20" value="0"></li>
-      </ol></li>
+        <ol>
+        <li><label style="display: inline-block; width: 14em;" for="bolo">Spaghetti Bolognaise (10€):</label> <input id="bolo" style="width: 5em;" max="20" min="0" name="bolo" type="number" value="0"></li>
+        <li><label style="display: inline-block; width: 14em;" for="scampis">Spaghetti aux scampis (15€):</label> <input id="scampis" style="width: 5em;" max="20" min="0" name="scampis" type="number" value="0"></li>
+        </ol>
+      </li>
       <li>Desserts
-      <ol>
-      <li>
-      <label for="tiramisu">Tiramisu:</label>
-      <input type="number" id="tiramisu" name="tiramisu" min="0" max="20" value="0"></li>
-      <li>
-      <label for="tranches">Tranches Napolitaines:</label>
-      <input type="number" id="tranches" name="tranches" min="0" max="20" value="0"></li>
-      </ol></li></ul>
+        <ol>
+        <li><label style="display: inline-block; width: 14em;" for="tiramisu">Tiramisu Maison (5€):</label> <input id="tiramisu" style="width: 5em;" max="20" min="0" name="tiramisu" type="number" value="0"></li>
+        <li><label style="display: inline-block; width: 14em;" for="tranches">Tranche Napolitaine (5€):</label> <input id="tranches" style="width: 5em;" max="20" min="0" name="tranches" type="number" value="0"></li>
+        </ol>
+      </li>
+    </ul>
     <div style="display: grid;">
-      <div style="grid-row: 1; grid-column: 1;"><input type="checkbox" id="gdpr_accepts_use" name="gdpr_accepts_use" value="true"></div>
-      <div style="grid-row: 1; grid-column: 2;">
-        <label for="gdpr_accepts_use">J'autorise la Société Royale d'Harmonie de Braine-l'Alleud à utiliser mon adresse email pour m'avertir de ses futures activités.</label>
-      </div>
-    </div><br>
+      <div style="grid-row: 1; grid-column: 1;"><input id="gdpr_accepts_use" name="gdpr_accepts_use" type="checkbox" value="true"></div>
+      <div style="grid-row: 1; grid-column: 2;"><label for="gdpr_accepts_use">J’autorise la Société Royale d’Harmonie de Braine-l’Alleud à utiliser mon adresse email pour m’avertir de ses futures activités.</label></div>
+    </div>
     <input type="submit" value="Confirmer">
   </form>
 #+end_example

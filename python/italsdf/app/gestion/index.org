@@ -1,6 +1,6 @@
 #+options: ^:{}
 #+author: Philippe Crama
-#+title: Concert de Gala 2021
+#+title: Souper Italien 2022
 
 * Introduction
 
@@ -8,10 +8,6 @@ Voyez [[file+emacs:list_reservations.cgi][la liste des réservations]].  C'est l
 suivi des réservations.  Cette page permet aussi d'ajouter des réservations
 prises au téléphone ou d'exporter toutes les réservations en format CSV pour
 l'importer dans Excel.
-
-J'aimerais que le comité passe en revue la liste des [[#questions_a_valider_20211025][questions à valider]].
-J'ai fait plusieurs choix arbitraires pendant l'implémentation qu'il faut
-confirmer.
 
 * Mode d'emploi
 ** Du point de vue du comité
@@ -23,20 +19,17 @@ normalement inaccessibles au public.
 1. Aller sur la page [[file+emacs:list_reservations.cgi][liste des réservations]] qui ressemble à ceci:
 
    #+CAPTION: Liste des réservations et accès administratif
-   #+ATTR_HTML: :alt Liste des réservations et accès administratif
+   #+ATTR_HTML: :alt Liste des réservations et accès administratif :style width: 60%
    [[file+emacs:images/01_reservation_list.png]]
 
    Quelques explications:
-   - Une bulle est une réservation faite par une personne pour /n/ places
-     payantes et /m/ places gratuites.
    - Une bulle peut être active (c'est son état par défaut) ou annulée (par
      exemple pour corriger une erreur de saisie).  Pour le moment, je suis le
      seul à pouvoir annuler une réservation (càd la désactiver).  Seules les
      bulles actives sont montrées.  Les données complètes sont disponibles
      dans l'export CSV.
    - Le nombre de places réservées dans le résumé en haut de la page ne
-     comprend que les réservations actives (payantes et gratuites additionnées
-     ensemble).
+     comprend que les réservations actives.
    - Le nombre de lignes dans le tableau est limité pour limiter le temps que
      met la page à charger, mais cette limite peut être modifiée par
      l'utilisateur.
@@ -69,10 +62,10 @@ le numéro de téléphone, mais ce champ n'est pas obligatoire.
 
 ** Du point de vue du public
 Normalement, notre publicité et [[https://www.srhbraine.be/][notre site]] doivent guider les spectateurs vers
-la [[https://www.srhbraine.be/soiree-italienne/][page web de notre concert de Gala]] avec le formulaire suivant:
+la [[https://www.srhbraine.be/soiree-italienne/][page web du souper Italien]]. avec le formulaire suivant:
 
 #+CAPTION: Formulaire d'inscription sur le site de la SRH
-#+ATTR_HTML: :alt Formulaire d'inscription sur le site de la SRH
+#+ATTR_HTML: :alt Formulaire d'inscription sur le site de la SRH :style width: 60%
 [[file+emacs:images/02_formulaire_reservation.png]]
 
 *** Réservation normale
@@ -80,7 +73,7 @@ Si tous les champs sont bien remplis et que l'utilisateur clique sur
 "Confirmer", il voit ce message:
 
 #+CAPTION: Confirmation de la réservation
-#+ATTR_HTML: :alt Confirmation de la réservation
+#+ATTR_HTML: :alt Confirmation de la réservation :style width: 60%
 [[file+emacs:images/03_confirmation.png]]
 
 *** Problèmes potentiels
@@ -89,47 +82,5 @@ email) essaie de faire "trop" de réservations, elle verra un message d'erreur
 similaire à celui-ci:
 
 #+CAPTION: Erreur lors de la réservation
-#+ATTR_HTML: :alt Erreur lors de la réservation
+#+ATTR_HTML: :alt Erreur lors de la réservation :style width: 60%
 [[file+emacs:images/04_formulaire_invalide.png]]
-
-* Questions à valider
-:PROPERTIES:
-:CUSTOM_ID: questions_a_valider_20211025
-:END:
-
-** Prix des entrées et âge minimum
-- entrée gratuite en-dessous de 12 ans
-- entrée payante à partir de 12 ans, 12€ par place
-
-C'est facile à changer, il suffit de me dire quoi.
-
-** TODO Limites dans les réservations
-Afin d'essayer de limiter des abus potentiels du formulaire, j'ai limité
-(c'est assez facile à contourner quand-même...)
-- le nombre de réservations distinctes que l'on peut faire sous un nom ou une
-  adresse email (10 en tout).
-- le nombre de places qu'un nom ou une adresse email peut réserver en tout
-  (maximum 60).
-- l'adresse email et le nom sont obligatoires, mais si quelqu'un s'annonce
-  avec des données telles que ~Mr X~ ou ~w@x.yz~, la réservation sera acceptée
-  quand-même.  Vérifier des adresses email plus strictement est plus lourd (il
-  faudrait leur envoyer un mail) et vérifier les noms plus sérieusement que
-  d'exiger que le champ ne soit pas vide me paraît impossible.
-
-* DONE Tâches à finaliser avant la "mise en production"
-- [X] Configurer le prix des places via ~paying_seat_cents~.
-- [X] Configurer le numéro de compte via ~bank_account~.
-- [X] Configurer l'adresse email de contact via ~info_email~.
-- [X] Augmenter à 20 le nombre de bulles affichées par défaut dans
-  [[file+emacs:list_reservations.cgi][la liste des réservations]].
-- [X] Effacer les données de test
-  #+begin_example
-    DELETE FROM reservations WHERE date = '2099-01-01' OR date = '2099-01-02';
-  #+end_example
-- [X] Corriger la [[https://www.srhbraine.be/soiree-italienne/][page web de notre concert de Gala]]
-  - [X] Numéro de téléphone
-  - [X] Titre de la page
-  - [X] Mesures d'hygiène et de sécurité
-  - [X] Les dates dans le formulaire
-  - [X] Le prix dans le formulaire
-  - [X] Lien vers la version finale des scripts CGI
