@@ -320,7 +320,7 @@ function test_04_valid_reservation_for_saturday
                                                  5 2022-03-19 3 2 0 0 0 0 0 2
 }
 
-# 05: Register for Sunday
+# 05: Register for Sunday: not possible, so Saturday, too...
 # - Verify output HTML
 # - Verify reservations contains 1 row with correct information
 # - No new CSRF token
@@ -328,7 +328,7 @@ function test_05_valid_reservation_for_sunday
 {
     generic_test_valid_reservation_for_test_date 05_valid_reservation_for_sunday \
                                                  Sunday05 SundayMail@gmx.com \
-                                                 2 2022-03-20 0 0 0 0 0 0 1 3
+                                                 2 2022-03-19 0 0 0 0 0 0 1 3
 }
 
 # 06: List reservations with new content, limit & sorting options
@@ -442,7 +442,7 @@ function test_12_bobby_tables_and_co
     generic_test_valid_reservation_for_test_date 12_bobby_tables_and_co \
                                                  "<$reservation_name" \
                                                  "<$reservation_email" \
-                                                 3 2022-03-20 3 0 1 2 2 1 1 5
+                                                 3 2022-03-19 3 0 1 2 2 1 1 5
     do_curl_as_admin 'gestion/list_reservations.cgi?limit=9' "$test_output.tmp"
     csrf_token="$(sed -n -e 's/.*csrf_token" value="\([a-f0-9A-F]*\)".*/\1/p' "$test_output.tmp")"
     get_db_file

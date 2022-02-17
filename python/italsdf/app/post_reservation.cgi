@@ -86,7 +86,7 @@ def validate_data(
         raise ValidationException("Vous n'avez pas indiqué combien de places vous vouliez réserver")
     if date not in (('2099-01-01', '2099-01-02')
                     if is_test_reservation(name, email)
-                    else ('2022-03-19', '2022-03-20')):
+                    else ('2022-03-19',)):
         raise ValidationException("Il n'y a pas de repas italien ̀à cette date")
     reservations_count, reserved_seats  = Reservation.count_places(connection, name, email)
     if (reservations_count or 0) > 10:
@@ -94,7 +94,7 @@ def validate_data(
     if (reserved_seats or 0) + places > 60:
         raise ValidationException('Vous réservez ou avez réservé trop de places')
     _, total_bookings = Reservation.count_places(connection)
-    MAX_PLACES = 80
+    MAX_PLACES = 120
     if (total_bookings or 0) + places > MAX_PLACES:
         max_restantes = MAX_PLACES - (total_bookings or 0)
         raise ValidationException(f"Il n'y a plus assez de place dans la salle, il ne reste plus que {max_restantes} places libres.")
