@@ -6,10 +6,11 @@ import os
 
 import config
 from htmlgen import (
+    CONCERT_PAGE,
     html_document,
     pluriel_naif,
     print_content_type,
-    redirect,
+    redirect_to_event,
     respond_html,
 )
 from storage import(
@@ -19,8 +20,6 @@ from storage import(
 from pricing import (
     price_in_euros,
 )
-
-CONCERT_PAGE = 'https://www.srhbraine.be/soiree-italienne-2022/'
 
     
 def commande(categorie, nombre1, nom1, nombre2, nom2):
@@ -36,7 +35,7 @@ def commande(categorie, nombre1, nom1, nombre2, nom2):
 if __name__ == '__main__':
     
     if os.getenv('REQUEST_METHOD') != 'GET':
-        redirect(CONCERT_PAGE)
+        redirect_to_event()
     CONFIGURATION = config.get_configuration()
 
     cgitb.enable(display=CONFIGURATION['cgitb_display'], logdir=CONFIGURATION['logdir'])
@@ -53,7 +52,7 @@ if __name__ == '__main__':
             filtering=[('uuid', uuid_hex)],
             limit=1))
     except StopIteration:
-        redirect(CONCERT_PAGE)
+        redirect_to_event()
 
     if print_content_type('text/html; charset=utf-8'):
         print('Content-Language: en')

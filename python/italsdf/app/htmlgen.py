@@ -89,3 +89,10 @@ def redirect(new_url, and_exit=True):
     print()
     if and_exit:
         sys.exit(0)
+
+
+CONCERT_PAGE = 'https://www.srhbraine.be/soiree-italienne/'
+
+
+def redirect_to_event(and_exit=True):
+    redirect(CONCERT_PAGE, and_exit=and_exit)

@@ -69,7 +69,7 @@ le numéro de téléphone, mais ce champ n'est pas obligatoire.
 
 ** Du point de vue du public
 Normalement, notre publicité et [[https://www.srhbraine.be/][notre site]] doivent guider les spectateurs vers
-la [[https://www.srhbraine.be/soiree-italienne-2022/][page web de notre concert de Gala]] avec le formulaire suivant:
+la [[https://www.srhbraine.be/soiree-italienne/][page web de notre concert de Gala]] avec le formulaire suivant:
 
 #+CAPTION: Formulaire d'inscription sur le site de la SRH
 #+ATTR_HTML: :alt Formulaire d'inscription sur le site de la SRH
@@ -126,7 +126,7 @@ Afin d'essayer de limiter des abus potentiels du formulaire, j'ai limité
   #+begin_example
     DELETE FROM reservations WHERE date = '2099-01-01' OR date = '2099-01-02';
   #+end_example
-- [X] Corriger la [[https://www.srhbraine.be/soiree-italienne-2022/][page web de notre concert de Gala]]
+- [X] Corriger la [[https://www.srhbraine.be/soiree-italienne/][page web de notre concert de Gala]]
   - [X] Numéro de téléphone
   - [X] Titre de la page
   - [X] Mesures d'hygiène et de sécurité

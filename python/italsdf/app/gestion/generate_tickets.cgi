@@ -12,7 +12,7 @@ from htmlgen import (
     html_document,
     pluriel_naif,
     print_content_type,
-    redirect,
+    redirect_to_event,
     respond_html,
 )
 from storage import(
@@ -25,11 +25,8 @@ from create_tickets import(
 )
 
 
-CONCERT_PAGE = 'https://www.srhbraine.be/soiree-italienne-2022/'
-
-
 def fail_generate_tickets():
-    redirect('https://www.srhbraine.be/soiree-italienne-2022/')
+    redirect_to_event()
 
 
 def get_method(db_connection):

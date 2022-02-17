@@ -15,7 +15,7 @@ from htmlgen import (
     html_document,
     pluriel_naif,
     print_content_type,
-    redirect,
+    redirect_to_event,
     respond_html,
 )
 from storage import (
@@ -82,7 +82,7 @@ MAX_LIMIT = 500
 
 if __name__ == '__main__':
     if os.getenv('REQUEST_METHOD') != 'GET' or os.getenv('REMOTE_USER') is None:
-        redirect('https://www.srhbraine.be/soiree-italienne-2022/')
+        redirect_to_event()
 
     CONFIGURATION = config.get_configuration()
     cgitb.enable(display=CONFIGURATION['cgitb_display'], logdir=CONFIGURATION['logdir'])

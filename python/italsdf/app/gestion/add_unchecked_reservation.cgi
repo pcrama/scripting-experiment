@@ -14,7 +14,7 @@ import config
 from htmlgen import (
     html_document,
     print_content_type,
-    redirect,
+    redirect_to_event,
     respond_html,
 )
 from storage import (
@@ -32,7 +32,7 @@ from lib_post_reservation import(
 
 
 def fail_add_unchecked_reservation():
-    redirect('https://www.srhbraine.be/soiree-italienne-2022/')
+    redirect_to_event()
 
 
 if __name__ == '__main__':

@@ -75,7 +75,7 @@ function assert_redirect_to_concert_page
         || die "Not a redirect: $test_stderr"
     grep -q '^< Content-Length: 0' "$test_stderr" \
         || die "Content-Length != 0: $test_stderr"
-    grep -q '^< Location: https://www.srhbraine.be/soiree-italienne-2022/' "$test_stderr" \
+    grep -q '^< Location: https://www.srhbraine.be/soiree-italienne/' "$test_stderr" \
         || die "Target is not concert page: $test_stderr"
 }
 
