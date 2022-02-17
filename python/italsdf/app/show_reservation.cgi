@@ -59,10 +59,9 @@ if __name__ == '__main__':
         print('Content-Language: en')
         print()
 
-    places = (' pour ',)
+    places = ()
     if reservation.places > 0:
-        places += (str(reservation.places),
-                   ' place' if reservation.places == 1 else ' places')
+        places += (' pour ', pluriel_naif(reservation.places, 'place'))
     places += (' a été enregistrée.',)
     commandes = [x for x in (commande('Entrée',
                                       reservation.fondus,
@@ -81,13 +80,15 @@ if __name__ == '__main__':
                                       ['Tranche Napolitaine', 'Tranches Napolitaines']))
                  if x]
     if commandes:
-        commandes = (('p', "Merci de nous avoir informé de votre commande à titre indicatif.  Nous préparerons vos tickets à l'entrée pour faciliter le paiement."),
+        commandes = (('p', "Merci de nous avoir informé de votre commande à titre indicatif.  ",
+                      "Nous préparerons vos tickets à l'entrée pour faciliter votre commande.  ",
+                      'Le prix total est de ', price_in_euros(reservation), ' pour le repas.'),
                      (('ul', ), *((('li',), *x) for x in commandes)))
     else:
         commandes = (('p', "La commande des repas se fera à l'entrée."),)
     respond_html(html_document(
         'Réservation effectuée',
-        (('p', 'Votre réservation au nom de ', reservation.name) + places,
+        (('p', 'Votre réservation au nom de ', reservation.name, *places),
          *commandes,
          ('p', (('a', 'href', CONCERT_PAGE), 'Cette page'), ' sera tenue à jour avec '
           'les mesures de sécurité en vigueur lors de notre repas italien. Merci de la consulter '
