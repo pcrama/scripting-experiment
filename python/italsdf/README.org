@@ -60,8 +60,8 @@ script:
       <li>Desserts
       <ol>
       <li>
-      <label for="pannacotta">Panna Cotta:</label>
-      <input type="number" id="pannacotta" name="pannacotta" min="0" max="20" value="0"></li>
+      <label for="tiramisu">Tiramisu:</label>
+      <input type="number" id="tiramisu" name="tiramisu" min="0" max="20" value="0"></li>
       <li>
       <label for="tranches">Tranches Napolitaines:</label>
       <input type="number" id="tranches" name="tranches" min="0" max="20" value="0"></li>

@@ -71,7 +71,7 @@ class Reservation(MiniOrm):
              assiettes INTEGER,
              bolo INTEGER,
              scampis INTEGER,
-             pannacotta INTEGER,
+             tiramisu INTEGER,
              tranches INTEGER,
              gdpr_accepts_use INTEGER,
              uuid TEXT NOT NULL,
@@ -88,7 +88,7 @@ class Reservation(MiniOrm):
                  assiettes,
                  bolo,
                  scampis,
-                 pannacotta,
+                 tiramisu,
                  tranches,
                  gdpr_accepts_use,
                  uuid,
@@ -103,7 +103,7 @@ class Reservation(MiniOrm):
         self.assiettes = assiettes
         self.bolo = bolo
         self.scampis = scampis
-        self.pannacotta = pannacotta
+        self.tiramisu = tiramisu
         self.tranches = tranches
         self.gdpr_accepts_use = gdpr_accepts_use
         self.uuid = uuid
@@ -122,7 +122,7 @@ class Reservation(MiniOrm):
             'assiettes': self.assiettes,
             'bolo': self.bolo,
             'scampis': self.scampis,
-            'pannacotta': self.pannacotta,
+            'tiramisu': self.tiramisu,
             'tranches': self.tranches,
             'gdpr_accepts_use': self.gdpr_accepts_use,
             'uuid': self.uuid,
@@ -135,7 +135,7 @@ class Reservation(MiniOrm):
         connection.execute(
             f'''INSERT INTO {self.TABLE_NAME} VALUES (
                  :name, :email, :places, :date, :fondus, :assiettes, :bolo,
-                 :scampis, :pannacotta, :tranches, :gdpr_accepts_use,
+                 :scampis, :tiramisu, :tranches, :gdpr_accepts_use,
                  :uuid, :time, :active, :origin)''',
             self.to_dict())
 
@@ -175,7 +175,7 @@ class Reservation(MiniOrm):
             date_condition = ' AND date = :date'
             bindings = {'date': date}
         return connection.execute(
-            f'''SELECT COUNT(*), SUM(fondus), SUM(assiettes), SUM(bolo), SUM(scampis), SUM(pannacotta), SUM(tranches) FROM {cls.TABLE_NAME}
+            f'''SELECT COUNT(*), SUM(fondus), SUM(assiettes), SUM(bolo), SUM(scampis), SUM(tiramisu), SUM(tranches) FROM {cls.TABLE_NAME}
                 WHERE active != 0{date_condition}''',
             bindings
         ).fetchone()
@@ -184,7 +184,7 @@ class Reservation(MiniOrm):
     @classmethod
     def count_desserts(cls, connection, name, email):
         return connection.execute(
-            f'''SELECT COUNT(*), SUM(pannacotta + tranches) FROM {cls.TABLE_NAME}
+            f'''SELECT COUNT(*), SUM(tiramisu + tranches) FROM {cls.TABLE_NAME}
                 WHERE active != 0 AND (LOWER(name) = :name OR LOWER(email) = :email)''',
             {'name': name.lower(), 'email': email.lower()}
         ).fetchone()
@@ -206,7 +206,7 @@ class Reservation(MiniOrm):
                         'assiettes': 'assiettes',
                         'bolo': 'bolo',
                         'scampis': 'scampis',
-                        'pannacotta': 'pannacotta',
+                        'tiramisu': 'tiramisu',
                         'tranches': 'tranches',
                         'origin': 'LOWER(origin)',
                         'active': 'active'}
@@ -298,7 +298,7 @@ class Reservation(MiniOrm):
                 assiettes=row[5],
                 bolo=row[6],
                 scampis=row[7],
-                pannacotta=row[8],
+                tiramisu=row[8],
                 tranches=row[9],
                 gdpr_accepts_use=row[10] != 0,
                 uuid=row[11],

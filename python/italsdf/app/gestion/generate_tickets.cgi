@@ -40,7 +40,7 @@ def get_method(db_connection):
      total_assiettes,
      total_bolo,
      total_scampis,
-     total_pannacotta,
+     total_tiramisu,
      total_tranches) = Reservation.count_menu_data(db_connection)
     respond_html(html_document(
         'Impression des tickets pour la nourriture',
@@ -50,7 +50,7 @@ def get_method(db_connection):
           ('li', str(total_assiettes), ' assiettes'),
           ('li', pluriel_naif(total_bolo, 'bolo')),
           ('li', str(total_scampis), ' scampis'),
-          ('li', pluriel_naif(total_pannacotta, 'pannacotta')),
+          ('li', pluriel_naif(total_tiramisu, 'tiramisu')),
           ('li', str(total_tranches,), ' tranches napolitaines')),
          (('form', 'method', 'POST'),
           (('input', 'type', 'hidden', 'id', 'csrf_token', 'name', 'csrf_token', 'value', csrf_token.token),),
@@ -66,8 +66,8 @@ def get_method(db_connection):
           (('label', 'for', 'scampis'), 'scampis:'),
           (('input', 'type', 'number', 'id', 'scampis', 'name', 'scampis', 'value', str(total_scampis), 'min', str(total_scampis), 'max', '200'), ),
           ('br',),
-          (('label', 'for', 'pannacotta'), 'pannacotta:'),
-          (('input', 'type', 'number', 'id', 'pannacotta', 'name', 'pannacotta', 'value', str(total_pannacotta), 'min', str(total_pannacotta), 'max', '200'), ),
+          (('label', 'for', 'tiramisu'), 'tiramisu:'),
+          (('input', 'type', 'number', 'id', 'tiramisu', 'name', 'tiramisu', 'value', str(total_tiramisu), 'min', str(total_tiramisu), 'max', '200'), ),
           ('br',),
           (('label', 'for', 'tranches'), 'tranches:'),
           (('input', 'type', 'number', 'id', 'tranches', 'name', 'tranches', 'value', str(total_tranches), 'min', str(total_tranches), 'max', '200'), ),
@@ -98,7 +98,7 @@ def post_method(db_connection):
     assiettes = safe_non_negative_int_less_or_equal_than_500(form.getfirst('assiettes', default=0))
     bolo = safe_non_negative_int_less_or_equal_than_500(form.getfirst('bolo', default=0))
     scampis = safe_non_negative_int_less_or_equal_than_500(form.getfirst('scampis', default=0))
-    pannacotta = safe_non_negative_int_less_or_equal_than_500(form.getfirst('pannacotta', default=0))
+    tiramisu = safe_non_negative_int_less_or_equal_than_500(form.getfirst('tiramisu', default=0))
     tranches = safe_non_negative_int_less_or_equal_than_500(form.getfirst('tranches', default=0))
 
     if print_content_type('text/html; charset=utf-8'):
@@ -112,7 +112,7 @@ def post_method(db_connection):
                 db_connection,
                 filtering=[('active', True)],
                 order_columns=['date', 'name', 'email']),
-            fondus, assiettes, bolo, scampis, pannacotta, tranches)))
+            fondus, assiettes, bolo, scampis, tiramisu, tranches)))
 
     
 if __name__ == '__main__':

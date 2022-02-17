@@ -12,15 +12,15 @@ def price_in_cents(r,
                    assiettes=CENTS_STARTER,
                    bolo=CENTS_BOLO,
                    scampis=CENTS_SCAMPIS,
-                   pannacotta=CENTS_DESSERT,
+                   tiramisu=CENTS_DESSERT,
                    tranches=CENTS_DESSERT,
                    menu_bolo=CENTS_MENU_BOLO,
                    menu_scampis=CENTS_MENU_SCAMPIS):
-    complete_menus = min([r.fondus + r.assiettes, r.bolo + r.scampis, r.pannacotta + r.tranches])
+    complete_menus = min([r.fondus + r.assiettes, r.bolo + r.scampis, r.tiramisu + r.tranches])
     if complete_menus == 0:
         correction = 0
-    elif menu_bolo - bolo == menu_scampis - scampis and fondus == assiettes and pannacotta == tranches:
-        correction = (fondus + bolo + pannacotta - menu_bolo) * complete_menus
+    elif menu_bolo - bolo == menu_scampis - scampis and fondus == assiettes and tiramisu == tranches:
+        correction = (fondus + bolo + tiramisu - menu_bolo) * complete_menus
     else:
         raise Exception("Unable to compute best price")
     return (
@@ -28,7 +28,7 @@ def price_in_cents(r,
         + r.assiettes * assiettes
         + r.bolo * bolo
         + r.scampis * scampis
-        + r.pannacotta * pannacotta
+        + r.tiramisu * tiramisu
         + r.tranches * tranches
         - correction)
 

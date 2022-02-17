@@ -75,8 +75,8 @@ if __name__ == '__main__':
                                       reservation.scampis,
                                       ['Spaghetti aux Scampis', 'Spaghettis aux Scampis']),
                              commande('Dessert',
-                                      reservation.pannacotta,
-                                      ['Panna Cotta', 'Panna Cottas'],
+                                      reservation.tiramisu,
+                                      'Tiramisu',
                                       reservation.tranches,
                                       ['Tranche Napolitaine', 'Tranches Napolitaines']))
                  if x]

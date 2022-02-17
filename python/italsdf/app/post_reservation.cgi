@@ -32,7 +32,7 @@ Input:
 - assiettes
 - bolo
 - scampis
-- pannacotta
+- tiramisu
 - tranches
 - gdpr_accepts_use
 - uuid
@@ -48,7 +48,7 @@ Save:
 - assiettes
 - bolo
 - scampis
-- pannacotta
+- tiramisu
 - tranches
 - gdpr_accepts_use
 - uuid
@@ -67,10 +67,10 @@ def is_test_reservation(name, email):
 
 
 def validate_data(
-        name, email, places, date, fondus, assiettes, bolo, scampis, pannacotta, tranches, gdpr_accepts_use, connection):
-    (name, email, places, date, fondus, assiettes, bolo, scampis, pannacotta, tranches, gdpr_accepts_use
+        name, email, places, date, fondus, assiettes, bolo, scampis, tiramisu, tranches, gdpr_accepts_use, connection):
+    (name, email, places, date, fondus, assiettes, bolo, scampis, tiramisu, tranches, gdpr_accepts_use
      ) = normalize_data(
-         name, email, places, date, fondus, assiettes, bolo, scampis, pannacotta, tranches, gdpr_accepts_use)
+         name, email, places, date, fondus, assiettes, bolo, scampis, tiramisu, tranches, gdpr_accepts_use)
     if not(name and email):
         raise ValidationException('Vos données de contact sont incomplètes')
     INVALID_EMAIL = "L'adresse email renseignée n'a pas le format requis"
@@ -98,7 +98,7 @@ def validate_data(
     if (total_bookings or 0) + places > MAX_PLACES:
         max_restantes = MAX_PLACES - (total_bookings or 0)
         raise ValidationException(f"Il n'y a plus assez de place dans la salle, il ne reste plus que {max_restantes} places libres.")
-    return (name, email, places, date, fondus, assiettes, bolo, scampis, pannacotta, tranches, gdpr_accepts_use)
+    return (name, email, places, date, fondus, assiettes, bolo, scampis, tiramisu, tranches, gdpr_accepts_use)
 
 
 def respond_with_validation_error(form, e, configuration):
@@ -136,14 +136,14 @@ if __name__ == '__main__':
         assiettes = form.getfirst('assiettes', default=0)
         bolo = form.getfirst('bolo', default=0)
         scampis = form.getfirst('scampis', default=0)
-        pannacotta = form.getfirst('pannacotta', default=0)
+        tiramisu = form.getfirst('tiramisu', default=0)
         tranches = form.getfirst('tranches', default=0)
         gdpr_accepts_use = form.getfirst('gdpr_accepts_use', default=False)
         try:
             (name, email, places, date, fondus, assiettes, bolo, scampis,
-             pannacotta, tranches, gdpr_accepts_use) = validate_data(
+             tiramisu, tranches, gdpr_accepts_use) = validate_data(
                  name, email, places, date, fondus, assiettes, bolo, scampis,
-                 pannacotta, tranches, gdpr_accepts_use, db_connection)
+                 tiramisu, tranches, gdpr_accepts_use, db_connection)
         except ValidationException as e:
             respond_with_validation_error(form, e, CONFIGURATION)
         else:
@@ -156,7 +156,7 @@ if __name__ == '__main__':
                 assiettes,
                 bolo,
                 scampis,
-                pannacotta,
+                tiramisu,
                 tranches,
                 gdpr_accepts_use,
                 db_connection,

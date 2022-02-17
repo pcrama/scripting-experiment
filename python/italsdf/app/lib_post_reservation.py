@@ -17,7 +17,7 @@ from storage import(
 
 
 def normalize_data(
-        name, email, places, date, fondus, assiettes, bolo, scampis, pannacotta, tranches, gdpr_accepts_use):
+        name, email, places, date, fondus, assiettes, bolo, scampis, tiramisu, tranches, gdpr_accepts_use):
     def safe_strip(x):
         if x is None:
             return ''
@@ -37,17 +37,17 @@ def normalize_data(
     assiettes = safe_non_negative_int_less_or_equal_than_50(assiettes)
     bolo = safe_non_negative_int_less_or_equal_than_50(bolo)
     scampis = safe_non_negative_int_less_or_equal_than_50(scampis)
-    pannacotta = safe_non_negative_int_less_or_equal_than_50(pannacotta)
+    tiramisu = safe_non_negative_int_less_or_equal_than_50(tiramisu)
     tranches = safe_non_negative_int_less_or_equal_than_50(tranches)
     try:
         gdpr_accepts_use = gdpr_accepts_use.lower() in ['yes', 'oui', '1', 'true', 'vrai']
     except Exception:
         gdpr_accepts_use = gdpr_accepts_use and gdpr_accepts_use not in [0, False]
-    return (name, email, places, date, fondus, assiettes, bolo, scampis, pannacotta, tranches, gdpr_accepts_use)
+    return (name, email, places, date, fondus, assiettes, bolo, scampis, tiramisu, tranches, gdpr_accepts_use)
 
 
 def save_data_sqlite3(name, email, places, date, fondus, assiettes, bolo, scampis,
-                      pannacotta, tranches, gdpr_accepts_use,
+                      tiramisu, tranches, gdpr_accepts_use,
                       origin, connection_or_root_dir):
     connection = ensure_connection(connection_or_root_dir)
     uuid_hex = uuid.uuid4().hex
@@ -64,7 +64,7 @@ def save_data_sqlite3(name, email, places, date, fondus, assiettes, bolo, scampi
                                   assiettes=assiettes,
                                   bolo=bolo,
                                   scampis=scampis,
-                                  pannacotta=pannacotta,
+                                  tiramisu=tiramisu,
                                   tranches=tranches,
                                   gdpr_accepts_use=gdpr_accepts_use,
                                   uuid=uuid_hex,
@@ -108,12 +108,12 @@ def make_show_reservation_url(uuid_hex, server_name=None, script_name=None):
 
 def respond_with_reservation_confirmation(
         name, email, places, date, fondus, assiettes, bolo, scampis,
-        pannacotta, tranches, gdpr_accepts_use,
+        tiramisu, tranches, gdpr_accepts_use,
         connection, configuration, origin=None):
     try:
         new_row = save_data_sqlite3(
             name, email, places, date, fondus, assiettes, bolo, scampis,
-            pannacotta, tranches, gdpr_accepts_use,
+            tiramisu, tranches, gdpr_accepts_use,
             origin, connection)
         redirection_url = make_show_reservation_url(
             new_row.uuid,

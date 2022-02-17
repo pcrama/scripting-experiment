@@ -32,7 +32,7 @@ def tabulate(columns, orders, fillvalue):
         fillvalue=fillvalue)
 
 
-def _ticket_table(fondus, assiettes, bolo, scampis, pannacotta, tranches):
+def _ticket_table(fondus, assiettes, bolo, scampis, tiramisu, tranches):
     return (('table', 'class', 'tickets'),
             *(('tr', *(('td', cell) for cell in row)) for row in tabulate(
                 4,
@@ -40,7 +40,7 @@ def _ticket_table(fondus, assiettes, bolo, scampis, pannacotta, tranches):
                  ('Charcuterie', assiettes),
                  ('Spaghettis Bolognaise', bolo),
                  ('Spaghettis aux scampis', scampis),
-                 ('Pannacotta', pannacotta),
+                 ('Tiramisu', tiramisu),
                  ('Tranche Napolitaine', tranches)],
                 '-x-x-')))
 
@@ -50,40 +50,40 @@ def _heading(*content):
 
 
 def create_tickets_for_one_reservation(r):
-    total_tickets = r.fondus + r.assiettes + r.bolo + r.scampis + r.pannacotta + r.tranches
+    total_tickets = r.fondus + r.assiettes + r.bolo + r.scampis + r.tiramisu + r.tranches
     return (
         ()
         if total_tickets == 0
         else ((('div', 'class', 'no-print-page-break'),
                _heading(r.name, ' ', r.date),
                ('p', 'Total: ', pricing.price_in_euros(r), ' pour ', pluriel_naif(total_tickets, 'ticket'), '.')),
-              _ticket_table(r.fondus, r.assiettes, r.bolo, r.scampis, r.pannacotta, r.tranches)))
+              _ticket_table(r.fondus, r.assiettes, r.bolo, r.scampis, r.tiramisu, r.tranches)))
 
 
-def create_full_ticket_list(rs, fondus, assiettes, bolo, scampis, pannacotta, tranches):
+def create_full_ticket_list(rs, fondus, assiettes, bolo, scampis, tiramisu, tranches):
     for r in rs:
         fondus -= r.fondus
         assiettes -= r.assiettes
         bolo -= r.bolo
         scampis -= r.scampis
-        pannacotta -= r.pannacotta
+        tiramisu -= r.tiramisu
         tranches -= r.tranches
-        if fondus < 0 or assiettes < 0 or bolo < 0 or scampis < 0 or pannacotta < 0 or tranches < 0:
+        if fondus < 0 or assiettes < 0 or bolo < 0 or scampis < 0 or tiramisu < 0 or tranches < 0:
             raise Exception(
                 'Not enough tickets: '
                 + f'fondus={fondus}, assiettes={assiettes}, bolo={bolo}, '
-                + f'scampis={scampis}, pannacotta={pannacotta}, tranches={tranches}')
+                + f'scampis={scampis}, tiramisu={tiramisu}, tranches={tranches}')
         for e in create_tickets_for_one_reservation(r):
             yield e
     
     yield _heading('Vente libre')
     yield ('p',
            f'fondus={fondus}, assiettes={assiettes}, bolo={bolo}, ',
-           f'scampis={scampis}, pannacotta={pannacotta}, tranches={tranches}')
+           f'scampis={scampis}, tiramisu={tiramisu}, tranches={tranches}')
     yield _ticket_table(
         fondus=fondus,
         assiettes=assiettes,
         bolo=bolo,
         scampis=scampis,
-        pannacotta=pannacotta,
+        tiramisu=tiramisu,
         tranches=tranches)

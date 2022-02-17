@@ -18,7 +18,7 @@ def make_reservation(**overrides):
         assiettes=0,
         bolo=0,
         scampis=0,
-        pannacotta=0,
+        tiramisu=0,
         tranches=0,
         gdpr_accepts_use=True,
         uuid='deadbeef',
@@ -31,7 +31,7 @@ def make_reservation(**overrides):
 
 class TestOneReservation(unittest.TestCase):
     R1 = make_reservation( # 3 bolo menus + 4 scampis + 8 desserts = 60 + 60 + 40 = 160
-        fondus=1, assiettes=2, bolo=3, scampis=4, pannacotta=5, tranches=6)
+        fondus=1, assiettes=2, bolo=3, scampis=4, tiramisu=5, tranches=6)
 
     R2 = make_reservation( # 2 starters + 1 bolo + 1 scampis = 16 + 10 + 15 = 41
         name='other', date='2022-03-20', fondus=1, assiettes=1, bolo=1, scampis=1)
@@ -45,9 +45,9 @@ class TestOneReservation(unittest.TestCase):
            ('tr',
             ('td', 'Spaghettis Bolognaise'), ('td', 'Spaghettis Bolognaise'), ('td', 'Spaghettis aux scampis'), ('td', 'Spaghettis aux scampis')),
            ('tr',
-            ('td', 'Spaghettis aux scampis'), ('td', 'Spaghettis aux scampis'), ('td', 'Pannacotta'), ('td', 'Pannacotta')),
+            ('td', 'Spaghettis aux scampis'), ('td', 'Spaghettis aux scampis'), ('td', 'Tiramisu'), ('td', 'Tiramisu')),
            ('tr',
-            ('td', 'Pannacotta'), ('td', 'Pannacotta'), ('td', 'Pannacotta'), ('td', 'Tranche Napolitaine')),
+            ('td', 'Tiramisu'), ('td', 'Tiramisu'), ('td', 'Tiramisu'), ('td', 'Tranche Napolitaine')),
            ('tr',
             ('td', 'Tranche Napolitaine'), ('td', 'Tranche Napolitaine'), ('td', 'Tranche Napolitaine'), ('td', 'Tranche Napolitaine')),
            ('tr',
@@ -80,17 +80,17 @@ class TestFullTicketList(unittest.TestCase):
                 assiettes=5,
                 bolo=7,
                 scampis=9,
-                pannacotta=10,
+                tiramisu=10,
                 tranches=12)),
             [*TestOneReservation.E1,
              *TestOneReservation.E2,
              ('h3', 'Vente libre'),
-             ('p', 'fondus=1, assiettes=2, bolo=3, ', 'scampis=4, pannacotta=5, tranches=6'),
+             ('p', 'fondus=1, assiettes=2, bolo=3, ', 'scampis=4, tiramisu=5, tranches=6'),
              (('table', 'class', 'tickets'),
               ('tr', ('td', 'Fondus au fromage'), ('td', 'Charcuterie'), ('td', 'Charcuterie'), ('td', 'Spaghettis Bolognaise')),
               ('tr', ('td', 'Spaghettis Bolognaise'), ('td', 'Spaghettis Bolognaise'), ('td', 'Spaghettis aux scampis'), ('td', 'Spaghettis aux scampis')),
-              ('tr', ('td', 'Spaghettis aux scampis'), ('td', 'Spaghettis aux scampis'), ('td', 'Pannacotta'), ('td', 'Pannacotta')),
-              ('tr', ('td', 'Pannacotta'), ('td', 'Pannacotta'), ('td', 'Pannacotta'), ('td', 'Tranche Napolitaine')),
+              ('tr', ('td', 'Spaghettis aux scampis'), ('td', 'Spaghettis aux scampis'), ('td', 'Tiramisu'), ('td', 'Tiramisu')),
+              ('tr', ('td', 'Tiramisu'), ('td', 'Tiramisu'), ('td', 'Tiramisu'), ('td', 'Tranche Napolitaine')),
               ('tr', ('td', 'Tranche Napolitaine'), ('td', 'Tranche Napolitaine'), ('td', 'Tranche Napolitaine'), ('td', 'Tranche Napolitaine')),
               ('tr', ('td', 'Tranche Napolitaine'), ('td', '-x-x-'), ('td', '-x-x-'), ('td', '-x-x-')))])
 
@@ -103,11 +103,11 @@ class TestFullTicketList(unittest.TestCase):
                 assiettes=3,
                 bolo=3,
                 scampis=3,
-                pannacotta=3,
+                tiramisu=3,
                 tranches=3))
         self.assertEqual(
             cm.exception.args,
-            ('Not enough tickets: fondus=2, assiettes=1, bolo=0, scampis=-1, pannacotta=-2, tranches=-3',))
+            ('Not enough tickets: fondus=2, assiettes=1, bolo=0, scampis=-1, tiramisu=-2, tranches=-3',))
 
     def test_reservations_without_tickets_elided(self):
         self.assertEqual(
@@ -117,13 +117,13 @@ class TestFullTicketList(unittest.TestCase):
                 assiettes=2,
                 bolo=1,
                 scampis=2,
-                pannacotta=1,
+                tiramisu=1,
                 tranches=2)),
             [('h3', 'Vente libre'),
-             ('p', 'fondus=1, assiettes=2, bolo=1, ', 'scampis=2, pannacotta=1, tranches=2'),
+             ('p', 'fondus=1, assiettes=2, bolo=1, ', 'scampis=2, tiramisu=1, tranches=2'),
              (('table', 'class', 'tickets'),
               ('tr', ('td', 'Fondus au fromage'), ('td', 'Charcuterie'), ('td', 'Charcuterie'), ('td', 'Spaghettis Bolognaise')),
-              ('tr', ('td', 'Spaghettis aux scampis'), ('td', 'Spaghettis aux scampis'), ('td', 'Pannacotta'), ('td', 'Tranche Napolitaine')),
+              ('tr', ('td', 'Spaghettis aux scampis'), ('td', 'Spaghettis aux scampis'), ('td', 'Tiramisu'), ('td', 'Tranche Napolitaine')),
               ('tr', ('td', 'Tranche Napolitaine'), ('td', '-x-x-'), ('td', '-x-x-'), ('td', '-x-x-')))])
     
 

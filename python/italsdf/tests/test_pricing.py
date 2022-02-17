@@ -17,7 +17,7 @@ def make_reservation(**overrides):
         assiettes=0,
         bolo=0,
         scampis=0,
-        pannacotta=0,
+        tiramisu=0,
         tranches=0,
         gdpr_accepts_use=True,
         uuid='deadbeef',
@@ -86,15 +86,15 @@ class PriceInCentsTests(unittest.TestCase):
             self.assertEqual(pricing.price_in_cents(make_reservation(scampis=3)), 4500)
 
 
-    def test_pannacotta(self):
+    def test_tiramisu(self):
         with self.subTest(count=0):
-            self.assertEqual(pricing.price_in_cents(make_reservation(pannacotta=0)), 0)
+            self.assertEqual(pricing.price_in_cents(make_reservation(tiramisu=0)), 0)
         with self.subTest(count=1):
-            self.assertEqual(pricing.price_in_cents(make_reservation(pannacotta=1), pannacotta=6), 6)
+            self.assertEqual(pricing.price_in_cents(make_reservation(tiramisu=1), tiramisu=6), 6)
         with self.subTest(count=2):
-            self.assertEqual(pricing.price_in_cents(make_reservation(pannacotta=2), pannacotta=6), 12)
+            self.assertEqual(pricing.price_in_cents(make_reservation(tiramisu=2), tiramisu=6), 12)
         with self.subTest(count=3):
-            self.assertEqual(pricing.price_in_cents(make_reservation(pannacotta=3)), 1500)
+            self.assertEqual(pricing.price_in_cents(make_reservation(tiramisu=3)), 1500)
 
 
     def test_tranches(self):
@@ -111,7 +111,7 @@ class PriceInCentsTests(unittest.TestCase):
         for combination, expected in (
                 ({'assiettes': 3, 'bolo': 4}, 6400),
                 ({'fondus': 1, 'assiettes': 2}, 2400),
-                ({'fondus': 1, 'assiettes': 1, 'pannacotta': 1, 'tranches': 1}, 2600)):
+                ({'fondus': 1, 'assiettes': 1, 'tiramisu': 1, 'tranches': 1}, 2600)):
             with self.subTest(**combination):
                 self.assertEqual(pricing.price_in_cents(make_reservation(**combination)), expected)
 
@@ -119,9 +119,9 @@ class PriceInCentsTests(unittest.TestCase):
         for combination, expected in (
                 ({'assiettes': 1, 'bolo': 1, 'tranches': 1}, 2000),
                 ({'assiettes': 1, 'scampis': 1, 'tranches': 1}, 2500),
-                ({'fondus': 2, 'scampis': 2, 'pannacotta': 2}, 5000),
-                ({'fondus': 2, 'scampis': 2, 'bolo': 1, 'pannacotta': 2}, 6000),
-                ({'fondus': 2, 'scampis': 1, 'bolo': 1, 'pannacotta': 2, 'tranches': 1}, 5000)):
+                ({'fondus': 2, 'scampis': 2, 'tiramisu': 2}, 5000),
+                ({'fondus': 2, 'scampis': 2, 'bolo': 1, 'tiramisu': 2}, 6000),
+                ({'fondus': 2, 'scampis': 1, 'bolo': 1, 'tiramisu': 2, 'tranches': 1}, 5000)):
             with self.subTest(**combination):
                 self.assertEqual(pricing.price_in_cents(make_reservation(**combination)), expected)
 

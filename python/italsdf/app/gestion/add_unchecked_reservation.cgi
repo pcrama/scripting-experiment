@@ -64,11 +64,11 @@ if __name__ == '__main__':
         assiettes = form.getfirst('assiettes', default=0)
         bolo = form.getfirst('bolo', default=0)
         scampis = form.getfirst('scampis', default=0)
-        pannacotta = form.getfirst('pannacotta', default=0)
+        tiramisu = form.getfirst('tiramisu', default=0)
         tranches = form.getfirst('tranches', default=0)
         # Abuse 'email' field to store 'comment'
         (name, email, places, date, fondus, assiettes, bolo, scampis,
-         pannacotta, tranches, gdpr_accepts_use) = normalize_data(
+         tiramisu, tranches, gdpr_accepts_use) = normalize_data(
             name,
             comment,
             places,
@@ -77,7 +77,7 @@ if __name__ == '__main__':
             assiettes,
             bolo,
             scampis,
-            pannacotta,
+            tiramisu,
             tranches,
             # there is no email address or they would have registered
             # themselves -> No GDPR
@@ -91,7 +91,7 @@ if __name__ == '__main__':
             assiettes,
             bolo,
             scampis,
-            pannacotta,
+            tiramisu,
             tranches,
             gdpr_accepts_use,
             db_connection,

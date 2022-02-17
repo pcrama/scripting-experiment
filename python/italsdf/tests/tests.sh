@@ -151,7 +151,7 @@ function do_diff {
 
 function generic_test_valid_reservation_for_test_date
 {
-    local test_name spectator_name spectator_email places concert_date fondus assiettes bolo scampis pannacotta tranches gdpr_accepts_use total_reservations_count test_output communication formatted_communication
+    local test_name spectator_name spectator_email places concert_date fondus assiettes bolo scampis tiramisu tranches gdpr_accepts_use total_reservations_count test_output communication formatted_communication
     test_name="$1"
     spectator_name="$2"
     spectator_email="$3"
@@ -161,14 +161,14 @@ function generic_test_valid_reservation_for_test_date
     assiettes="$7"
     bolo="$8"
     scampis="$9"; shift
-    pannacotta="$9"; shift
+    tiramisu="$9"; shift
     tranches="$9"; shift
     gdpr_accepts_use="$9"; shift
     total_reservations_count="$9"
     test_output="$test_dir/$test_name.html"
     do_curl_with_redirect 'post_reservation.cgi' \
                           "$test_output" \
-                          "-X POST -F name=$spectator_name -F email=$spectator_email -F places=$places -F date=$concert_date -F fondus=$fondus -F assiettes=$assiettes -F bolo=$bolo -F scampis=$scampis -F pannacotta=$pannacotta -F tranches=$tranches -F gdpr_accepts_use=$gdpr_accepts_use"
+                          "-X POST -F name=$spectator_name -F email=$spectator_email -F places=$places -F date=$concert_date -F fondus=$fondus -F assiettes=$assiettes -F bolo=$bolo -F scampis=$scampis -F tiramisu=$tiramisu -F tranches=$tranches -F gdpr_accepts_use=$gdpr_accepts_use"
     get_db_file
     do_diff "$test_output"
     if [ "$(count_reservations)" != "$total_reservations_count" ]; then
@@ -184,8 +184,8 @@ function generic_test_valid_reservation_for_test_date
         # leading `<' character and read file content
         spectator_email="$(cat "${spectator_email:1}")"
     fi
-    if [ "$(sql_query "SELECT name, email, places, date, fondus, assiettes, bolo, scampis, pannacotta, tranches, gdpr_accepts_use, active FROM reservations WHERE name = '$spectator_name' AND email = '$spectator_email' AND places = $places;")" \
-             != "$spectator_name|$spectator_email|$places|$concert_date|$fondus|$assiettes|$bolo|$scampis|$pannacotta|$tranches|$gdpr_accepts_use|1" \
+    if [ "$(sql_query "SELECT name, email, places, date, fondus, assiettes, bolo, scampis, tiramisu, tranches, gdpr_accepts_use, active FROM reservations WHERE name = '$spectator_name' AND email = '$spectator_email' AND places = $places;")" \
+             != "$spectator_name|$spectator_email|$places|$concert_date|$fondus|$assiettes|$bolo|$scampis|$tiramisu|$tranches|$gdpr_accepts_use|1" \
        ]; then
         die "test_$test_name: Wrong data saved in DB"
     fi
@@ -223,7 +223,7 @@ function generic_test_generate_tickets_without_valid_CSRF_token_fails
     test_stderr="$test_dir/$test_name.stderr.log"
     do_curl_as_admin 'gestion/generate_tickets.cgi' \
                      "$test_output" \
-                     "-X POST -F fondus=20 -F assiettes=20 -F bolo=20 -F scampis=20 -F pannacotta=20 -F tranches=20 $csrf_arg --verbose" \
+                     "-X POST -F fondus=20 -F assiettes=20 -F bolo=20 -F scampis=20 -F tiramisu=20 -F tranches=20 $csrf_arg --verbose" \
                      2> "$test_stderr"
     assert_redirect_to_concert_page "$test_stderr"
     echo "test_$test_name: ok"
@@ -380,7 +380,7 @@ function test_09_new_reservation_with_correct_CSRF_token_succeeds
     do_curl_with_redirect --admin \
                           'gestion/add_unchecked_reservation.cgi' \
                           "$test_output" \
-                          "-X POST -F name=TestCreatedByAdmin -F comment=ByAdmin -F places=8 -F date=2099-01-01 -F fondus=1 -F assiettes=2 -F bolo=4 -F scampis=8 -F pannacotta=4 -F tranches=4 -F csrf_token=$csrf_token"
+                          "-X POST -F name=TestCreatedByAdmin -F comment=ByAdmin -F places=8 -F date=2099-01-01 -F fondus=1 -F assiettes=2 -F bolo=4 -F scampis=8 -F tiramisu=4 -F tranches=4 -F csrf_token=$csrf_token"
     get_db_file
     if [ "$(count_csrfs)" -gt "1" ]; then
         die ": CSRF problem: new CSRF token created."
@@ -388,7 +388,7 @@ function test_09_new_reservation_with_correct_CSRF_token_succeeds
     if [ "$(count_reservations)" != "4" ]; then
         die "test_09_new_reservation_with_correct_CSRF_token_succeeds: Reservations table should contain $total_reservations_count row."
     fi
-    if [ "$(sql_query "SELECT name, email, places, date, fondus, assiettes, bolo, scampis, pannacotta, tranches, gdpr_accepts_use, active FROM reservations ORDER BY time DESC LIMIT 1;")" \
+    if [ "$(sql_query "SELECT name, email, places, date, fondus, assiettes, bolo, scampis, tiramisu, tranches, gdpr_accepts_use, active FROM reservations ORDER BY time DESC LIMIT 1;")" \
              != "TestCreatedByAdmin|ByAdmin|8|2099-01-01|1|2|4|8|4|4|0|1" \
        ]; then
         die "test_09_new_reservation_with_correct_CSRF_token_succeeds: Wrong data saved in DB"
@@ -498,7 +498,7 @@ function test_16_generate_tickets_with_correct_CSRF_token_succeeds
     test_output="$test_dir/16_generate_tickets.html"
     do_curl_as_admin 'gestion/generate_tickets.cgi' \
                      "$test_output" \
-                     "-X POST -F fondus=20 -F assiettes=20 -F bolo=20 -F scampis=20 -F pannacotta=20 -F tranches=20 -F csrf_token=$csrf_token"
+                     "-X POST -F fondus=20 -F assiettes=20 -F bolo=20 -F scampis=20 -F tiramisu=20 -F tranches=20 -F csrf_token=$csrf_token"
     do_diff "$test_output"
     echo "test_16_generate_tickets_with_correct_CSRF_token_succeeds: ok"
 }

@@ -106,7 +106,7 @@ if __name__ == '__main__':
                    ('places', 'Places'),
                    ('fondus', 'Fondus'), ('assiettes', 'Charcuterie'),
                    ('bolo', 'Bolo'), ('scampis', 'Scampis'),
-                   ('pannacotta', 'Pannacotta'), ('tranches', 'Napolitaines'),
+                   ('tiramisu', 'Tiramisu'), ('tranches', 'Napolitaines'),
                    ('origin', 'Origine'),
                    ('time', 'Réservé le')]
         table_header_row = tuple(
@@ -163,7 +163,7 @@ if __name__ == '__main__':
                       ('td', r.assiettes),
                       ('td', r.bolo),
                       ('td', r.scampis),
-                      ('td', r.pannacotta),
+                      ('td', r.tiramisu),
                       ('td', r.tranches),
                       ('td', r.origin if r.origin else (('span', 'class', 'null_value'),
                                                         'formulaire web')),
@@ -215,8 +215,8 @@ if __name__ == '__main__':
               (('label', 'for', 'scampis'), 'Spaghettis aux Scampis:'),
               (('input', 'id', 'scampis', 'name', 'scampis', 'type', 'number', 'min', '0', 'value', '0'),),
               ('br',),
-              (('label', 'for', 'pannacotta'), 'Pannacotta:'),
-              (('input', 'id', 'pannacotta', 'name', 'pannacotta', 'type', 'number', 'min', '0', 'value', '0'),),
+              (('label', 'for', 'tiramisu'), 'Tiramisu:'),
+              (('input', 'id', 'tiramisu', 'name', 'tiramisu', 'type', 'number', 'min', '0', 'value', '0'),),
               ('br',),
               (('label', 'for', 'tranches'), 'Tranche Napolitaine:'),
               (('input', 'id', 'tranches', 'name', 'tranches', 'type', 'number', 'min', '0', 'value', '0'),),
