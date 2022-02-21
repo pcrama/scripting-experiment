@@ -157,29 +157,6 @@ let validateTickets (t: Tickets<int>) (target: int option): Tickets<string list>
       tiramisu = tiramisu
       tranches = tranches }
 
-type Validated<'t> =
-    { Raw : string
-      Parsed : Option<'t> }
-
-module Validated =
-    let createEmpty() : Validated<_> =
-        { Raw = ""; Parsed = None }
-
-    let success raw value : Validated<_> =
-        { Raw = raw; Parsed = Some value }
-
-    let failure raw : Validated<_> =
-        { Raw = raw; Parsed = None }
-
-    let iter f v =
-        match v.Parsed with
-        | Some x -> f x |> Some
-        | None -> None
-
-let parseValidate parse s =
-    try Validated.success s (parse s)
-    with | _ -> Validated.failure s
-
 let validateState (state: State) =
     let menusErrors = validateInclusiveBelow state.menus
                                              "menus"
@@ -208,7 +185,7 @@ let update (msg: Msg) (state: State): State =
     let newState = updateNoValidate msg state
     validateState newState
 
-let ErrorRed = "darkRed"
+let ErrorRed = "red"
 
 let ErrorBorderStyle =
     [style.borderColor ErrorRed; style.borderStyle.solid; style.borderWidth 1]
@@ -223,36 +200,45 @@ let errorDiv (len: Styles.ICssUnit option) (e: string) =
          length.percent 85 |> style.fontSize] |> List.append width |> prop.style
         prop.text e]
 
-let inputNumber (tickets: Tickets<int>) (errors: Tickets<string list>) (idPrefix: string) (plate: Plate) (onChange: int -> unit) =
-    let id = sprintf "%s-%A" idPrefix plate
-    let value = tickets.Get plate
-    let errorsS = errors.Get plate
-    let label = TicketsNames.Get plate
-    let basicInputProps = [
-                prop.style [
+let inputNumberRaw wrapperElt (id: string) (label: string) labelStyle (value: int) (errors: string list) (errorDivWidth: Styles.ICssUnit option) (onChange: int -> unit) =
+    let basicInputProps extraStyles = [
+                List.append extraStyles [
                     length.em 3 |> style.width
-                    style.textAlign.right]
+                    style.textAlign.right] |> prop.style
                 prop.id id
+                prop.name id
                 prop.type' "number"
                 prop.value value
                 prop.onChange onChange]
     let basicChildren p = [
             Html.label [
-                prop.style [
-                    style.display.inlineBlock
-                    length.em 15 |> style.width]
+                prop.style labelStyle
                 prop.htmlFor id
                 prop.text label]
             Html.input p]
-    let children = match errorsS with
-                   | [] -> basicChildren basicInputProps
-                   | es -> prop.style ErrorBorderStyle :: basicInputProps
+    let children = match errors with
+                   | [] -> basicChildren <| basicInputProps []
+                   | es -> basicInputProps ErrorBorderStyle
                            |> basicChildren
                            |> List.append
-                           <| List.map (length.em 20 |> Some |> errorDiv) es
-    Html.li [
+                           <| List.map (errorDiv errorDivWidth) es
+    wrapperElt [
         sprintf "div-just-for-%s" id |> prop.id
         prop.children children]
+
+let inputNumber (tickets: Tickets<int>) (errors: Tickets<string list>) (idPrefix: string) (plate: Plate) (onChange: int -> unit) =
+    let id = sprintf "%s_%s" idPrefix <| plate.ToString().ToLower()
+    let value = tickets.Get plate
+    let errorsS = errors.Get plate
+    let label = TicketsNames.Get plate
+    inputNumberRaw Html.li
+                   id
+                   label
+                   [style.display.inlineBlock; length.em 15 |> style.width]
+                   value
+                   errorsS
+                   (Some <| length.em 20)
+                   onChange
 
 let renderTicket (isMenu: PlateType) (state: State) (dispatch: Msg -> unit) =
     let setNumber p v = SetNumberOfTickets (isMenu, p, v) |> dispatch
@@ -266,10 +252,11 @@ let renderTicket (isMenu: PlateType) (state: State) (dispatch: Msg -> unit) =
                     prop.style [
                         length.em 3 |> style.width
                         style.textAlign.right]
+                    prop.value state.menus
                     prop.type' "number"
                     prop.min 0
                     prop.max FormMaxInt
-                    prop.onChange (fun v -> SetMenus v |> dispatch)]
+                    SetMenus >> dispatch |> prop.onChange]
                 Html.textf " menu%s" <| if state.menus = 1 then "" else "s"]])
         | OutsideMenu ->
             let onlyCountIfReasonable p =
@@ -306,6 +293,7 @@ let inputText (id: string) (type': string) (label: string) (placeholder: string)
         Html.input [
             prop.style <| (length.percent 100 |> style.width) :: s
             prop.id id
+            prop.name id
             prop.type' type'
             length.percent 100 |> prop.width
             prop.placeholder placeholder
@@ -330,20 +318,29 @@ let totalPriceInEuros (state: State): int =
     (state.outsideMenu.tiramisu + state.outsideMenu.tranches) * PrixDessertEuros
 
 let hasErrors (state: State): bool =
-    let isSome = function
-        | None -> false
-        | _ -> true
-    isSome state.nameError ||
-    isSome state.emailError ||
+    Option.isSome state.nameError ||
+    Option.isSome state.emailError ||
     List.exists (fun p -> List.isEmpty (state.insideMenuErrors.Get p) = false) AllPlates ||
     List.exists (fun p -> List.isEmpty (state.outsideMenuErrors.Get p) = false) AllPlates ||
-    List.isEmpty state.menusErrors = false
+    List.isEmpty state.menusErrors = false ||
+    List.isEmpty state.placesErrors = false
 
 let render (state: State) (dispatch: Msg -> unit) =
     let hasErrors = hasErrors state
-    Html.div[
+    Html.form [
+        prop.method "POST"
+        Fable.Core.JS.eval "try { ACTION_DEST } catch { '' }" |> prop.action
+        prop.children [
         inputText "name" "text" "Nom:" "Vos places et votre commande de tickets seront à votre nom" state.name state.nameError (SetName >> dispatch)
         inputText "email" "email" "Email:" "Nous pourrions avoir besoin de votre email pour le tracing" state.email state.emailError (SetEmail >> dispatch)
+        inputNumberRaw Html.div
+                       "places"
+                       "Nombre de convives:"
+                       []
+                       state.places
+                       state.placesErrors
+                       None
+                       (SetPlaces >> dispatch)
         Html.div [
             renderTicket InsideMenu state dispatch
             renderTicket OutsideMenu state dispatch]
@@ -369,14 +366,18 @@ let render (state: State) (dispatch: Msg -> unit) =
                 prop.style [style.overflow.hidden; style.verticalAlign.top]
                 prop.children [
                     Html.label [
-                        prop.for' "gdpr_accepts_use"
+                        prop.htmlFor "gdpr_accepts_use"
                         prop.text "J’autorise la Société Royale d’Harmonie de Braine-l’Alleud à utiliser mon adresse email pour m’avertir de ses futures activités."
                     ]
                 ]
             ]]]
         if hasErrors
         then Html.text ""
-        else Html.input [prop.type' "submit"; prop.value "Confirmer la réservation"]]]
+        else Html.input [prop.type' "submit"; prop.value "Confirmer la réservation"]
+        Html.input [
+            prop.name "date";
+            prop.type' "hidden";
+            Fable.Core.JS.eval "try { CONCERT_DATE } catch { '' }" |> prop.value]]]
 
 let init() =
     let state = {

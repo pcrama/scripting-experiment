@@ -22,6 +22,17 @@ Use the ~deploy.sh~ script like this:
   the destination.
 - ~destination_folder~ :: where to deploy.
 
+** Dynamic input form
+There is a [[file+emacs:input-form/][Fable/Elmish application]] that is deployed next to these CGI scripts
+that generates an input form dynamically.
+#+begin_example
+  <div id="elmish-app"></div>
+  <script>
+    const ACTION_DEST = 'https://your-host/.../post_reservation.cgi';
+    const CONCERT_DATE = '1234-56-78';</script>
+  <script src="http://your-host/.../main.js"></script>
+#+end_example
+** Static input form
 Host an HTML form that will =POST= its content to the =post_reservation.cgi=
 script:
 #+begin_example

@@ -45,6 +45,10 @@ else
     (cd "$(dirname "$0")/app/gestion" \
          && emacs --batch \
                   --eval "(progn (find-file \"index.org\") (org-html-export-to-html))")
+    if [ -z "$excludes" ]; then
+        (cd "$(dirname "$0")/input-form/dist" \
+             && cp main.js main.js.LICENSE.txt "$staging_dir")
+    fi
     tar czf - --exclude "#*" --exclude "*~" --exclude "*.bak" --exclude "*cache*" --exclude "index.org" $excludes \
         -C "$(dirname "$0")/app" \
         . \
