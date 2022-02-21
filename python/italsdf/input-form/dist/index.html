@@ -1,0 +1,46 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Fable</title>
+    <meta http-equiv='Content-Type' content='text/html; charset=utf-8'>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="shortcut icon" href="fable.ico" />
+    <!--
+    Hack taken from https://stackoverflow.com/a/31905292
+    after failing to use better answers to the same question:
+    - "built-in" elm way: https://stackoverflow.com/a/39419640
+      I couldn't find the equivalent F# method in Feliz
+    - Mutation observers: https://stackoverflow.com/a/33403829
+
+    I also tried React.useEffect but always got
+    https://reactjs.org/warnings/invalid-hook-call-warning.html. -->
+    <style>
+      .focus {
+          animation-name: set-focus;
+          animation-duration: 0.001s;
+          -webkit-animation-name: set-focus;
+          -webkit-animation-duration: 0.001s;
+      }
+      @-webkit-keyframes set-focus {
+          0%   {color: #fff}
+      }
+      @keyframes set-focus {
+          0%   {color: #fff}
+      }
+    </style>
+    <script>
+      var insertListener = function(event){
+          if (event.animationName == "set-focus") {
+              event.target.focus();
+          }               
+      }
+      document.addEventListener("animationstart", insertListener, false); // standard + firefox
+      document.addEventListener("MSAnimationStart", insertListener, false); // IE
+      document.addEventListener("webkitAnimationStart", insertListener, false); // Chrome + Safari
+    </script>
+  </head>
+  <body>
+    <div id="elmish-app"></div>
+    <script src="main.js"></script>
+  </body>
+</html>
