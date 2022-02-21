@@ -65,14 +65,20 @@ class Reservation(MiniOrm):
         f'''CREATE TABLE {TABLE_NAME}
             (name TEXT NOT NULL,
              email TEXT,
-             places INTEGER,
+             places INTEGER CHECK(places > 0),
              date TEXT NOT NULL,
-             fondus INTEGER,
-             assiettes INTEGER,
-             bolo INTEGER,
-             scampis INTEGER,
-             tiramisu INTEGER,
-             tranches INTEGER,
+             outside_fondus INTEGER,
+             outside_assiettes INTEGER,
+             outside_bolo INTEGER,
+             outside_scampis INTEGER,
+             outside_tiramisu INTEGER,
+             outside_tranches INTEGER,
+             inside_fondus INTEGER CHECK(inside_fondus + inside_assiettes = inside_bolo + inside_scampis),
+             inside_assiettes INTEGER,
+             inside_bolo INTEGER,
+             inside_scampis INTEGER,
+             inside_tiramisu INTEGER CHECK(inside_tiramisu + inside_tranches = inside_bolo + inside_scampis),
+             inside_tranches INTEGER,
              gdpr_accepts_use INTEGER,
              uuid TEXT NOT NULL,
              time REAL,
@@ -84,12 +90,18 @@ class Reservation(MiniOrm):
                  email,
                  places,
                  date,
-                 fondus,
-                 assiettes,
-                 bolo,
-                 scampis,
-                 tiramisu,
-                 tranches,
+                 outside_fondus,
+                 outside_assiettes,
+                 outside_bolo,
+                 outside_scampis,
+                 outside_tiramisu,
+                 outside_tranches,
+                 inside_fondus,
+                 inside_assiettes,
+                 inside_bolo,
+                 inside_scampis,
+                 inside_tiramisu,
+                 inside_tranches,
                  gdpr_accepts_use,
                  uuid,
                  time,
@@ -99,12 +111,18 @@ class Reservation(MiniOrm):
         self.email = email
         self.places = places
         self.date = date
-        self.fondus = fondus
-        self.assiettes = assiettes
-        self.bolo = bolo
-        self.scampis = scampis
-        self.tiramisu = tiramisu
-        self.tranches = tranches
+        self.outside_fondus = outside_fondus
+        self.outside_assiettes = outside_assiettes
+        self.outside_bolo = outside_bolo
+        self.outside_scampis = outside_scampis
+        self.outside_tiramisu = outside_tiramisu
+        self.outside_tranches = outside_tranches
+        self.inside_fondus = inside_fondus
+        self.inside_assiettes = inside_assiettes
+        self.inside_bolo = inside_bolo
+        self.inside_scampis = inside_scampis
+        self.inside_tiramisu = inside_tiramisu
+        self.inside_tranches = inside_tranches
         self.gdpr_accepts_use = gdpr_accepts_use
         self.uuid = uuid
         self.timestamp = time
@@ -118,12 +136,18 @@ class Reservation(MiniOrm):
             'email': self.email,
             'places': self.places,
             'date': self.date,
-            'fondus': self.fondus,
-            'assiettes': self.assiettes,
-            'bolo': self.bolo,
-            'scampis': self.scampis,
-            'tiramisu': self.tiramisu,
-            'tranches': self.tranches,
+            'outside_fondus': self.outside_fondus,
+            'outside_assiettes': self.outside_assiettes,
+            'outside_bolo': self.outside_bolo,
+            'outside_scampis': self.outside_scampis,
+            'outside_tiramisu': self.outside_tiramisu,
+            'outside_tranches': self.outside_tranches,
+            'inside_fondus': self.inside_fondus,
+            'inside_assiettes': self.inside_assiettes,
+            'inside_bolo': self.inside_bolo,
+            'inside_scampis': self.inside_scampis,
+            'inside_tiramisu': self.inside_tiramisu,
+            'inside_tranches': self.inside_tranches,
             'gdpr_accepts_use': self.gdpr_accepts_use,
             'uuid': self.uuid,
             'time': self.timestamp,
@@ -134,9 +158,10 @@ class Reservation(MiniOrm):
     def insert_data(self, connection):
         connection.execute(
             f'''INSERT INTO {self.TABLE_NAME} VALUES (
-                 :name, :email, :places, :date, :fondus, :assiettes, :bolo,
-                 :scampis, :tiramisu, :tranches, :gdpr_accepts_use,
-                 :uuid, :time, :active, :origin)''',
+                 :name, :email, :places, :date, :outside_fondus, :outside_assiettes, :outside_bolo,
+                 :outside_scampis, :outside_tiramisu, :outside_tranches, :inside_fondus,
+                 :inside_assiettes, :inside_bolo, :inside_scampis, :inside_tiramisu, :inside_tranches,
+                 :gdpr_accepts_use, :uuid, :time, :active, :origin)''',
             self.to_dict())
 
 
@@ -160,7 +185,8 @@ class Reservation(MiniOrm):
     @classmethod
     def count_starters(cls, connection, name, email):
         return connection.execute(
-            f'''SELECT COUNT(*), SUM(fondus + assiettes) FROM {cls.TABLE_NAME}
+            f'''SELECT COUNT(*), SUM(outside_fondus + outside_assiettes + inside_fondus + inside_assiettes)
+                FROM {cls.TABLE_NAME}
                 WHERE active != 0 AND (LOWER(name) = :name OR LOWER(email) = :email)''',
             {'name': name.lower(), 'email': email.lower()}
         ).fetchone()
@@ -175,7 +201,7 @@ class Reservation(MiniOrm):
             date_condition = ' AND date = :date'
             bindings = {'date': date}
         return connection.execute(
-            f'''SELECT COUNT(*), SUM(fondus), SUM(assiettes), SUM(bolo), SUM(scampis), SUM(tiramisu), SUM(tranches) FROM {cls.TABLE_NAME}
+            f'''SELECT COUNT(*), SUM(outside_fondus + inside_fondus), SUM(outside_assiettes + inside_assiettes), SUM(outside_bolo + inside_bolo), SUM(outside_scampis + inside_scampis), SUM(outside_tiramisu + inside_tiramisu), SUM(outside_tranches + inside_tranches) FROM {cls.TABLE_NAME}
                 WHERE active != 0{date_condition}''',
             bindings
         ).fetchone()
@@ -184,7 +210,7 @@ class Reservation(MiniOrm):
     @classmethod
     def count_desserts(cls, connection, name, email):
         return connection.execute(
-            f'''SELECT COUNT(*), SUM(tiramisu + tranches) FROM {cls.TABLE_NAME}
+            f'''SELECT COUNT(*), SUM(outside_tiramisu + outside_tranches + inside_tiramisu + inside_tranches) FROM {cls.TABLE_NAME}
                 WHERE active != 0 AND (LOWER(name) = :name OR LOWER(email) = :email)''',
             {'name': name.lower(), 'email': email.lower()}
         ).fetchone()
@@ -202,12 +228,12 @@ class Reservation(MiniOrm):
                         'date': 'date',
                         'time': 'time',
                         'places': 'places',
-                        'fondus': 'fondus',
-                        'assiettes': 'assiettes',
-                        'bolo': 'bolo',
-                        'scampis': 'scampis',
-                        'tiramisu': 'tiramisu',
-                        'tranches': 'tranches',
+                        'fondus': '(outside_fondus + inside_fondus)',
+                        'assiettes': '(outside_assiettes + inside_assiettes)',
+                        'bolo': '(outside_bolo + inside_bolo)',
+                        'scampis': '(outside_scampis + inside_scampis)',
+                        'tiramisu': '(outside_tiramisu + inside_tiramisu)',
+                        'tranches': '(outside_tranches + inside_tranches)',
                         'origin': 'LOWER(origin)',
                         'active': 'active'}
 
@@ -294,17 +320,23 @@ class Reservation(MiniOrm):
                 email=row[1],
                 places=row[2],
                 date=row[3],
-                fondus=row[4],
-                assiettes=row[5],
-                bolo=row[6],
-                scampis=row[7],
-                tiramisu=row[8],
-                tranches=row[9],
-                gdpr_accepts_use=row[10] != 0,
-                uuid=row[11],
-                time=row[12],
-                active=row[13] != 0,
-                origin=row[14])
+                outside_fondus=row[4],
+                outside_assiettes=row[5],
+                outside_bolo=row[6],
+                outside_scampis=row[7],
+                outside_tiramisu=row[8],
+                outside_tranches=row[9],
+                inside_fondus=row[10],
+                inside_assiettes=row[11],
+                inside_bolo=row[12],
+                inside_scampis=row[13],
+                inside_tiramisu=row[14],
+                inside_tranches=row[15],
+                gdpr_accepts_use=row[16] != 0,
+                uuid=row[17],
+                time=row[18],
+                active=row[19] != 0,
+                origin=row[20])
 
 
 class Csrf(MiniOrm):

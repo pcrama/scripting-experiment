@@ -17,7 +17,10 @@ from storage import(
 
 
 def normalize_data(
-        name, email, places, date, fondus, assiettes, bolo, scampis, tiramisu, tranches, gdpr_accepts_use):
+        name, email, places, date,
+        outside_fondus, outside_assiettes, outside_bolo, outside_scampis, outside_tiramisu, outside_tranches,
+        inside_fondus, inside_assiettes, inside_bolo, inside_scampis, inside_tiramisu, inside_tranches,
+        gdpr_accepts_use):
     def safe_strip(x):
         if x is None:
             return ''
@@ -33,22 +36,32 @@ def normalize_data(
     email = safe_strip(email)
     places = safe_non_negative_int_less_or_equal_than_50(places)
     date = safe_strip(date)
-    fondus = safe_non_negative_int_less_or_equal_than_50(fondus)
-    assiettes = safe_non_negative_int_less_or_equal_than_50(assiettes)
-    bolo = safe_non_negative_int_less_or_equal_than_50(bolo)
-    scampis = safe_non_negative_int_less_or_equal_than_50(scampis)
-    tiramisu = safe_non_negative_int_less_or_equal_than_50(tiramisu)
-    tranches = safe_non_negative_int_less_or_equal_than_50(tranches)
+    outside_fondus = safe_non_negative_int_less_or_equal_than_50(outside_fondus)
+    outside_assiettes = safe_non_negative_int_less_or_equal_than_50(outside_assiettes)
+    outside_bolo = safe_non_negative_int_less_or_equal_than_50(outside_bolo)
+    outside_scampis = safe_non_negative_int_less_or_equal_than_50(outside_scampis)
+    outside_tiramisu = safe_non_negative_int_less_or_equal_than_50(outside_tiramisu)
+    outside_tranches = safe_non_negative_int_less_or_equal_than_50(outside_tranches)
+    inside_fondus = safe_non_negative_int_less_or_equal_than_50(inside_fondus)
+    inside_assiettes = safe_non_negative_int_less_or_equal_than_50(inside_assiettes)
+    inside_bolo = safe_non_negative_int_less_or_equal_than_50(inside_bolo)
+    inside_scampis = safe_non_negative_int_less_or_equal_than_50(inside_scampis)
+    inside_tiramisu = safe_non_negative_int_less_or_equal_than_50(inside_tiramisu)
+    inside_tranches = safe_non_negative_int_less_or_equal_than_50(inside_tranches)
     try:
         gdpr_accepts_use = gdpr_accepts_use.lower() in ['yes', 'oui', '1', 'true', 'vrai']
     except Exception:
         gdpr_accepts_use = gdpr_accepts_use and gdpr_accepts_use not in [0, False]
-    return (name, email, places, date, fondus, assiettes, bolo, scampis, tiramisu, tranches, gdpr_accepts_use)
+    return (name, email, places, date,
+            outside_fondus, outside_assiettes, outside_bolo, outside_scampis, outside_tiramisu, outside_tranches,
+            inside_fondus, inside_assiettes, inside_bolo, inside_scampis, inside_tiramisu, inside_tranches,
+            gdpr_accepts_use)
 
 
-def save_data_sqlite3(name, email, places, date, fondus, assiettes, bolo, scampis,
-                      tiramisu, tranches, gdpr_accepts_use,
-                      origin, connection_or_root_dir):
+def save_data_sqlite3(name, email, places, date,
+                      outside_fondus, outside_assiettes, outside_bolo, outside_scampis, outside_tiramisu, outside_tranches,
+                      inside_fondus, inside_assiettes, inside_bolo, inside_scampis, inside_tiramisu, inside_tranches,
+                      gdpr_accepts_use, origin, connection_or_root_dir):
     connection = ensure_connection(connection_or_root_dir)
     uuid_hex = uuid.uuid4().hex
     retries = 3
@@ -60,12 +73,18 @@ def save_data_sqlite3(name, email, places, date, fondus, assiettes, bolo, scampi
                                   email=email,
                                   places=places,
                                   date=date,
-                                  fondus=fondus,
-                                  assiettes=assiettes,
-                                  bolo=bolo,
-                                  scampis=scampis,
-                                  tiramisu=tiramisu,
-                                  tranches=tranches,
+                                  outside_fondus=outside_fondus,
+                                  outside_assiettes=outside_assiettes,
+                                  outside_bolo=outside_bolo,
+                                  outside_scampis=outside_scampis,
+                                  outside_tiramisu=outside_tiramisu,
+                                  outside_tranches=outside_tranches,
+                                  inside_fondus=inside_fondus,
+                                  inside_assiettes=inside_assiettes,
+                                  inside_bolo=inside_bolo,
+                                  inside_scampis=inside_scampis,
+                                  inside_tiramisu=inside_tiramisu,
+                                  inside_tranches=inside_tranches,
                                   gdpr_accepts_use=gdpr_accepts_use,
                                   uuid=uuid_hex,
                                   time=timestamp,
@@ -107,14 +126,16 @@ def make_show_reservation_url(uuid_hex, server_name=None, script_name=None):
 
 
 def respond_with_reservation_confirmation(
-        name, email, places, date, fondus, assiettes, bolo, scampis,
-        tiramisu, tranches, gdpr_accepts_use,
-        connection, configuration, origin=None):
+        name, email, places, date,
+        outside_fondus, outside_assiettes, outside_bolo, outside_scampis, outside_tiramisu, outside_tranches,
+        inside_fondus, inside_assiettes, inside_bolo, inside_scampis, inside_tiramisu, inside_tranches,
+        gdpr_accepts_use, connection, configuration, origin=None):
     try:
         new_row = save_data_sqlite3(
-            name, email, places, date, fondus, assiettes, bolo, scampis,
-            tiramisu, tranches, gdpr_accepts_use,
-            origin, connection)
+            name, email, places, date,
+            outside_fondus, outside_assiettes, outside_bolo, outside_scampis, outside_tiramisu, outside_tranches,
+            inside_fondus, inside_assiettes, inside_bolo, inside_scampis, inside_tiramisu, inside_tranches,
+            gdpr_accepts_use, origin, connection)
         redirection_url = make_show_reservation_url(
             new_row.uuid,
             script_name=(os.environ["SCRIPT_NAME"]

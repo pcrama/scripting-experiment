@@ -50,24 +50,36 @@ def _heading(*content):
 
 
 def create_tickets_for_one_reservation(r):
-    total_tickets = r.fondus + r.assiettes + r.bolo + r.scampis + r.tiramisu + r.tranches
+    total_tickets = (
+        r.outside_fondus + r.inside_fondus +
+        r.outside_assiettes + r.inside_assiettes +
+        r.outside_bolo + r.inside_bolo +
+        r.outside_scampis + r.inside_scampis +
+        r.outside_tiramisu + r.inside_tiramisu +
+        r.outside_tranches + r.inside_tranches)
     return (
         ()
         if total_tickets == 0
         else ((('div', 'class', 'no-print-page-break'),
                _heading(r.name, ' ', r.date),
                ('p', 'Total: ', pricing.price_in_euros(r), ' pour ', pluriel_naif(total_tickets, 'ticket'), '.')),
-              _ticket_table(r.fondus, r.assiettes, r.bolo, r.scampis, r.tiramisu, r.tranches)))
+              _ticket_table(
+                  r.outside_fondus + r.inside_fondus,
+                  r.outside_assiettes + r.inside_assiettes,
+                  r.outside_bolo + r.inside_bolo,
+                  r.outside_scampis + r.inside_scampis,
+                  r.outside_tiramisu + r.inside_tiramisu,
+                  r.outside_tranches + r.inside_tranches)))
 
 
 def create_full_ticket_list(rs, fondus, assiettes, bolo, scampis, tiramisu, tranches):
     for r in rs:
-        fondus -= r.fondus
-        assiettes -= r.assiettes
-        bolo -= r.bolo
-        scampis -= r.scampis
-        tiramisu -= r.tiramisu
-        tranches -= r.tranches
+        fondus -= r.outside_fondus + r.inside_fondus
+        assiettes -= r.outside_assiettes + r.inside_assiettes
+        bolo -= r.outside_bolo + r.inside_bolo
+        scampis -= r.outside_scampis + r.inside_scampis
+        tiramisu -= r.outside_tiramisu + r.inside_tiramisu
+        tranches -= r.outside_tranches + r.inside_tranches
         if fondus < 0 or assiettes < 0 or bolo < 0 or scampis < 0 or tiramisu < 0 or tranches < 0:
             raise Exception(
                 'Not enough tickets: '

@@ -14,12 +14,18 @@ def make_reservation(**overrides):
         email='test@example.com',
         places=0,
         date='2022-03-19',
-        fondus=0,
-        assiettes=0,
-        bolo=0,
-        scampis=0,
-        tiramisu=0,
-        tranches=0,
+        outside_fondus=0,
+        outside_assiettes=0,
+        outside_bolo=0,
+        outside_scampis=0,
+        outside_tiramisu=0,
+        outside_tranches=0,
+        inside_fondus=0,
+        inside_assiettes=0,
+        inside_bolo=0,
+        inside_scampis=0,
+        inside_tiramisu=0,
+        inside_tranches=0,
         gdpr_accepts_use=True,
         uuid='deadbeef',
         time=12345678.9,
@@ -30,15 +36,17 @@ def make_reservation(**overrides):
 
 
 class TestOneReservation(unittest.TestCase):
-    R1 = make_reservation( # 3 bolo menus + 4 scampis + 8 desserts = 60 + 60 + 40 = 160
-        fondus=1, assiettes=2, bolo=3, scampis=4, tiramisu=5, tranches=6)
+    R1 = make_reservation( # 3 starters + 3 outside_bolo menus + 4 outside_scampis + 11 desserts = 27 + 36 + 68 + 66 = 197
+        outside_fondus=1, outside_assiettes=2, outside_bolo=3, outside_scampis=4, outside_tiramisu=5, outside_tranches=6)
 
-    R2 = make_reservation( # 2 starters + 1 bolo + 1 scampis = 16 + 10 + 15 = 41
-        name='other', date='2022-03-20', fondus=1, assiettes=1, bolo=1, scampis=1)
+    R2 = make_reservation( # 2 starters + 1 outside_bolo + 1 outside_scampis + menu bolo + menu scampis = 18 + 12 + 17 + 25 + 30 = 47
+        name='other', date='2022-03-20',
+        outside_fondus=1, outside_assiettes=1, outside_bolo=1, outside_scampis=1,
+        inside_fondus=1, inside_assiettes=1, inside_bolo=1, inside_scampis=1, inside_tiramisu=2)
 
     E1 = [(('div', 'class', 'no-print-page-break'),
            ('h3', 'testing', ' ', '2022-03-19'),
-           ('p', 'Total: ', '160.00 €', ' pour ', '21 tickets', '.')),
+           ('p', 'Total: ', '197.00 €', ' pour ', '21 tickets', '.')),
           (('table', 'class', 'tickets'),
            ('tr',
             ('td', 'Fondus au fromage'), ('td', 'Charcuterie'), ('td', 'Charcuterie'), ('td', 'Spaghettis Bolognaise')),
@@ -55,10 +63,14 @@ class TestOneReservation(unittest.TestCase):
 
     E2 = [(('div', 'class', 'no-print-page-break'),
            ('h3', 'other', ' ', '2022-03-20'),
-           ('p', 'Total: ', '41.00 €', ' pour ', '4 tickets', '.')),
+           ('p', 'Total: ', '102.00 €', ' pour ', '10 tickets', '.')),
           (('table', 'class', 'tickets'),
            ('tr',
-            ('td', 'Fondus au fromage'), ('td', 'Charcuterie'), ('td', 'Spaghettis Bolognaise'), ('td', 'Spaghettis aux scampis')))]
+            ('td', 'Fondus au fromage'), ('td', 'Fondus au fromage'), ('td', 'Charcuterie'), ('td', 'Charcuterie')),
+           ('tr',
+            ('td', 'Spaghettis Bolognaise'), ('td', 'Spaghettis Bolognaise'), ('td', 'Spaghettis aux scampis'), ('td', 'Spaghettis aux scampis')),
+           ('tr',
+            ('td', 'Tiramisu'), ('td', 'Tiramisu'), ('td', '-x-x-'), ('td', '-x-x-')))]
 
     def test_example1(self):
         self.assertEqual(
@@ -85,14 +97,12 @@ class TestFullTicketList(unittest.TestCase):
             [*TestOneReservation.E1,
              *TestOneReservation.E2,
              ('h3', 'Vente libre'),
-             ('p', 'fondus=1, assiettes=2, bolo=3, ', 'scampis=4, tiramisu=5, tranches=6'),
+             ('p', 'fondus=0, assiettes=1, bolo=2, ', 'scampis=3, tiramisu=3, tranches=6'),
              (('table', 'class', 'tickets'),
-              ('tr', ('td', 'Fondus au fromage'), ('td', 'Charcuterie'), ('td', 'Charcuterie'), ('td', 'Spaghettis Bolognaise')),
-              ('tr', ('td', 'Spaghettis Bolognaise'), ('td', 'Spaghettis Bolognaise'), ('td', 'Spaghettis aux scampis'), ('td', 'Spaghettis aux scampis')),
+              ('tr', ('td', 'Charcuterie'), ('td', 'Spaghettis Bolognaise'), ('td', 'Spaghettis Bolognaise'), ('td', 'Spaghettis aux scampis')),
               ('tr', ('td', 'Spaghettis aux scampis'), ('td', 'Spaghettis aux scampis'), ('td', 'Tiramisu'), ('td', 'Tiramisu')),
-              ('tr', ('td', 'Tiramisu'), ('td', 'Tiramisu'), ('td', 'Tiramisu'), ('td', 'Tranche Napolitaine')),
-              ('tr', ('td', 'Tranche Napolitaine'), ('td', 'Tranche Napolitaine'), ('td', 'Tranche Napolitaine'), ('td', 'Tranche Napolitaine')),
-              ('tr', ('td', 'Tranche Napolitaine'), ('td', '-x-x-'), ('td', '-x-x-'), ('td', '-x-x-')))])
+              ('tr', ('td', 'Tiramisu'), ('td', 'Tranche Napolitaine'), ('td', 'Tranche Napolitaine'), ('td', 'Tranche Napolitaine')),
+              ('tr', ('td', 'Tranche Napolitaine'), ('td', 'Tranche Napolitaine'), ('td', 'Tranche Napolitaine'), ('td', '-x-x-')))])
 
     def test_example2(self):
         with self.assertRaises(Exception) as cm:

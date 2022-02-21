@@ -28,12 +28,18 @@ Input:
 - name
 - email
 - date
-- fondus
-- assiettes
-- bolo
-- scampis
-- tiramisu
-- tranches
+- outside_fondus
+- outside_assiettes
+- outside_bolo
+- outside_scampis
+- outside_tiramisu
+- outside_tranches
+- inside_fondus
+- inside_assiettes
+- inside_bolo
+- inside_scampis
+- inside_tiramisu
+- inside_tranches
 - gdpr_accepts_use
 - uuid
 - time
@@ -44,12 +50,18 @@ Save:
 - name
 - email
 - date
-- fondus
-- assiettes
-- bolo
-- scampis
-- tiramisu
-- tranches
+- outside_fondus
+- outside_assiettes
+- outside_bolo
+- outside_scampis
+- outside_tiramisu
+- outside_tranches
+- inside_fondus
+- inside_assiettes
+- inside_bolo
+- inside_scampis
+- inside_tiramisu
+- inside_tranches
 - gdpr_accepts_use
 - uuid
 - time
@@ -67,10 +79,19 @@ def is_test_reservation(name, email):
 
 
 def validate_data(
-        name, email, places, date, fondus, assiettes, bolo, scampis, tiramisu, tranches, gdpr_accepts_use, connection):
-    (name, email, places, date, fondus, assiettes, bolo, scampis, tiramisu, tranches, gdpr_accepts_use
+        name, email, places, date,
+        outside_fondus, outside_assiettes, outside_bolo, outside_scampis, outside_tiramisu, outside_tranches,
+        inside_fondus, inside_assiettes, inside_bolo, inside_scampis, inside_tiramisu, inside_tranches,
+        gdpr_accepts_use, connection):
+    (name, email, places, date,
+     outside_fondus, outside_assiettes, outside_bolo, outside_scampis, outside_tiramisu, outside_tranches,
+     inside_fondus, inside_assiettes, inside_bolo, inside_scampis, inside_tiramisu, inside_tranches,
+     gdpr_accepts_use
      ) = normalize_data(
-         name, email, places, date, fondus, assiettes, bolo, scampis, tiramisu, tranches, gdpr_accepts_use)
+         name, email, places, date,
+         outside_fondus, outside_assiettes, outside_bolo, outside_scampis, outside_tiramisu, outside_tranches,
+         inside_fondus, inside_assiettes, inside_bolo, inside_scampis, inside_tiramisu, inside_tranches,
+         gdpr_accepts_use)
     if not(name and email):
         raise ValidationException('Vos données de contact sont incomplètes')
     INVALID_EMAIL = "L'adresse email renseignée n'a pas le format requis"
@@ -88,6 +109,10 @@ def validate_data(
                     if is_test_reservation(name, email)
                     else ('2022-03-19',)):
         raise ValidationException("Il n'y a pas de repas italien ̀à cette date")
+    total_menus = inside_bolo + inside_scampis
+    if inside_fondus + inside_assiettes != total_menus or inside_tiramisu + inside_tranches != total_menus:
+        raise ValidationException(
+            "Le nombre d'entrées ou de desserts ne correspond pas au nombre de plats commandés dans les menus.")
     reservations_count, reserved_seats  = Reservation.count_places(connection, name, email)
     if (reservations_count or 0) > 10:
         raise ValidationException('Il y a déjà trop de réservations à votre nom')
@@ -98,7 +123,10 @@ def validate_data(
     if (total_bookings or 0) + places > MAX_PLACES:
         max_restantes = MAX_PLACES - (total_bookings or 0)
         raise ValidationException(f"Il n'y a plus assez de place dans la salle, il ne reste plus que {max_restantes} places libres.")
-    return (name, email, places, date, fondus, assiettes, bolo, scampis, tiramisu, tranches, gdpr_accepts_use)
+    return (name, email, places, date,
+            outside_fondus, outside_assiettes, outside_bolo, outside_scampis, outside_tiramisu, outside_tranches,
+            inside_fondus, inside_assiettes, inside_bolo, inside_scampis, inside_tiramisu, inside_tranches,
+            gdpr_accepts_use)
 
 
 def respond_with_validation_error(form, e, configuration):
@@ -132,18 +160,28 @@ if __name__ == '__main__':
         email = form.getfirst('email', default='')
         places = form.getfirst('places', default=0)
         date = form.getfirst('date', default='')
-        fondus = form.getfirst('fondus', default=0)
-        assiettes = form.getfirst('assiettes', default=0)
-        bolo = form.getfirst('bolo', default=0)
-        scampis = form.getfirst('scampis', default=0)
-        tiramisu = form.getfirst('tiramisu', default=0)
-        tranches = form.getfirst('tranches', default=0)
+        outside_fondus = form.getfirst('outside_fondus', default=0)
+        outside_assiettes = form.getfirst('outside_assiettes', default=0)
+        outside_bolo = form.getfirst('outside_bolo', default=0)
+        outside_scampis = form.getfirst('outside_scampis', default=0)
+        outside_tiramisu = form.getfirst('outside_tiramisu', default=0)
+        outside_tranches = form.getfirst('outside_tranches', default=0)
+        inside_fondus = form.getfirst('inside_fondus', default=0)
+        inside_assiettes = form.getfirst('inside_assiettes', default=0)
+        inside_bolo = form.getfirst('inside_bolo', default=0)
+        inside_scampis = form.getfirst('inside_scampis', default=0)
+        inside_tiramisu = form.getfirst('inside_tiramisu', default=0)
+        inside_tranches = form.getfirst('inside_tranches', default=0)
         gdpr_accepts_use = form.getfirst('gdpr_accepts_use', default=False)
         try:
-            (name, email, places, date, fondus, assiettes, bolo, scampis,
-             tiramisu, tranches, gdpr_accepts_use) = validate_data(
-                 name, email, places, date, fondus, assiettes, bolo, scampis,
-                 tiramisu, tranches, gdpr_accepts_use, db_connection)
+            (name, email, places, date,
+             outside_fondus, outside_assiettes, outside_bolo, outside_scampis, outside_tiramisu, outside_tranches,
+             inside_fondus, inside_assiettes, inside_bolo, inside_scampis, inside_tiramisu, inside_tranches,
+             gdpr_accepts_use) = validate_data(
+                 name, email, places, date,
+                 outside_fondus, outside_assiettes, outside_bolo, outside_scampis, outside_tiramisu, outside_tranches,
+                 inside_fondus, inside_assiettes, inside_bolo, inside_scampis, inside_tiramisu, inside_tranches,
+                 gdpr_accepts_use, db_connection)
         except ValidationException as e:
             respond_with_validation_error(form, e, CONFIGURATION)
         else:
@@ -152,12 +190,18 @@ if __name__ == '__main__':
                 email,
                 places,
                 date,
-                fondus,
-                assiettes,
-                bolo,
-                scampis,
-                tiramisu,
-                tranches,
+                outside_fondus,
+                outside_assiettes,
+                outside_bolo,
+                outside_scampis,
+                outside_tiramisu,
+                outside_tranches,
+                inside_fondus,
+                inside_assiettes,
+                inside_bolo,
+                inside_scampis,
+                inside_tiramisu,
+                inside_tranches,
                 gdpr_accepts_use,
                 db_connection,
                 CONFIGURATION)

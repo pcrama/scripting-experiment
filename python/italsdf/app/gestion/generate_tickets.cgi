@@ -111,7 +111,7 @@ def post_method(db_connection):
                 order_columns=['date', 'name', 'email']),
             fondus, assiettes, bolo, scampis, tiramisu, tranches)))
 
-    
+
 if __name__ == '__main__':
     try:
         # if os.getenv('REMOTE_USER') is None or os.getenv('REMOTE_ADDR') is None:
