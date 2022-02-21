@@ -157,6 +157,11 @@ let validateTickets (t: Tickets<int>) (target: int option): Tickets<string list>
       tiramisu = tiramisu
       tranches = tranches }
 
+let csrfToken: string option =
+    match Fable.Core.JS.eval "try { CSRF_TOKEN } catch { '' }" with
+    | "" -> None
+    | x -> Some x
+
 let validateState (state: State) =
     let menusErrors = validateInclusiveBelow state.menus
                                              "menus"
@@ -167,9 +172,10 @@ let validateState (state: State) =
                  | _ -> None
     { state with
           nameError = if state.name.Trim() = "" then Some "Ce champ est obligatoire." else None
-          emailError = match state.email.Trim() with
-                       | "" -> Some "Ce champ est obligatoire."
-                       | x when (let at = x.IndexOf('@') in at > -1 && x.IndexOf('.', at) - at > 1)
+          emailError = match (csrfToken, state.email.Trim()) with
+                       | (Some _, _) -> None
+                       | (None, "") -> Some "Ce champ est obligatoire."
+                       | (None, x) when (let at = x.IndexOf('@') in at > -1 && x.IndexOf('.', at) - at > 1)
                            -> None
                        | _ -> Some "Veuillez saisir une adresse email valide."
           placesErrors = validateInclusiveBelow state.places
@@ -327,12 +333,19 @@ let hasErrors (state: State): bool =
 
 let render (state: State) (dispatch: Msg -> unit) =
     let hasErrors = hasErrors state
+    let (secondTextInput, maybeHiddenCsrf) =
+        match csrfToken with
+        // No CSRF token?  We are working for a simple user, so must validate the input.
+        | None -> (inputText "email" "email" "Email:" "Nous pourrions avoir besoin de votre email pour le tracing", Html.text "")
+        // CSRF token?  We are working for a logged in admin, so we don't validate email but store a comment instead
+        | Some x -> (inputText "comment" "text" "Commentaire:" "Commentaire optionnel, p.ex. le numéro de téléphone",
+                     Html.input [prop.name "csrf_token"; prop.type' "hidden"; prop.value x])
     Html.form [
         prop.method "POST"
         Fable.Core.JS.eval "try { ACTION_DEST } catch { '' }" |> prop.action
         prop.children [
         inputText "name" "text" "Nom:" "Vos places et votre commande de tickets seront à votre nom" state.name state.nameError (SetName >> dispatch)
-        inputText "email" "email" "Email:" "Nous pourrions avoir besoin de votre email pour le tracing" state.email state.emailError (SetEmail >> dispatch)
+        secondTextInput state.email state.emailError (SetEmail >> dispatch)
         inputNumberRaw Html.div
                        "places"
                        "Nombre de convives:"
@@ -358,22 +371,17 @@ let render (state: State) (dispatch: Msg -> unit) =
                         prop.id "gdpr_accepts_use"
                         prop.name "gdpr_accepts_use"
                         prop.type' "checkbox"
-                        prop.value true
-                    ]
-                ]
-            ]
+                        prop.value true]]]
             Html.div [
                 prop.style [style.overflow.hidden; style.verticalAlign.top]
                 prop.children [
                     Html.label [
                         prop.htmlFor "gdpr_accepts_use"
-                        prop.text "J’autorise la Société Royale d’Harmonie de Braine-l’Alleud à utiliser mon adresse email pour m’avertir de ses futures activités."
-                    ]
-                ]
-            ]]]
+                        prop.text "J’autorise la Société Royale d’Harmonie de Braine-l’Alleud à utiliser mon adresse email pour m’avertir de ses futures activités."]]]]]
         if hasErrors
         then Html.text ""
         else Html.input [prop.type' "submit"; prop.value "Confirmer la réservation"]
+        maybeHiddenCsrf
         Html.input [
             prop.name "date";
             prop.type' "hidden";

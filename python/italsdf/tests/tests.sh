@@ -230,18 +230,23 @@ function generic_test_generate_tickets_without_valid_CSRF_token_fails
     echo "test_$test_name: ok"
 }
 
+function get_csrf_token_from_html
+{
+    sed -n -e 's/.*CSRF_TOKEN *= *.\([a-f0-9A-F]*\).;.*/\1/p' "$1"
+}
+
 # Assumes up to date DB is available (see get_db_file), validates that the
 # CSRF token is included.  Output to stdout.
 function make_list_reservations_output_deterministic
 {
     local input substitutions csrf_token
     input="$1"
-    csrf_token="$(sed -n -e 's/.*csrf_token" value="\([a-f0-9A-F]*\)".*/\1/p' "$input")"
+    csrf_token="$2"
     if [ -z "$csrf_token" ];
     then
         die "No csrf_token in '$input'"
     else
-        sed -e 's/csrf_token" value="'"$csrf_token"'"/csrf_token" value="CSRF_TOKEN"/g' \
+        sed -e 's/\(CSRF_TOKEN *= *.\)'"$csrf_token"'/\1CSRF_TOKEN/g' \
             -e "s/$admin_user/TEST_ADMIN/g" \
             -e "$(date +"s,%d/%m/%Y [012][0-9]:[0-5][0-9]</td></tr>,TIMESTAMP</td></tr>,g")" \
             "$input"
@@ -259,15 +264,8 @@ function test_01_list_empty_reservations
     local test_output csrf_token
     test_output="$test_dir/01_list_reservations_empty_db.html"
     do_curl_as_admin 'gestion/list_reservations.cgi' "$test_output.tmp"
-    csrf_token="$(sed -n -e 's/.*csrf_token" value="\([a-f0-9A-F]*\)".*/\1/p' "$test_output.tmp")"
-    if [ -z "$csrf_token" ];
-    then
-        die "No csrf_token in '$test_output.tmp'"
-    else
-        sed -e 's/csrf_token" value="'"$csrf_token"'"/csrf_token" value="CSRF_TOKEN"/g' \
-            "$test_output.tmp" \
-            > "$test_output"
-    fi
+    csrf_token="$(get_csrf_token_from_html "$test_output.tmp")"
+    make_list_reservations_output_deterministic "$test_output.tmp" "$csrf_token" > "$test_output"
     do_diff "$test_output"
     get_db_file
     if [ "$(count_reservations)" != "0" ]; then
@@ -340,7 +338,7 @@ function test_06_list_reservations
     local test_output csrf_token
     test_output="$test_dir/06_list_reservations.html"
     do_curl_as_admin 'gestion/list_reservations.cgi?limit=7&offset=1&sort_order=date&sort_order=name' "$test_output.tmp"
-    csrf_token="$(sed -n -e 's/.*csrf_token" value="\([a-f0-9A-F]*\)".*/\1/p' "$test_output.tmp")"
+    csrf_token="$(get_csrf_token_from_html "$test_output.tmp")"
     get_db_file
     if [ "$(count_reservations)" != "3" ]; then
         die "Reservations table wrong."
@@ -348,7 +346,7 @@ function test_06_list_reservations
     if [ "$(count_csrfs)" -gt "1" -o "$(get_user_of_csrf_token "$csrf_token")" != "$admin_user" ]; then
         die "CSRF problem."
     fi
-    make_list_reservations_output_deterministic "$test_output.tmp" > "$test_output"
+    make_list_reservations_output_deterministic "$test_output.tmp" "$csrf_token" > "$test_output"
     do_diff "$test_output"
     echo "test_06_list_reservations: ok"
 }
@@ -413,13 +411,13 @@ function test_10_export_as_csv
 # 11: Deactivate first reservation to check it does not show up in the list anymore
 function test_11_deactivate_a_reservation
 {
-    local test_output
+    local test_output csrf_token
     sql_query 'UPDATE reservations SET active=0 WHERE uuid = (
                    SELECT uuid FROM reservations ORDER BY time ASC LIMIT 1)'
     put_db_file
     test_output="$test_dir/11_deactivate_a_reservation.html"
     do_curl_as_admin 'gestion/list_reservations.cgi?limit=17&sort_order=BOLO&sort_order=name' "$test_output.tmp"
-    make_list_reservations_output_deterministic "$test_output.tmp" > "$test_output"
+    make_list_reservations_output_deterministic "$test_output.tmp" "$(get_csrf_token_of_user "$admin_user")" > "$test_output"
     do_diff "$test_output"
     echo "test_11_deactivate_a_reservation: ok"
 }
@@ -445,7 +443,7 @@ function test_12_bobby_tables_and_co
                                                  "<$reservation_email" \
                                                  3 2022-03-19 1 0 0 2 0 1 2 1 5
     do_curl_as_admin 'gestion/list_reservations.cgi?limit=9' "$test_output.tmp"
-    csrf_token="$(sed -n -e 's/.*csrf_token" value="\([a-f0-9A-F]*\)".*/\1/p' "$test_output.tmp")"
+    csrf_token="$(get_csrf_token_from_html "$test_output.tmp")"
     get_db_file
     sql_query 'select email,name from reservations where email like "%body%html%"' \
               > "$sql_output"
@@ -453,7 +451,7 @@ function test_12_bobby_tables_and_co
     if [ "$(count_csrfs)" -gt "1" -o "$(get_user_of_csrf_token "$csrf_token")" != "$admin_user" ]; then
         die "CSRF problem."
     fi
-    make_list_reservations_output_deterministic "$test_output.tmp" > "$test_output"
+    make_list_reservations_output_deterministic "$test_output.tmp" "$csrf_token" > "$test_output"
     do_diff "$test_output"
     echo "test_12_bobby_tables_and_co: ok"
 }
@@ -512,7 +510,7 @@ function test_17_generate_tickets_form_input
     local test_output csrf_token
     test_output="$test_dir/17_generate_tickets_form_input.html"
     do_curl_as_admin 'gestion/generate_tickets.cgi' "$test_output.tmp"
-    csrf_token="$(sed -n -e 's/.*csrf_token" value="\([a-f0-9A-F]*\)".*/\1/p' "$test_output.tmp")"
+    csrf_token="$(sed -n -e 's/.*csrf_token"[^<>]*value="\([a-f0-9A-F]*\)".*/\1/p' "$test_output.tmp")"
     get_db_file
     if [ "$(count_csrfs)" -gt "1" -o "$(get_user_of_csrf_token "$csrf_token")" != "$admin_user" ]; then
         die "CSRF problem."
