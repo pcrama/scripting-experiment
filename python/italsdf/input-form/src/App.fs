@@ -333,13 +333,32 @@ let hasErrors (state: State): bool =
 
 let render (state: State) (dispatch: Msg -> unit) =
     let hasErrors = hasErrors state
-    let (secondTextInput, maybeHiddenCsrf) =
+    let (secondTextInput, maybeHiddenCsrf, maybeGDPR) =
         match csrfToken with
-        // No CSRF token?  We are working for a simple user, so must validate the input.
-        | None -> (inputText "email" "email" "Email:" "Nous pourrions avoir besoin de votre email pour le tracing", Html.text "")
+        // No CSRF token?  We are working for a simple user, so must validate the input and query for GDPR consent
+        | None -> (inputText "email" "email" "Email:" "Nous pourrions avoir besoin de votre email pour le tracing",
+                   Html.text "",
+                   Html.div [
+                       prop.style [style.overflow.hidden]
+                       prop.children [
+                       Html.div [
+                           prop.style [length.ex 4 |> style.width; style.verticalAlign.top; style.textAlign.left; style.float'.left]
+                           prop.children [
+                               Html.input [
+                                   prop.id "gdpr_accepts_use"
+                                   prop.name "gdpr_accepts_use"
+                                   prop.type' "checkbox"
+                                   prop.value true]]]
+                       Html.div [
+                           prop.style [style.overflow.hidden; style.verticalAlign.top]
+                           prop.children [
+                               Html.label [
+                                   prop.htmlFor "gdpr_accepts_use"
+                                   prop.text "J’autorise la Société Royale d’Harmonie de Braine-l’Alleud à utiliser mon adresse email pour m’avertir de ses futures activités."]]]]])
         // CSRF token?  We are working for a logged in admin, so we don't validate email but store a comment instead
         | Some x -> (inputText "comment" "text" "Commentaire:" "Commentaire optionnel, p.ex. le numéro de téléphone",
-                     Html.input [prop.name "csrf_token"; prop.type' "hidden"; prop.value x])
+                     Html.input [prop.name "csrf_token"; prop.type' "hidden"; prop.value x],
+                     Html.text "")
     Html.form [
         prop.method "POST"
         Fable.Core.JS.eval "try { ACTION_DEST } catch { '' }" |> prop.action
@@ -361,23 +380,7 @@ let render (state: State) (dispatch: Msg -> unit) =
         | (true, _)
         | (false, 0) -> Html.text ""
         | (false, p) -> Html.textf "Prix total de votre commande: %d €." p
-        Html.div [
-            prop.style [style.overflow.hidden]
-            prop.children [
-            Html.div [
-                prop.style [length.ex 4 |> style.width; style.verticalAlign.top; style.textAlign.left; style.float'.left]
-                prop.children [
-                    Html.input [
-                        prop.id "gdpr_accepts_use"
-                        prop.name "gdpr_accepts_use"
-                        prop.type' "checkbox"
-                        prop.value true]]]
-            Html.div [
-                prop.style [style.overflow.hidden; style.verticalAlign.top]
-                prop.children [
-                    Html.label [
-                        prop.htmlFor "gdpr_accepts_use"
-                        prop.text "J’autorise la Société Royale d’Harmonie de Braine-l’Alleud à utiliser mon adresse email pour m’avertir de ses futures activités."]]]]]
+        maybeGDPR
         if hasErrors
         then Html.text ""
         else Html.input [prop.type' "submit"; prop.value "Confirmer la réservation"]
