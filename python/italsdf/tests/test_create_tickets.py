@@ -35,9 +35,36 @@ def make_reservation(**overrides):
     return storage.Reservation(**defaults)
 
 
+FONDUS = ((('div', 'class', 'ticket-left-col'),
+           ('div', 'table n°'), ('div', 'serveur'), ('div', 'entrée:'), ('div', 'Fondus au fromage')),
+          ('div', (('img', 'src', 'ticket-image.png'),)))
+
+ASSIETTES = ((('div', 'class', 'ticket-left-col'),
+              ('div', 'table n°'), ('div', 'serveur'), ('div', 'entrée:'), ('div', 'Assiette italienne')),
+             ('div', (('img', 'src', 'ticket-image.png'),)))
+
+BOLO = ((('div', 'class', 'ticket-left-col'),
+         ('div', 'table n°'), ('div', 'serveur'), ('div', 'plat:'), ('div', 'Spaghetti bolognaise')),
+        ('div', (('img', 'src', 'ticket-image.png'),)))
+
+SCAMPIS = ((('div', 'class', 'ticket-left-col'),
+            ('div', 'table n°'), ('div', 'serveur'), ('div', 'plat:'), ('div', 'Spaghetti aux scampis')),
+           ('div', (('img', 'src', 'ticket-image.png'),)))
+
+TIRAMISU = ((('div', 'class', 'ticket-left-col'),
+             ('div', 'table n°'), ('div', 'serveur'), ('div', 'dessert:'), ('div', 'Tiramisu')),
+            ('div', (('img', 'src', 'ticket-image.png'),)))
+
+TRANCHES = ((('div', 'class', 'ticket-left-col'),
+             ('div', 'table n°'), ('div', 'serveur'), ('div', 'dessert:'), ('div', 'Tranche napolitaine')),
+            ('div', (('img', 'src', 'ticket-image.png'),)))
+
+
 class TestOneReservation(unittest.TestCase):
     R1 = make_reservation( # 3 starters + 3 outside_bolo menus + 4 outside_scampis + 11 desserts = 27 + 36 + 68 + 66 = 197
-        outside_fondus=1, outside_assiettes=2, outside_bolo=3, outside_scampis=4, outside_tiramisu=5, outside_tranches=6)
+        outside_fondus=1, outside_assiettes=2,
+        outside_bolo=3, outside_scampis=4,
+        outside_tiramisu=5, outside_tranches=6)
 
     R2 = make_reservation( # 2 starters + 1 outside_bolo + 1 outside_scampis + menu bolo + menu scampis = 18 + 12 + 17 + 25 + 30 = 47
         name='other', date='2022-03-20',
@@ -45,32 +72,40 @@ class TestOneReservation(unittest.TestCase):
         inside_fondus=1, inside_assiettes=1, inside_bolo=1, inside_scampis=1, inside_tiramisu=2)
 
     E1 = [(('div', 'class', 'no-print-page-break'),
-           ('h3', 'testing', ' ', '2022-03-19'),
-           ('p', 'Total: ', '197.00 €', ' pour ', '21 tickets', '.')),
-          (('table', 'class', 'tickets'),
-           ('tr',
-            ('td', 'Fondus au fromage'), ('td', 'Charcuterie'), ('td', 'Charcuterie'), ('td', 'Spaghettis Bolognaise')),
-           ('tr',
-            ('td', 'Spaghettis Bolognaise'), ('td', 'Spaghettis Bolognaise'), ('td', 'Spaghettis aux scampis'), ('td', 'Spaghettis aux scampis')),
-           ('tr',
-            ('td', 'Spaghettis aux scampis'), ('td', 'Spaghettis aux scampis'), ('td', 'Tiramisu'), ('td', 'Tiramisu')),
-           ('tr',
-            ('td', 'Tiramisu'), ('td', 'Tiramisu'), ('td', 'Tiramisu'), ('td', 'Tranche Napolitaine')),
-           ('tr',
-            ('td', 'Tranche Napolitaine'), ('td', 'Tranche Napolitaine'), ('td', 'Tranche Napolitaine'), ('td', 'Tranche Napolitaine')),
-           ('tr',
-            ('td', 'Tranche Napolitaine'), ('td', '-x-x-'), ('td', '-x-x-'), ('td', '-x-x-')))]
+           (('div', 'class', 'ticket-heading'), 'testing', ' ', '2022-03-19'),
+           ('div', 'Total: ', '197.00 €', ' pour ', '21 tickets', '.')),
+          (('div', 'class', 'tickets'),
+           *FONDUS, *ASSIETTES,
+           *ASSIETTES, *BOLO,
+           *BOLO, *BOLO,
+           *SCAMPIS, *SCAMPIS,
+           *SCAMPIS, *SCAMPIS,
+           *TIRAMISU, *TIRAMISU,
+           *TIRAMISU, *TIRAMISU,
+           *TIRAMISU, *TRANCHES,
+           *TRANCHES, *TRANCHES,
+           *TRANCHES, *TRANCHES,
+           *TRANCHES)]
 
     E2 = [(('div', 'class', 'no-print-page-break'),
-           ('h3', 'other', ' ', '2022-03-20'),
-           ('p', 'Total: ', '102.00 €', ' pour ', '10 tickets', '.')),
-          (('table', 'class', 'tickets'),
-           ('tr',
-            ('td', 'Fondus au fromage'), ('td', 'Fondus au fromage'), ('td', 'Charcuterie'), ('td', 'Charcuterie')),
-           ('tr',
-            ('td', 'Spaghettis Bolognaise'), ('td', 'Spaghettis Bolognaise'), ('td', 'Spaghettis aux scampis'), ('td', 'Spaghettis aux scampis')),
-           ('tr',
-            ('td', 'Tiramisu'), ('td', 'Tiramisu'), ('td', '-x-x-'), ('td', '-x-x-')))]
+           (('div', 'class', 'ticket-heading'), 'other', ' ', '2022-03-20'),
+           ('div', 'Total: ', '102.00 €', ' pour ', '10 tickets', '.')),
+          (('div', 'class', 'tickets'),
+           *FONDUS, *FONDUS,
+           *ASSIETTES, *ASSIETTES,
+           *BOLO, *BOLO,
+           *SCAMPIS, *SCAMPIS,
+           *TIRAMISU, *TIRAMISU)]
+
+    def test_example0(self):
+        self.assertEqual(
+            list(create_tickets.create_tickets_for_one_reservation(
+                make_reservation(outside_fondus=1, name='one fondus'))),
+         [(('div', 'class', 'no-print-page-break'),
+           (('div', 'class', 'ticket-heading'), 'one fondus', ' ', '2022-03-19'),
+           ('div', 'Total: ', '9.00 €', ' pour ', '1 ticket', '.')),
+          (('div', 'class', 'tickets'),
+           *FONDUS)])
 
     def test_example1(self):
         self.assertEqual(
@@ -96,13 +131,17 @@ class TestFullTicketList(unittest.TestCase):
                 tranches=12)),
             [*TestOneReservation.E1,
              *TestOneReservation.E2,
-             ('h3', 'Vente libre'),
-             ('p', 'fondus=0, assiettes=1, bolo=2, ', 'scampis=3, tiramisu=3, tranches=6'),
-             (('table', 'class', 'tickets'),
-              ('tr', ('td', 'Charcuterie'), ('td', 'Spaghettis Bolognaise'), ('td', 'Spaghettis Bolognaise'), ('td', 'Spaghettis aux scampis')),
-              ('tr', ('td', 'Spaghettis aux scampis'), ('td', 'Spaghettis aux scampis'), ('td', 'Tiramisu'), ('td', 'Tiramisu')),
-              ('tr', ('td', 'Tiramisu'), ('td', 'Tranche Napolitaine'), ('td', 'Tranche Napolitaine'), ('td', 'Tranche Napolitaine')),
-              ('tr', ('td', 'Tranche Napolitaine'), ('td', 'Tranche Napolitaine'), ('td', 'Tranche Napolitaine'), ('td', '-x-x-')))])
+             (('div', 'class', 'ticket-heading'), 'Vente libre'),
+             ('div', 'fondus=0, assiettes=1, bolo=2, ', 'scampis=3, tiramisu=3, tranches=6'),
+             (('div', 'class', 'tickets'),
+              *ASSIETTES, *BOLO,
+              *BOLO, *SCAMPIS,
+              *SCAMPIS, *SCAMPIS,
+              *TIRAMISU, *TIRAMISU,
+              *TIRAMISU, *TRANCHES,
+              *TRANCHES, *TRANCHES,
+              *TRANCHES, *TRANCHES,
+              *TRANCHES)])
 
     def test_example2(self):
         with self.assertRaises(Exception) as cm:
@@ -129,12 +168,14 @@ class TestFullTicketList(unittest.TestCase):
                 scampis=2,
                 tiramisu=1,
                 tranches=2)),
-            [('h3', 'Vente libre'),
-             ('p', 'fondus=1, assiettes=2, bolo=1, ', 'scampis=2, tiramisu=1, tranches=2'),
-             (('table', 'class', 'tickets'),
-              ('tr', ('td', 'Fondus au fromage'), ('td', 'Charcuterie'), ('td', 'Charcuterie'), ('td', 'Spaghettis Bolognaise')),
-              ('tr', ('td', 'Spaghettis aux scampis'), ('td', 'Spaghettis aux scampis'), ('td', 'Tiramisu'), ('td', 'Tranche Napolitaine')),
-              ('tr', ('td', 'Tranche Napolitaine'), ('td', '-x-x-'), ('td', '-x-x-'), ('td', '-x-x-')))])
+            [(('div', 'class', 'ticket-heading'), 'Vente libre'),
+             ('div', 'fondus=1, assiettes=2, bolo=1, ', 'scampis=2, tiramisu=1, tranches=2'),
+             (('div', 'class', 'tickets'),
+              *FONDUS, *ASSIETTES,
+              *ASSIETTES, *BOLO,
+              *SCAMPIS, *SCAMPIS,
+              *TIRAMISU, *TRANCHES,
+              *TRANCHES)])
     
 
 if __name__ == '__main__':

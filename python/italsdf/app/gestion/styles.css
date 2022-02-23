@@ -56,27 +56,67 @@ table.list td {
     padding-right: 0.1em;
 }
 
-table.tickets, table.tickets tr, table.tickets td {
-    border-collapse: collapse;
-    border: black dotted 2px;
-    text-align: center;
-    vertical-align: middle;
+div.tickets {
+    display: grid;
+    grid-template-columns: 38vw 10vw 38vw 10vw;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+div.tickets > div.ticket-left-col > div:nth-child(1) {
+    margin-top: auto;
+    margin-bottom: 0px;
+}
+
+div.tickets > div.ticket-left-col > div:nth-child(2) {
+    margin-top: auto;
+    margin-bottom: auto;
+}
+
+div.tickets > div.ticket-left-col > div:nth-child(3) {
+    margin-top: auto;
+    margin-bottom: 0px;
+    font-weight: bold;
+}
+
+div.tickets > div.ticket-left-col > div:nth-child(4) {
+    margin-top: 0px;
+    margin-bottom: auto;
+    font-variant-caps: small-caps;
+}
+
+div.tickets > div.ticket-left-col {
+    display: grid;
+    grid-template-rows: auto auto auto auto;
+    padding-left: 1em;
+}
+
+div.tickets > div > img {
+    width: 95%;
+    position: relative;
+    left: 0%;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+div.ticket-heading {
+    padding-top: 1ex;
+    font-weight: bold;
+    font-size: larger;
 }
 
 @media print {
-    table.tickets td {
-        page-break-inside: avoid;
-        width: 5cm;
-        height: 2cm;
+    div.tickets {
+        grid-template-columns: 7cm 2.5cm 7cm 2.5cm;
+        page-break-after: auto;
+        page-break-before: avoid;
     }
-    table.tickets {
-        page-break-inside: auto;
-    }
-    table.tickets tr {
+    div.tickets > div.ticket-left-col {
         page-break-inside: avoid;
         page-break-after: auto;
+        page-break-before: avoid;
+        grid-template-rows: 1cm 1cm 1cm 1cm;
     }
-
     div.no-print-page-break {
         page-break-inside: avoid;
         page-break-after: avoid;
