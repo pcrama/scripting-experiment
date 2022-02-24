@@ -33,7 +33,7 @@ def html_gen(data):
         return type(x) is tuple
     if is_tuple(data):
         tag_name = None
-        single_elt = len(data) == 1
+        empty_elt = len(data) == 1
         for elt in data:
             if tag_name is None:
                 tag = elt
@@ -42,15 +42,19 @@ def html_gen(data):
                     attr_values = []
                     for idx in range(1, len(tag), 2):
                         attr_values.append((tag[idx], html.escape(tag[idx + 1], quote=True)))
-                    yield '<' + tag_name + ' ' + ' '.join(f'{x}="{y}"' for (x, y) in attr_values)
+                    yield '<' + tag_name + ' ' + ' '.join(f'{x}="{y}"' for (x, y) in attr_values) + '>'
                 else:
                     tag_name = str(tag)
-                    yield f'<{tag_name}'
-                yield ('/>' if single_elt else '>')
+                    yield f'<{tag_name}>'
+                # https://developer.mozilla.org/en-US/docs/Glossary/Empty_element:
+                empty_elt = tag_name.lower() in (
+                    'area', 'base', 'br', 'col', 'embed', 'hr', 'img',
+                    'input', 'keygen', 'link', 'meta', 'param', 'source',
+                    'track', 'wbr',)
             else:
                 for x in html_gen(elt):
                     yield x
-        if not single_elt:
+        if not empty_elt:
             yield f'</{tag_name}>'
     else:
         yield html.escape(str(data), quote=False)
