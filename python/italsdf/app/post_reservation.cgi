@@ -119,7 +119,7 @@ def validate_data(
     if (reserved_seats or 0) + places > 60:
         raise ValidationException('Vous réservez ou avez réservé trop de places')
     _, total_bookings = Reservation.count_places(connection)
-    MAX_PLACES = 120
+    MAX_PLACES = 200
     if (total_bookings or 0) + places > MAX_PLACES:
         max_restantes = MAX_PLACES - (total_bookings or 0)
         raise ValidationException(f"Il n'y a plus assez de place dans la salle, il ne reste plus que {max_restantes} places libres.")
