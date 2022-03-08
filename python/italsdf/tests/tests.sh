@@ -54,7 +54,7 @@ function _do_curl {
                                end_point="$1" ;;
         * ) end_point="https://$4$base_url/$folder/$1" ;;
     esac
-    curl --silent "$end_point" $3 \
+    curl "$end_point" $3 \
         | sed -e "s;$folder;TEST_DIR;g" -e "s;$base_url;TEST_HOST;g" -e "s;mailto:$info_email;TEST_EMAIL;g"\
               > "$2"
 }

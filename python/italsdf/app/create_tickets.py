@@ -83,3 +83,13 @@ def create_full_ticket_list(rs, fondus, assiettes, bolo, scampis, tiramisu, tran
         scampis=scampis,
         tiramisu=tiramisu,
         tranches=tranches)
+
+
+def ul_for_menu_data(total_fondus, total_assiettes, total_bolo, total_scampis, total_tiramisu, total_tranches):
+    return ('ul',
+            ('li', str(total_fondus), ' fondus'),
+            ('li', str(total_assiettes), ' assiettes'),
+            ('li', pluriel_naif(total_bolo, 'bolo')),
+            ('li', str(total_scampis), ' scampis'),
+            ('li', pluriel_naif(total_tiramisu, 'tiramisu')),
+            ('li', str(total_tranches,), ' tranches napolitaines'))

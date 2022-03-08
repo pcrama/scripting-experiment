@@ -1,5 +1,10 @@
 #!/usr/pkg/bin/python3
 # -*- coding: utf-8 -*-
+#
+# Test with
+#
+# (cd app/gestion && env REQUEST_METHOD=GET REMOTE_USER=secretaire REMOTE_ADDR=1.2.3.4 SERVER_NAME=localhost SCRIPT_NAME=list_reservations.cgi python list_reservations.cgi)
+
 import cgi
 import cgitb
 import itertools
@@ -22,6 +27,9 @@ from storage import (
     Csrf,
     Reservation,
     create_db,
+)
+from create_tickets import (
+    ul_for_menu_data,
 )
 
 
@@ -81,7 +89,9 @@ DEFAULT_LIMIT = 20
 MAX_LIMIT = 500
 
 if __name__ == '__main__':
-    if os.getenv('REQUEST_METHOD') != 'GET' or os.getenv('REMOTE_USER') is None:
+    if os.getenv('REQUEST_METHOD') != 'GET' or any(
+            os.getenv(p) is None for p in (
+                'REMOTE_USER', 'REMOTE_ADDR', 'SERVER_NAME', 'SCRIPT_NAME')):
         redirect_to_event()
 
     CONFIGURATION = config.get_configuration()
@@ -114,7 +124,13 @@ if __name__ == '__main__':
                                          header + sort_direction(column, sort_order)))
             for column, header in COLUMNS)
         total_bookings = Reservation.length(connection)
-        active_reservations = Reservation.length(connection, [('active', 1)])
+        (active_reservations,
+         total_fondus,
+         total_assiettes,
+         total_bolo,
+         total_scampis,
+         total_tiramisu,
+         total_tranches) = Reservation.count_menu_data(connection)
         reservation_summary = Reservation.summary_by_date(connection)
         pagination_links = tuple((
             x for x in
@@ -132,13 +148,17 @@ if __name__ == '__main__':
             if x is not None))
         respond_html(html_document(
             'List of reservations',
-            (('p',
-              'Il y a ', pluriel_naif(total_bookings, 'bulle'), ' en tout',
-              *(' dont ', str(active_reservations), ' ',
-                'est active' if active_reservations == 1 else 'sont actives'),
-              '.')
-             if total_bookings > 0
-             else '',
+            (*((('p',
+                 'Il y a ', pluriel_naif(total_bookings, 'bulle'), ' en tout dont ',
+                 pluriel_naif(active_reservations, ['est active', 'sont actives']),
+                 '.'),
+                ul_for_menu_data(total_fondus, total_assiettes,
+                                 total_bolo, total_scampis,
+                                 total_tiramisu, total_tranches)
+                if total_fondus + total_assiettes + total_bolo + total_scampis + total_tiramisu + total_tranches > 0
+                else '')
+               if total_bookings > 0
+               else []),
              ('ul', *tuple(('li', row[0], ': ',
                             pluriel_naif(row[1], ['place réservée', 'places réservées']))
                            for row in reservation_summary))

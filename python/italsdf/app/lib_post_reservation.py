@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import cgitb
 import os
+import re
 import uuid
 import time
 import urllib
@@ -14,6 +15,65 @@ from storage import(
     Reservation,
     ensure_connection,
 )
+
+
+class ValidationException(Exception):
+    pass
+
+
+def is_test_reservation(name, email):
+    return name.lower().startswith('test') and email.lower().endswith('@example.com')
+
+
+def validate_data(
+        name, email, places, date,
+        outside_fondus, outside_assiettes, outside_bolo, outside_scampis, outside_tiramisu, outside_tranches,
+        inside_fondus, inside_assiettes, inside_bolo, inside_scampis, inside_tiramisu, inside_tranches,
+        gdpr_accepts_use, connection):
+    (name, email, places, date,
+     outside_fondus, outside_assiettes, outside_bolo, outside_scampis, outside_tiramisu, outside_tranches,
+     inside_fondus, inside_assiettes, inside_bolo, inside_scampis, inside_tiramisu, inside_tranches,
+     gdpr_accepts_use
+     ) = normalize_data(
+         name, email, places, date,
+         outside_fondus, outside_assiettes, outside_bolo, outside_scampis, outside_tiramisu, outside_tranches,
+         inside_fondus, inside_assiettes, inside_bolo, inside_scampis, inside_tiramisu, inside_tranches,
+         gdpr_accepts_use)
+    if not(name and email):
+        raise ValidationException('Vos données de contact sont incomplètes')
+    INVALID_EMAIL = "L'adresse email renseignée n'a pas le format requis"
+    try:
+        email_match = re.fullmatch(
+            '[^@]+@(\\w+\\.)+\\w\\w+', email, flags=re.IGNORECASE | re.UNICODE)
+    except Exception:
+        raise ValidationException(INVALID_EMAIL)
+    else:
+        if email_match is None:
+            raise ValidationException(INVALID_EMAIL)
+    if places < 1:
+        raise ValidationException("Vous n'avez pas indiqué combien de places vous vouliez réserver")
+    if date not in (('2099-01-01', '2099-01-02')
+                    if is_test_reservation(name, email)
+                    else ('2022-03-19',)):
+        raise ValidationException("Il n'y a pas de repas italien ̀à cette date")
+    total_menus = inside_bolo + inside_scampis
+    if inside_fondus + inside_assiettes != total_menus or inside_tiramisu + inside_tranches != total_menus:
+        raise ValidationException(
+            "Le nombre d'entrées ou de desserts ne correspond pas au nombre de plats commandés dans les menus.")
+    reservations_count, reserved_seats  = Reservation.count_places(connection, name, email)
+    if (reservations_count or 0) > 10:
+        raise ValidationException('Il y a déjà trop de réservations à votre nom')
+    if (reserved_seats or 0) + places > 60:
+        raise ValidationException('Vous réservez ou avez réservé trop de places')
+    _, total_bookings = Reservation.count_places(connection)
+    MAX_PLACES = 200
+    if (total_bookings or 0) + places > MAX_PLACES:
+        max_restantes = MAX_PLACES - (total_bookings or 0)
+        raise ValidationException(f"Il n'y a plus assez de place dans la salle, il ne reste plus que {max_restantes} places libres.")
+    return (name, email, places, date,
+            outside_fondus, outside_assiettes, outside_bolo, outside_scampis, outside_tiramisu, outside_tranches,
+            inside_fondus, inside_assiettes, inside_bolo, inside_scampis, inside_tiramisu, inside_tranches,
+            gdpr_accepts_use)
 
 
 def normalize_data(

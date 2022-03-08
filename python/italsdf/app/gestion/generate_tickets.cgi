@@ -15,13 +15,14 @@ from htmlgen import (
     redirect_to_event,
     respond_html,
 )
-from storage import(
+from storage import (
     Csrf,
     Reservation,
     create_db,
 )
-from create_tickets import(
+from create_tickets import (
     create_full_ticket_list,
+    ul_for_menu_data,
 )
 
 
@@ -42,13 +43,9 @@ def get_method(db_connection):
     respond_html(html_document(
         'Impression des tickets pour la nourriture',
         (('p', 'Il y a ', pluriel_naif(groups, 'réservation'), ':'),
-         ('ul',
-          ('li', str(total_fondus), ' fondus'),
-          ('li', str(total_assiettes), ' assiettes'),
-          ('li', pluriel_naif(total_bolo, 'bolo')),
-          ('li', str(total_scampis), ' scampis'),
-          ('li', pluriel_naif(total_tiramisu, 'tiramisu')),
-          ('li', str(total_tranches,), ' tranches napolitaines')),
+         ul_for_menu_data(total_fondus, total_assiettes,
+                          total_bolo, total_scampis,
+                          total_tiramisu, total_tranches),
          (('form', 'method', 'POST'),
           (('input', 'type', 'hidden', 'id', 'csrf_token', 'name', 'csrf_token', 'value', csrf_token.token),),
           (('label', 'for', 'fondus'), 'fondus:'),
