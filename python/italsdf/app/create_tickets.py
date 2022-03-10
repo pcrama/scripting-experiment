@@ -45,7 +45,7 @@ def create_tickets_for_one_reservation(r):
         ()
         if total_tickets == 0
         else ((('div', 'class', 'no-print-page-break'),
-               _heading(r.name, ' ', r.date),
+               _heading(r.name, ': ', pluriel_naif(r.places, 'place'), ' le ', r.date),
                ('div', 'Total: ', pricing.price_in_euros(r), ' pour ', pluriel_naif(total_tickets, 'ticket'), '.')),
               _ticket_table(
                   r.outside_fondus + r.inside_fondus,

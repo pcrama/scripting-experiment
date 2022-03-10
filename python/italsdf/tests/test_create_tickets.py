@@ -62,17 +62,19 @@ TRANCHES = ((('div', 'class', 'ticket-left-col'),
 
 class TestOneReservation(unittest.TestCase):
     R1 = make_reservation( # 3 starters + 3 outside_bolo menus + 4 outside_scampis + 11 desserts = 27 + 36 + 68 + 66 = 197
+        places=8,
         outside_fondus=1, outside_assiettes=2,
         outside_bolo=3, outside_scampis=4,
         outside_tiramisu=5, outside_tranches=6)
 
     R2 = make_reservation( # 2 starters + 1 outside_bolo + 1 outside_scampis + menu bolo + menu scampis = 18 + 12 + 17 + 25 + 30 = 47
         name='other', date='2022-03-20',
+        places=4,
         outside_fondus=1, outside_assiettes=1, outside_bolo=1, outside_scampis=1,
         inside_fondus=1, inside_assiettes=1, inside_bolo=1, inside_scampis=1, inside_tiramisu=2)
 
     E1 = [(('div', 'class', 'no-print-page-break'),
-           (('div', 'class', 'ticket-heading'), 'testing', ' ', '2022-03-19'),
+           (('div', 'class', 'ticket-heading'), 'testing', ': ', '8 places', ' le ', '2022-03-19'),
            ('div', 'Total: ', '197.00 €', ' pour ', '21 tickets', '.')),
           (('div', 'class', 'tickets'),
            *FONDUS, *ASSIETTES,
@@ -88,7 +90,7 @@ class TestOneReservation(unittest.TestCase):
            *TRANCHES)]
 
     E2 = [(('div', 'class', 'no-print-page-break'),
-           (('div', 'class', 'ticket-heading'), 'other', ' ', '2022-03-20'),
+           (('div', 'class', 'ticket-heading'), 'other', ': ', '4 places', ' le ', '2022-03-20'),
            ('div', 'Total: ', '102.00 €', ' pour ', '10 tickets', '.')),
           (('div', 'class', 'tickets'),
            *FONDUS, *FONDUS,
@@ -100,9 +102,9 @@ class TestOneReservation(unittest.TestCase):
     def test_example0(self):
         self.assertEqual(
             list(create_tickets.create_tickets_for_one_reservation(
-                make_reservation(outside_fondus=1, name='one fondus'))),
+                make_reservation(places=1, outside_fondus=1, name='one fondus'))),
          [(('div', 'class', 'no-print-page-break'),
-           (('div', 'class', 'ticket-heading'), 'one fondus', ' ', '2022-03-19'),
+           (('div', 'class', 'ticket-heading'), 'one fondus', ': ', '1 place', ' le ', '2022-03-19'),
            ('div', 'Total: ', '9.00 €', ' pour ', '1 ticket', '.')),
           (('div', 'class', 'tickets'),
            *FONDUS)])
