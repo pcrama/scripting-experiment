@@ -67,7 +67,7 @@ class TestOneReservation(unittest.TestCase):
         outside_bolo=3, outside_scampis=4,
         outside_tiramisu=5, outside_tranches=6)
 
-    R2 = make_reservation( # 2 starters + 1 outside_bolo + 1 outside_scampis + menu bolo + menu scampis = 18 + 12 + 17 + 25 + 30 = 47
+    R2 = make_reservation(
         name='other', date='2022-03-20',
         places=4,
         outside_fondus=1, outside_assiettes=1, outside_bolo=1, outside_scampis=1,
@@ -75,7 +75,8 @@ class TestOneReservation(unittest.TestCase):
 
     E1 = [(('div', 'class', 'no-print-page-break'),
            (('div', 'class', 'ticket-heading'), 'testing', ': ', '8 places', ' le ', '2022-03-19'),
-           ('div', 'Total: ', '197.00 €', ' pour ', '21 tickets', '.')),
+           ('div', 'Total: ', '197.00 €', ' pour ', '21 tickets', ': ',
+            '1+0m fondus, 2+0m assiettes, 3+0m bolos, 4+0m scampis, 5+0m tiramisus, 6+0m tranches', '.')),
           (('div', 'class', 'tickets'),
            *FONDUS, *ASSIETTES,
            *ASSIETTES, *BOLO,
@@ -91,7 +92,8 @@ class TestOneReservation(unittest.TestCase):
 
     E2 = [(('div', 'class', 'no-print-page-break'),
            (('div', 'class', 'ticket-heading'), 'other', ': ', '4 places', ' le ', '2022-03-20'),
-           ('div', 'Total: ', '102.00 €', ' pour ', '10 tickets', '.')),
+           ('div', 'Total: ', '102.00 €', ' pour ', '10 tickets', ': ',
+            '1+1m fondus, 1+1m assiettes, 1+1m bolos, 1+1m scampis, 0+2m tiramisus', '.')),
           (('div', 'class', 'tickets'),
            *FONDUS, *FONDUS,
            *ASSIETTES, *ASSIETTES,
@@ -105,7 +107,7 @@ class TestOneReservation(unittest.TestCase):
                 make_reservation(places=1, outside_fondus=1, name='one fondus'))),
          [(('div', 'class', 'no-print-page-break'),
            (('div', 'class', 'ticket-heading'), 'one fondus', ': ', '1 place', ' le ', '2022-03-19'),
-           ('div', 'Total: ', '9.00 €', ' pour ', '1 ticket', '.')),
+           ('div', 'Total: ', '9.00 €', ' pour ', '1 ticket', ': ', '1+0m fondus', '.')),
           (('div', 'class', 'tickets'),
            *FONDUS)])
 

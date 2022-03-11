@@ -41,12 +41,23 @@ def create_tickets_for_one_reservation(r):
         r.outside_scampis + r.inside_scampis +
         r.outside_tiramisu + r.inside_tiramisu +
         r.outside_tranches + r.inside_tranches)
+    ticket_details = ', '.join(
+        f'{inside}+{outside}m {kind}' for
+        inside, outside, kind in (
+            (r.outside_fondus, r.inside_fondus, 'fondus'),
+            (r.outside_assiettes, r.inside_assiettes, 'assiettes'),
+            (r.outside_bolo, r.inside_bolo, 'bolos'),
+            (r.outside_scampis, r.inside_scampis, 'scampis'),
+            (r.outside_tiramisu, r.inside_tiramisu, 'tiramisus'),
+            (r.outside_tranches, r.inside_tranches, 'tranches'))
+        if inside !=0 or outside != 0)
     return (
         ()
         if total_tickets == 0
         else ((('div', 'class', 'no-print-page-break'),
                _heading(r.name, ': ', pluriel_naif(r.places, 'place'), ' le ', r.date),
-               ('div', 'Total: ', pricing.price_in_euros(r), ' pour ', pluriel_naif(total_tickets, 'ticket'), '.')),
+               ('div', 'Total: ', pricing.price_in_euros(r), ' pour ',
+                pluriel_naif(total_tickets, 'ticket'), ': ', ticket_details, '.')),
               _ticket_table(
                   r.outside_fondus + r.inside_fondus,
                   r.outside_assiettes + r.inside_assiettes,
