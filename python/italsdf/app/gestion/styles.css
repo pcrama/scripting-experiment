@@ -88,13 +88,13 @@ div.tickets > div.ticket-left-col > div:nth-child(4) {
 div.tickets > div.ticket-left-col {
     display: grid;
     grid-template-rows: auto auto auto auto;
-    padding-left: 1em;
+    padding-left: 0.6cm;
 }
 
 div.tickets > div > img {
     width: 95%;
     position: relative;
-    left: 0%;
+    left: -0.6cm;
     top: 50%;
     transform: translateY(-50%);
 }
