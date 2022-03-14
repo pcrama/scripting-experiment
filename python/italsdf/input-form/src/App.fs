@@ -187,6 +187,20 @@ let validateState (state: State) =
           menusErrors = menusErrors
     }
 
+let totalPriceInEuros (state: State): int option =
+    match state with
+    | { insideMenuErrors = { assiettes = []; fondus = []; bolo = []; scampis = []; tiramisu = []; tranches = []}
+        outsideMenuErrors = { assiettes = []; fondus = []; bolo = []; scampis = []; tiramisu = []; tranches = []}
+        menusErrors = [] } ->
+            state.insideMenu.bolo * PrixMenuBolo +
+            state.insideMenu.scampis * PrixMenuScampis +
+            (state.outsideMenu.assiettes + state.outsideMenu.fondus) * PrixEntreeEuros +
+            state.outsideMenu.bolo * PrixBoloEuros +
+            state.outsideMenu.scampis * PrixScampisEuros +
+            (state.outsideMenu.tiramisu + state.outsideMenu.tranches) * PrixDessertEuros
+            |> Some
+    | _ -> None
+
 let update (msg: Msg) (state: State): State =
     let newState = updateNoValidate msg state
     validateState newState
@@ -315,14 +329,6 @@ let inputText (id: string) (type': string) (label: string) (placeholder: string)
         prop.style [length.ex 1 |> style.marginBottom]
         prop.children children]
 
-let totalPriceInEuros (state: State): int =
-    state.insideMenu.bolo * PrixMenuBolo +
-    state.insideMenu.scampis * PrixMenuScampis +
-    (state.outsideMenu.assiettes + state.outsideMenu.fondus) * PrixEntreeEuros +
-    state.outsideMenu.bolo * PrixBoloEuros +
-    state.outsideMenu.scampis * PrixScampisEuros +
-    (state.outsideMenu.tiramisu + state.outsideMenu.tranches) * PrixDessertEuros
-
 let hasErrors (state: State): bool =
     Option.isSome state.nameError ||
     Option.isSome state.emailError ||
@@ -376,10 +382,10 @@ let render (state: State) (dispatch: Msg -> unit) =
         Html.div [
             renderTicket InsideMenu state dispatch
             renderTicket OutsideMenu state dispatch]
-        match (hasErrors, totalPriceInEuros state) with
-        | (true, _)
-        | (false, 0) -> Html.text ""
-        | (false, p) -> Html.textf "Prix total de votre commande: %d €." p
+        match totalPriceInEuros state with
+        | None
+        | Some 0 -> Html.text ""
+        | Some p -> Html.textf "Prix total de votre commande: %d €." p
         maybeGDPR
         if hasErrors
         then Html.text ""
