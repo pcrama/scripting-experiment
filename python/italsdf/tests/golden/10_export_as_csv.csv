@@ -1,5 +1,6 @@
-Nom,Email,Places,Date,Fondus,Charcuterie,Bolo,Scampis,Tiramisu,Napolitaines,Commande,Origine,Commentaire,Actif,Email RGPD
-Saturday04,Saturday@gmail.com,5,2022-03-19,3,2,0,0,0,0,45.00 €,,,True,
-Sunday05,SundayMail@gmx.com,2,2022-03-19,0,1,1,0,1,0,25.00 €,,,True,
-TestCreatedByAdmin,,8,2099-01-01,1,2,4,8,4,4,259.00 €,TEST_ADMIN,ByAdmin,True,
-TestName03,Test.Email@example.com,3,2099-01-01,2,1,1,2,2,1,89.00 €,,,True,Test.Email@example.com
+,,À la carte,...,...,...,...,...,Menu,...,...,...,...,...,,,,,,
+Nom,Places,Assiette,Fondu,Bolo,Scampi,Tiramisu,Tranche,Assiette,Fondu,Bolo,Scampi,Tiramisu,Tranche,Total,Commentaire,Email,RGPD,Actif,Origine
+Saturday04,5,2,3,0,0,0,0,0,0,0,0,0,0,45.00 €,,Saturday@gmail.com,,True,
+Sunday05,2,0,0,0,0,0,0,1,0,1,0,1,0,25.00 €,,SundayMail@gmx.com,,True,
+TestCreatedByAdmin,8,2,1,4,8,4,4,0,0,0,0,0,0,259.00 €,ByAdmin,,,True,TEST_ADMIN
+TestName03,3,0,2,0,2,1,1,1,0,1,0,1,0,89.00 €,,Test.Email@example.com,Test.Email@example.com,True,

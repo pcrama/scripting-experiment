@@ -20,6 +20,10 @@ from storage import (
 from pricing import (
     price_in_euros
 )
+from lib_export_csv import (
+    export_reservation,
+    write_column_header_rows,
+)
 
 if __name__ == '__main__':
     if os.getenv('REQUEST_METHOD') != 'GET' or os.getenv('REMOTE_USER') is None:
@@ -33,27 +37,10 @@ if __name__ == '__main__':
         writer = csv.writer(sys.stdout, 'excel')
         if print_content_type('text/csv; charset=utf-8'):
             print()
-        writer.writerow((
-            'Nom', 'Email', 'Places', 'Date', 'Fondus', 'Charcuterie', 'Bolo', 'Scampis', 'Tiramisu', 'Napolitaines', 'Commande', 'Origine', 'Commentaire', 'Actif', 'Email RGPD'
-        ))
+        write_column_header_rows(writer)
         for x in Reservation.select(connection,
                                     order_columns=('ACTIVE', 'date', 'name')):
-            if x.origin:
-                comment = x.email
-                email = ''
-                gdpr_email = ''
-            else:
-                comment = ''
-                email = x.email
-                gdpr_email = x.email if x.gdpr_accepts_use else ''
-            writer.writerow((
-                x.name, email, x.places, x.date,
-                x.outside_fondus + x.inside_fondus, x.outside_assiettes + x.inside_assiettes,
-                x.outside_bolo + x.inside_bolo, x.outside_scampis + x.inside_scampis,
-                x.outside_tiramisu + x.inside_tiramisu, x.outside_tranches + x.inside_tranches,
-                price_in_euros(x),
-                x.origin, comment, x.active, gdpr_email
-            ))
+            export_reservation(writer, x)
     except Exception:
         if print_content_type('text/html; charset=utf-8'):
             print()

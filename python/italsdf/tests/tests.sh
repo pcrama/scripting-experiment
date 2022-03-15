@@ -403,7 +403,7 @@ function test_10_export_as_csv
     local test_output substitutions
     test_output="$test_dir/10_export_as_csv.csv"
     do_curl_as_admin 'gestion/export_csv.cgi' "$test_output.tmp"
-    sed -e "s/,$admin_user,/,TEST_ADMIN,/" "$test_output.tmp" > "$test_output"
+    sed -e "s/,$admin_user\$/,TEST_ADMIN/" "$test_output.tmp" > "$test_output"
     do_diff "$test_output"
     echo "test_10_export_as_csv: ok"
 }
