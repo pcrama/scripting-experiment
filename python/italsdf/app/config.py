@@ -15,6 +15,7 @@ def get_configuration():
         'cgitb_display': 1,
         'info_email': 'nobody@example.com',
         'ticket_image': 'ticket-image.png',
+        'disabled': False,
     }
     try:
         with open(os.path.join(SCRIPT_DIR, 'configuration.json')) as f:

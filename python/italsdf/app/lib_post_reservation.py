@@ -206,3 +206,11 @@ def respond_with_reservation_confirmation(
         cgitb.handler()
     else:
         redirect(redirection_url)
+
+
+def respond_with_reservations_closed():
+    respond_html(html_document(
+        'Soirée Italienne',
+        (('p',
+          "Nous n'acceptons plus de réservations mais il reste encore des places.  Présentez-vous ",
+          "simplement à l'entrée et vous serez les bienvenus."),)))

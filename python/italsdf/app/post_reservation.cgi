@@ -8,6 +8,7 @@ import cgi
 import cgitb
 import os
 import re
+import sys
 
 import config
 from htmlgen import (
@@ -24,6 +25,7 @@ from lib_post_reservation import(
     normalize_data,
     respond_with_reservation_confirmation,
     respond_with_reservation_failed,
+    respond_with_reservations_closed,
     save_data_sqlite3,
     validate_data,
 )
@@ -98,6 +100,10 @@ if __name__ == '__main__':
     cgitb.enable(display=CONFIGURATION['cgitb_display'], logdir=CONFIGURATION['logdir'])
 
     try:
+        if CONFIGURATION.get('disabled', False):
+            respond_with_reservations_closed()
+            sys.exit(0)
+
         db_connection = create_db(CONFIGURATION)
 
         # Get form data
