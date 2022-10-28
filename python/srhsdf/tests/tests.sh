@@ -110,7 +110,7 @@ function do_curl_with_redirect
              2> "$test_stderr"
     grep -q '^< HTTP/1.1 302 Found' "$test_stderr"
     grep -q '^< Content-Length: 0' "$test_stderr"
-    location="$(sed -n -e 's/^< Location: *//p' "$test_stderr")"
+    location="$(tr -d '\r' < "$test_stderr" | sed -n -e 's/^< Location: *//p')"
     do_curl "$location" "$test_output"
     echo "$location"
 }
