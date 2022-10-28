@@ -250,6 +250,7 @@ function make_list_reservations_output_deterministic
         sed -e 's/csrf_token" value="'"$csrf_token"'"/csrf_token" value="CSRF_TOKEN"/g' \
             $substitutions \
             -e "s/$admin_user/TEST_ADMIN/g" \
+            -e "s;<td>[0-9]*/[0-9]*/[0-9]* [0-9]*:[0-9]*</td></tr>;<td>TEST-DATE</td></tr>;g" \
             "$input"
     fi
 }
