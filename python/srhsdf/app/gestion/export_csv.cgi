@@ -22,7 +22,7 @@ from storage import (
 
 if __name__ == '__main__':
     if os.getenv('REQUEST_METHOD') != 'GET' or os.getenv('REMOTE_USER') is None:
-        redirect('https://www.srhbraine.be/concert-de-gala-2021/')
+        redirect('https://www.srhbraine.be/concert-de-gala-2022/')
 
     CONFIGURATION = config.get_configuration()
     cgitb.enable(display=CONFIGURATION['cgitb_display'], logdir=CONFIGURATION['logdir'])

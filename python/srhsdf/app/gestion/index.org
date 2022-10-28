@@ -1,6 +1,6 @@
 #+options: ^:{}
 #+author: Philippe Crama
-#+title: Concert de Gala 2021
+#+title: Concert de Gala 2022
 
 * Introduction
 
@@ -9,7 +9,7 @@ suivi des réservations.  Cette page permet aussi d'ajouter des réservations
 prises au téléphone ou d'exporter toutes les réservations en format CSV pour
 l'importer dans Excel.
 
-J'aimerais que le comité passe en revue la liste des [[#questions_a_valider_20211025][questions à valider]].
+J'aimerais que le comité passe en revue la liste des [[#questions_a_valider_20221025][questions à valider]].
 J'ai fait plusieurs choix arbitraires pendant l'implémentation qu'il faut
 confirmer.
 
@@ -69,7 +69,7 @@ le numéro de téléphone, mais ce champ n'est pas obligatoire.
 
 ** Du point de vue du public
 Normalement, notre publicité et [[https://www.srhbraine.be/][notre site]] doivent guider les spectateurs vers
-la [[https://www.srhbraine.be/concert-de-gala-2021/][page web de notre concert de Gala]] avec le formulaire suivant:
+la [[https://www.srhbraine.be/concert-de-gala-2022/][page web de notre concert de Gala]] avec le formulaire suivant:
 
 #+CAPTION: Formulaire d'inscription sur le site de la SRH
 #+ATTR_HTML: :alt Formulaire d'inscription sur le site de la SRH
@@ -94,7 +94,7 @@ similaire à celui-ci:
 
 * Questions à valider
 :PROPERTIES:
-:CUSTOM_ID: questions_a_valider_20211025
+:CUSTOM_ID: questions_a_valider_20221025
 :END:
 
 ** Prix des entrées et âge minimum
@@ -117,19 +117,19 @@ Afin d'essayer de limiter des abus potentiels du formulaire, j'ai limité
   d'exiger que le champ ne soit pas vide me paraît impossible.
 
 * DONE Tâches à finaliser avant la "mise en production"
-- [X] Configurer le prix des places via ~paying_seat_cents~.
-- [X] Configurer le numéro de compte via ~bank_account~.
-- [X] Configurer l'adresse email de contact via ~info_email~.
-- [X] Augmenter à 20 le nombre de bulles affichées par défaut dans
+- [ ] Configurer le prix des places via ~paying_seat_cents~.
+- [ ] Configurer le numéro de compte via ~bank_account~.
+- [ ] Configurer l'adresse email de contact via ~info_email~.
+- [ ] Augmenter à 20 le nombre de bulles affichées par défaut dans
   [[file+emacs:list_reservations.cgi][la liste des réservations]].
-- [X] Effacer les données de test
+- [ ] Effacer les données de test
   #+begin_example
     DELETE FROM reservations WHERE date = '2099-01-01' OR date = '2099-01-02';
   #+end_example
-- [X] Corriger la [[https://www.srhbraine.be/concert-de-gala-2021/][page web de notre concert de Gala]]
-  - [X] Numéro de téléphone
-  - [X] Titre de la page
-  - [X] Mesures d'hygiène et de sécurité
-  - [X] Les dates dans le formulaire
-  - [X] Le prix dans le formulaire
-  - [X] Lien vers la version finale des scripts CGI
+- [ ] Corriger la [[https://www.srhbraine.be/concert-de-gala-2022/][page web de notre concert de Gala]]
+  - [ ] Numéro de téléphone
+  - [ ] Titre de la page
+  - [ ] Mesures d'hygiène et de sécurité
+  - [ ] Les dates dans le formulaire
+  - [ ] Le prix dans le formulaire
+  - [ ] Lien vers la version finale des scripts CGI

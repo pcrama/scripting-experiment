@@ -18,7 +18,7 @@ from storage import(
     create_db,
 )
 
-CONCERT_PAGE = 'https://www.srhbraine.be/concert-de-gala-2021/'
+CONCERT_PAGE = 'https://www.srhbraine.be/concert-de-gala-2022/'
 
 if __name__ == '__main__':
     

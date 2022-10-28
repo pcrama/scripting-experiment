@@ -33,7 +33,7 @@ from lib_post_reservation import(
 
 
 def fail_add_unchecked_reservation():
-    redirect('https://www.srhbraine.be/concert-de-gala-2021/')
+    redirect('https://www.srhbraine.be/concert-de-gala-2022/')
 
 
 if __name__ == '__main__':

@@ -77,7 +77,7 @@ def validate_data(name, email, date, paying_seats, free_seats, gdpr_accepts_use,
         raise ValidationException("Vous n'avez pas indiqué combien de sièges vous vouliez réserver")
     if date not in (('2099-01-01', '2099-01-02')
                     if is_test_reservation(name, email)
-                    else ('2021-12-04', '2021-12-05',)):
+                    else ('2022-12-10', '2022-12-11',)):
         raise ValidationException("Il n'y a pas de concert ̀à cette date")
     reservations_count, reserved_seats  = Reservation.count_reservations(connection, name, email)
     if (reservations_count or 0) > 10:
@@ -104,7 +104,7 @@ def respond_with_validation_error(form, e, configuration):
 
 if __name__ == '__main__':
     if os.getenv('REQUEST_METHOD') != 'POST':
-        redirect('https://www.srhbraine.be/concert-de-gala-2021/')
+        redirect('https://www.srhbraine.be/concert-de-gala-2022/')
     CONFIGURATION = config.get_configuration()
 
     cgitb.enable(display=CONFIGURATION['cgitb_display'], logdir=CONFIGURATION['logdir'])

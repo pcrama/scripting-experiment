@@ -50,7 +50,7 @@ script:
 
 * Test mode
 There are 4 dates for the concert: 2 fake dates in 2099 and the 2 real dates
-in 2021.
+in 2022.
 
 The trick to be able to book dates for the fake dates is that the name must
 start with ~Test~ and that the email address must end with ~@example.com~.

@@ -86,7 +86,7 @@ MAX_LIMIT = 500
 
 if __name__ == '__main__':
     if os.getenv('REQUEST_METHOD') != 'GET' or os.getenv('REMOTE_USER') is None:
-        redirect('https://www.srhbraine.be/concert-de-gala-2021/')
+        redirect('https://www.srhbraine.be/concert-de-gala-2022/')
 
     CONFIGURATION = config.get_configuration()
     cgitb.enable(display=CONFIGURATION['cgitb_display'], logdir=CONFIGURATION['logdir'])
@@ -190,12 +190,12 @@ if __name__ == '__main__':
               (('label', 'for', 'comment'), 'Commentaire'),
               (('input', 'id', 'comment', 'name', 'comment', 'type', 'text', 'placeholder', 'Commentaire', 'style', 'width:100%;'),),
               ('br',),
-              (('input', 'id', 'samedi', 'name', 'date', 'type', 'radio', 'value', '2021-12-04',
+              (('input', 'id', 'samedi', 'name', 'date', 'type', 'radio', 'value', '2022-12-10',
                 'checked', 'checked'),),
-              (('label', 'for', 'samedi'), 'Samedi 4 décembre 2021 à 20h'),
+              (('label', 'for', 'samedi'), 'Samedi 10 décembre 2022 à 20h'),
               ('br',),
-              (('input', 'id', 'dimanche', 'name', 'date', 'type', 'radio', 'value', '2021-12-05'),),
-              (('label', 'for', 'dimanche'), 'Dimanche 5 décembre 2021 à 15h'),
+              (('input', 'id', 'dimanche', 'name', 'date', 'type', 'radio', 'value', '2022-12-11'),),
+              (('label', 'for', 'dimanche'), 'Dimanche 11 décembre 2022 à 15h'),
               ('br',),
               (('label', 'for', 'paying_seats'), 'Places payantes:'),
               (('input', 'id', 'paying_seats', 'name', 'paying_seats', 'type', 'number', 'min', '0', 'value', '1'),),

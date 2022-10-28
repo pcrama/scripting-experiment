@@ -88,7 +88,7 @@ function assert_redirect_to_concert_page
         || die "Not a redirect: $test_stderr"
     grep -q '^< Content-Length: 0' "$test_stderr" \
         || die "Content-Length != 0: $test_stderr"
-    grep -q '^< Location: https://www.srhbraine.be/concert-de-gala-2021/' "$test_stderr" \
+    grep -q '^< Location: https://www.srhbraine.be/concert-de-gala-2022/' "$test_stderr" \
         || die "Target is not concert page: $test_stderr"
 }
 
@@ -325,7 +325,7 @@ function test_04_valid_reservation_for_saturday
 {
     generic_test_valid_reservation_for_test_date 04_valid_reservation_for_saturday \
                                                  Saturday Saturday@gmail.com \
-                                                 2021-12-04 4 1 2000 1 2
+                                                 2022-12-10 4 1 2000 1 2
 }
 
 # 05: Register for Sunday
@@ -336,7 +336,7 @@ function test_05_valid_reservation_for_sunday
 {
     generic_test_valid_reservation_for_test_date 05_valid_reservation_for_sunday \
                                                  Sunday SundayMail@gmx.com \
-                                                 2021-12-05 1 1 500 0 3
+                                                 2022-12-11 1 1 500 0 3
 }
 
 # 06: List reservations with new content, limit & sorting options
@@ -457,7 +457,7 @@ function test_12_bobby_tables_and_co
     generic_test_valid_reservation_for_test_date 12_bobby_tables_and_co \
                                                  "<$reservation_name" \
                                                  "<$reservation_email" \
-                                                 2021-12-05 7 2 3500 0 5
+                                                 2022-12-11 7 2 3500 0 5
     do_curl_as_admin 'gestion/list_reservations.cgi?limit=9' "$test_output.tmp"
     csrf_token="$(sed -n -e 's/.*csrf_token" value="\([a-f0-9A-F]*\)".*/\1/p' "$test_output.tmp")"
     get_db_file
