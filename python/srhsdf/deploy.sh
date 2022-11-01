@@ -51,6 +51,8 @@ else
         | tar xzf - -C "$staging_dir"
     rm -f "$(dirname "$0")/app/gestion/index.html"
     find "$staging_dir" -type f '(' -name '*.cgi' -o -name '*.py' ')' -print0 | xargs -0 dos2unix
+    # Empty file to prevent directory listing:
+    touch "$staging_dir/index.html"
     tar czf - --"owner=$user" --"group=$group" -C "$staging_dir" . \
         | ssh "$destination" "mkdir -p '$folder'; tar xvzf - -C '$folder' $setup_password $setup_access"
     rm -r "$staging_dir" || echo "Unable to clean up staging_dir='$staging_dir'"
