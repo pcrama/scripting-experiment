@@ -15,7 +15,7 @@ Use the ~deploy.sh~ script like this:
   ./deploy.sh 'user@host' 'username' 'groupname' 'destination_folder'
 #+end_src
 
-- ~user@host~ :: anything that `ssh` accepts.
+- ~user@host~ :: anything that =ssh= accepts.
 - ~username~ and ~groupname~ :: CGI scripts are only executed if they belong
   to a specific user/group that does not correspond to the user/group of the
   system where development happens.  These parameters set the user/group in
@@ -29,7 +29,7 @@ script:
     <label for="name">Nom:</label><br>
     <input type="text" id="name" name="name" placeholder="Il est obligatoire de saisir votre nom" required="required" style="width:100%;"><br>
     <label for="email">Email:</label><br>
-    <input type="email" id="email" name="email" placeholder="Nous pourrions avoir besoin de votre email pour le tracing" required="required" style="width:100%;"><br>
+    <input type="email" id="email" name="email" placeholder="Votre adresse email nous permettra de vous tenir au courant de nos futures activités" required="required" style="width:100%;"><br>
     <br><input type="radio" id="samedi" name="date" value="2099-01-01" checked="checked">
     <label for="samedi">TEST: Samedi 1 janvier 2099 à 20h.</label><br>
     <input type="radio" id="dimanche" name="date" value="2099-01-02">
