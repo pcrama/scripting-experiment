@@ -70,10 +70,7 @@ if __name__ == '__main__':
         'Réservation effectuée',
         (('p', 'Votre réservation au nom de ', reservation.name) + places,
          virement,
-         ('p', (('a', 'href', CONCERT_PAGE), 'Cette page'), ' sera tenue à jour avec '
-          'les mesures de sécurité en vigueur lors de notre concert. Merci de la consulter '
-          'peu avant notre spectacle. ',
-          (('a', 'href', f"mailto:{CONFIGURATION['info_email']}"), 'Contactez-nous'),
+         ('p', (('a', 'href', f"mailto:{CONFIGURATION['info_email']}"), 'Contactez-nous'),
           ' si vous avez encore des questions.'),
          ('p', 'Un tout grand merci pour votre présence le ', reservation.date,
           ': le soutien de nos auditeurs nous est indispensable!'))))

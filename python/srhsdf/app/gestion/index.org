@@ -129,7 +129,6 @@ Afin d'essayer de limiter des abus potentiels du formulaire, j'ai limité
 - [ ] Corriger la [[https://www.srhbraine.be/concert-de-gala-2022/][page web de notre concert de Gala]]
   - [ ] Numéro de téléphone
   - [ ] Titre de la page
-  - [ ] Mesures d'hygiène et de sécurité
   - [ ] Les dates dans le formulaire
   - [ ] Le prix dans le formulaire
   - [ ] Lien vers la version finale des scripts CGI
