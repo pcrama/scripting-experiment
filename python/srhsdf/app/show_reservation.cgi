@@ -64,8 +64,11 @@ if __name__ == '__main__':
                 'p', 'Veuillez confirmer votre réservation en virant ',
                 cents_to_euro(reservation.cents_due),
                 '€ sur le compte ', CONFIGURATION['bank_account'], ' en mentionnant la '
-                'communication structurée ', ('code', format_bank_id(reservation.bank_id)), '.  '
-                "Vous serez remboursé(e) en cas d'annulation du concert.")
+                'communication structurée ', ('code', format_bank_id(reservation.bank_id)), '.  ',
+                'Vos places seront tenues'
+                if (reservation.paying_seats + reservation.free_seats > 1)
+                else 'Votre place sera tenue',
+                " à votre disposition à l'entrée.  Vous serez remboursé(e) en cas d'annulation du concert.")
     respond_html(html_document(
         'Réservation effectuée',
         (('p', 'Votre réservation au nom de ', reservation.name) + places,
