@@ -128,7 +128,7 @@ if __name__ == '__main__':
              None,
              ('li',
               make_navigation_a_elt(sort_order, limit, offset + limit, 'Suivant'))
-             if offset + limit < total_bookings else
+             if offset + limit < active_reservations else
              None]
             if x is not None))
         respond_html(html_document(
