@@ -97,7 +97,7 @@ function do_curl_with_redirect
              2> "$test_stderr"
     grep -q '^< HTTP/1.1 302 Found' "$test_stderr"
     grep -q '^< Content-Length: 0' "$test_stderr"
-    location="$(sed -n -e 's/^< Location: *//p' "$test_stderr")"
+    location="$(tr -d '\r' < "$test_stderr" | sed -n -e 's/^< Location: *//p')"
     do_curl "$location" "$test_output"
     echo "$location"
 }
@@ -403,7 +403,7 @@ function test_10_export_as_csv
     local test_output substitutions
     test_output="$test_dir/10_export_as_csv.csv"
     do_curl_as_admin 'gestion/export_csv.cgi' "$test_output.tmp"
-    sed -e "s/,$admin_user\$/,TEST_ADMIN/" "$test_output.tmp" > "$test_output"
+    tr -d '\r' < "$test_output.tmp" | sed -e "s/,$admin_user\$/,TEST_ADMIN/" > "$test_output"
     do_diff "$test_output"
     echo "test_10_export_as_csv: ok"
 }
@@ -521,7 +521,7 @@ function test_17_generate_tickets_form_input
 }
 
 # First run local unit tests to avoid deploying if it's already broken
-(cd "$(dirname "$0")" && python -m unittest discover) || die "Unit tests failed"
+(cd "$(dirname "$0")" && python3 -m unittest discover) || die "Unit tests failed"
 
 # Temporary dir to store test outputs and also used as deployment directory name
 test_dir="$(mktemp --directory)"
