@@ -20,7 +20,14 @@ Use the ~deploy.sh~ script like this:
   to a specific user/group that does not correspond to the user/group of the
   system where development happens.  These parameters set the user/group in
   the destination.
-- ~destination_folder~ :: where to deploy.
+- ~destination_folder~ :: where to deploy (relative to the SSH host, not
+  necessarily the path typed in your browser)
+
+Then configure the application
+- upload an image to =destination_folder/gestion/=
+- edit =destination_folder/configuration.json= on your webserver (cf
+  [[file+emacs:app/config.py][app/config.py]]).
+- Put up the dynamic or static input form
 
 ** Dynamic input form
 There is a [[file+emacs:input-form/][Fable/Elmish application]] that is deployed next to these CGI scripts
@@ -89,3 +96,21 @@ as the state of one test is often assumed in the next test.
 - Minimal validation on name and email: we count on the fact that few people
   will find the form and that we will weed out fake registrations by seeing
   who pays.
+
+* NixOS instructions
+#+begin_src shell :exports code
+  nix-shell -p dos2unix nodejs dotnet-sdk_3
+#+end_src
+
+NB: I tried =dotnet-sdk_7= on [2023-01-17 Tue], but the Fable compiler kept
+complaining about not being able to find my main =App.fs= file, so I
+downgraded to the .Net SDK version I thought I was using when initially
+writing this.
+
+In the nix-shell:
+1. See [[file+emacs:input-form/README.md][input-form README file]]
+   #+begin_src shell :exports code
+     npm install
+     npm run build
+   #+end_src
+2. Use the [[Deployment][Deployment instructions]]
