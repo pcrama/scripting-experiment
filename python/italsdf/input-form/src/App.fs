@@ -6,41 +6,55 @@ open Feliz
 
 type PlateType = | InsideMenu | OutsideMenu
 
-type Plate = | Assiettes | Fondus | Bolo | Scampis | Tiramisu | Tranches
+type Plate = | MainStarter | ExtraStarter | Bolo | ExtraDish | BoloKids | ExtraDishKids | Dessert
 
-let AllPlates = [Assiettes; Fondus; Bolo; Scampis; Tiramisu; Tranches]
+let AllPlates = [MainStarter; ExtraStarter; Bolo; ExtraDish; BoloKids; ExtraDishKids; Dessert]
 
 type Tickets<'t> =
     {
-        assiettes : 't
-        fondus : 't
+        mainStarter : 't
+        extraStarter : 't
         bolo : 't
-        scampis : 't
-        tiramisu : 't
-        tranches : 't
+        extraDish : 't
+        dessert : 't
+        boloKids : 't
+        extraDishKids : 't
     }
     with member this.Get = function
-                | Assiettes -> this.assiettes
-                | Fondus -> this.fondus
+                | MainStarter -> this.mainStarter
+                | ExtraStarter -> this.extraStarter
                 | Bolo -> this.bolo
-                | Scampis -> this.scampis
-                | Tiramisu -> this.tiramisu
-                | Tranches -> this.tranches
+                | ExtraDish -> this.extraDish
+                | BoloKids -> this.boloKids
+                | ExtraDishKids -> this.extraDishKids
+                | Dessert -> this.dessert
 
-let PrixEntreeEuros = 9
-let PrixBoloEuros = 12
-let PrixScampisEuros = PrixBoloEuros + 5
-let PrixDessertEuros = 6
-let PrixMenuBolo = PrixEntreeEuros + PrixBoloEuros + PrixDessertEuros - 2
-let PrixMenuScampis = PrixEntreeEuros + PrixScampisEuros + PrixDessertEuros - 2
+let PrixEntreeCents = 750
+let PrixBoloCents = 1500
+let PrixExtraDishCents = PrixBoloCents
+let PrixDessertCents = 750
+let PrixMenuBolo = PrixEntreeCents + PrixBoloCents + PrixDessertCents - 300
+let PrixMenuExtraDish = PrixEntreeCents + PrixExtraDishCents + PrixDessertCents - 300
+let PrixMenuKids = 1600
 
 let TicketsNames = {
-    assiettes = "Assiette italienne"
-    fondus = "Croquettes au fromage"
+    mainStarter = "Tomate Mozzarella"
+    extraStarter = "Croquettes au fromage"
     bolo = "Spaghetti bolognaise"
-    scampis = "Spaghetti aux scampis"
-    tiramisu = "Tiramisu maison"
-    tranches = "Tranche napolitaine"
+    extraDish = "Spaghetti végétarien"
+    boloKids = "Spaghetti bolognaise (enfant)"
+    extraDishKids = "Spaghettis végétarien (enfant)"
+    dessert = "Assiette de 3 Mignardises"
+}
+
+let TicketsNamesPlural = {
+    mainStarter = "Tomates Mozzarella"
+    extraStarter = "Croquettes au fromage"
+    bolo = "Spaghettis bolognaise"
+    extraDish = "Spaghettis végétarien"
+    boloKids = "Spaghettis bolognaise (enfants)"
+    extraDishKids = "Spaghettis végétarien (enfants)"
+    dessert = "Assiettes de 3 Mignardises"
 }
 
 type State =
@@ -68,12 +82,13 @@ type Msg =
 
 let updateMenu (tickets : Tickets<'a>) (plate: Plate) (newValue: 'a): Tickets<'a> =
     match plate with
-    | Assiettes -> { tickets with assiettes = newValue }
-    | Fondus -> { tickets with fondus = newValue } 
+    | MainStarter -> { tickets with mainStarter = newValue }
+    | ExtraStarter -> { tickets with extraStarter = newValue } 
     | Bolo -> { tickets with bolo = newValue } 
-    | Scampis -> { tickets with scampis = newValue } 
-    | Tiramisu -> { tickets with tiramisu = newValue } 
-    | Tranches -> { tickets with tranches = newValue }
+    | ExtraDish -> { tickets with extraDish = newValue } 
+    | BoloKids -> { tickets with boloKids = newValue } 
+    | ExtraDishKids -> { tickets with extraDishKids = newValue } 
+    | Dessert -> { tickets with dessert = newValue } 
 
 let updateNoValidate (msg: Msg) (state: State): State =
     match msg with
@@ -86,20 +101,29 @@ let updateNoValidate (msg: Msg) (state: State): State =
     | SetPlaces newPlaces -> { state with places = newPlaces }
     | SetMenus newMenus -> { state with menus = newMenus }
 
-let validatePositive (count: int) (namePlural: string) (tail: string list): string list =
+let validatePositive' (count: int) (namePlural: string) (tail: string list): string list =
     if count < 0
     then (sprintf "Le nombre de %s doit être positif." namePlural :: tail)
     else tail
 
-let validateStrictPositive (count: int) (namePlural: string) (tail: string list): string list =
+let validatePositive (tickets: Tickets<int>) (plate: Plate) (tail: string list): string list =
+    validatePositive' (tickets.Get plate) (TicketsNamesPlural.Get plate) tail
+
+let validateStrictPositive' (count: int) (namePlural: string) (tail: string list): string list =
     if count < 1
     then (sprintf "Le nombre de %s doit être supérieur à 0." namePlural :: tail)
     else tail
 
-let validateInclusiveBelow (count: int) (namePlural: string) (max: int) (tail: string list): string list =
+let validateStrictPositive (tickets: Tickets<int>) (plate: Plate) (tail: string list): string list =
+    validateStrictPositive' (tickets.Get plate) (TicketsNamesPlural.Get plate) tail
+
+let validateInclusiveBelow' (count: int) (namePlural: string) (max: int) (tail: string list): string list =
     if count > max
     then (sprintf "Le nombre de %s doit être inférieur ou égal à %d." namePlural max :: tail)
     else tail
+
+let validateInclusiveBelow (tickets: Tickets<int>) (plate: Plate) (max: int) (tail: string list): string list =
+    validateInclusiveBelow' (tickets.Get plate) (TicketsNamesPlural.Get plate) max tail
 
 let naivePlural (count: int) (singular: string): string =
     match count with
@@ -114,18 +138,21 @@ let altList (f: 'a -> 'b list) (xs: 'a) (ys: 'a): 'b list =
 let FormMaxInt = 50
 
 let validatePlatePair
-        (plate1Count: int)
-        (plate1PluralName: string)
-        (plate2Count: int)
-        (plate2PluralName: string)
+        (tickets: Tickets<int>)
+        (plate1: Plate)
+        (plate2: Plate)
         (target: int option) =
+    let plate1Count = tickets.Get plate1
+    let plate1PluralName = TicketsNamesPlural.Get plate1
+    let plate2Count = tickets.Get plate2
+    let plate2PluralName = TicketsNamesPlural.Get plate2
     let rangeErrors =
-        (validateInclusiveBelow plate1Count
-                                plate1PluralName
+        (validateInclusiveBelow tickets
+                                plate1
                                 FormMaxInt
-                                (validatePositive plate1Count plate1PluralName []),
-         validateInclusiveBelow plate2Count plate2PluralName FormMaxInt
-                                (validatePositive plate2Count plate2PluralName []))
+                                (validatePositive tickets plate1 []),
+         validateInclusiveBelow tickets plate2 FormMaxInt
+                                (validatePositive tickets plate2 []))
     let menuErrors =
         match target with
         | None -> ([], [])
@@ -147,15 +174,20 @@ let validatePlatePair
      (altList snd rangeErrors menuErrors))
 
 let validateTickets (t: Tickets<int>) (target: int option): Tickets<string list> =
-    let (assiettes, fondus) = validatePlatePair t.assiettes "Assiettes italiennes" t.fondus "Croquettes au fromage" target
-    let (bolo, scampis) = validatePlatePair t.bolo "Spaghettis bolognaise" t.scampis "Spaghettis aux scampis" target
-    let (tiramisu, tranches) = validatePlatePair t.tiramisu "Tiramisus" t.tranches "Tranches napolitaines" target
-    { assiettes = assiettes
-      fondus = fondus
+    let (mainStarter, extraStarter) = validatePlatePair t MainStarter ExtraStarter target
+    let (bolo, extraDish) = validatePlatePair t Bolo ExtraDish target
+    let (boloKids, extraDishKids) = validatePlatePair t BoloKids ExtraDishKids target
+    let dessert = validateInclusiveBelow t
+                                         Dessert
+                                         FormMaxInt
+                                         (validateStrictPositive t Dessert [])
+    { mainStarter = mainStarter
+      extraStarter = extraStarter
       bolo = bolo
-      scampis = scampis
-      tiramisu = tiramisu
-      tranches = tranches }
+      extraDish = extraDish
+      boloKids = boloKids
+      extraDishKids = extraDishKids
+      dessert = dessert }
 
 let csrfToken: string option =
     match Fable.Core.JS.eval "try { CSRF_TOKEN } catch { '' }" with
@@ -163,10 +195,10 @@ let csrfToken: string option =
     | x -> Some x
 
 let validateState (state: State) =
-    let menusErrors = validateInclusiveBelow state.menus
-                                             "menus"
-                                             FormMaxInt
-                                             (validatePositive state.menus "menus" [])
+    let menusErrors = validateInclusiveBelow' state.menus
+                                              "menus"
+                                              FormMaxInt
+                                              (validatePositive' state.menus "menus" [])
     let target = match menusErrors with
                  | [] -> Some state.menus
                  | _ -> None
@@ -178,26 +210,27 @@ let validateState (state: State) =
                        | (None, x) when (let at = x.IndexOf('@') in at > -1 && x.IndexOf('.', at) - at > 1)
                            -> None
                        | _ -> Some "Veuillez saisir une adresse email valide."
-          placesErrors = validateInclusiveBelow state.places
-                                                "places"
-                                                FormMaxInt
-                                                (validateStrictPositive state.places "places" [])
+          placesErrors = validateInclusiveBelow' state.places
+                                                 "places"
+                                                 FormMaxInt
+                                                 (validateStrictPositive' state.places "places" [])
           insideMenuErrors = validateTickets state.insideMenu target
           outsideMenuErrors = validateTickets state.outsideMenu None
           menusErrors = menusErrors
     }
 
-let totalPriceInEuros (state: State): int option =
+let totalPriceInCents (state: State): int option =
     match state with
-    | { insideMenuErrors = { assiettes = []; fondus = []; bolo = []; scampis = []; tiramisu = []; tranches = []}
-        outsideMenuErrors = { assiettes = []; fondus = []; bolo = []; scampis = []; tiramisu = []; tranches = []}
+    | { insideMenuErrors = { mainStarter = []; extraStarter = []; bolo = []; extraDish = []; boloKids = []; extraDishKids = []; dessert = []}
+        outsideMenuErrors = { mainStarter = []; extraStarter = []; bolo = []; extraDish = []; boloKids = []; extraDishKids = []; dessert = []}
         menusErrors = [] } ->
             state.insideMenu.bolo * PrixMenuBolo +
-            state.insideMenu.scampis * PrixMenuScampis +
-            (state.outsideMenu.assiettes + state.outsideMenu.fondus) * PrixEntreeEuros +
-            state.outsideMenu.bolo * PrixBoloEuros +
-            state.outsideMenu.scampis * PrixScampisEuros +
-            (state.outsideMenu.tiramisu + state.outsideMenu.tranches) * PrixDessertEuros
+            state.insideMenu.extraDish * PrixMenuExtraDish +
+            (state.outsideMenu.mainStarter + state.outsideMenu.extraStarter) * PrixEntreeCents +
+            state.outsideMenu.bolo * PrixBoloCents +
+            state.outsideMenu.extraDish * PrixExtraDishCents +
+            state.outsideMenu.dessert * PrixDessertCents +
+            (state.insideMenu.boloKids + state.insideMenu.extraDishKids) * PrixMenuKids
             |> Some
     | _ -> None
 
@@ -288,9 +321,10 @@ let renderTicket (isMenu: PlateType) (state: State) (dispatch: Msg -> unit) =
                          "ticket"
              |> Html.textf "Hors menu: %s")
     let renderedTicket =
-        [("Entrées", [Assiettes; Fondus])
-         ("Plats", [Bolo; Scampis])
-         ("Desserts", [Tiramisu; Tranches])]
+        [("Entrées", [MainStarter; ExtraStarter])
+         ("Plats", [Bolo; ExtraDish])
+         ("Enfants", [BoloKids; ExtraDishKids])
+         ("Desserts", [Dessert])]
         |> (List.map <| fun (title: string, plates) ->
                Html.li [
                    Html.text title
@@ -382,10 +416,10 @@ let render (state: State) (dispatch: Msg -> unit) =
         Html.div [
             renderTicket InsideMenu state dispatch
             renderTicket OutsideMenu state dispatch]
-        match totalPriceInEuros state with
+        match totalPriceInCents state with
         | None
         | Some 0 -> Html.text ""
-        | Some p -> Html.textf "Prix total de votre commande: %d €." p
+        | Some p -> Html.textf "Prix total de votre commande: %d.%02d €." (p / 100) (p % 100)
         maybeGDPR
         if hasErrors
         then Html.text ""
@@ -402,17 +436,18 @@ let init() =
         email = ""
         places = 1
         menus = 0
-        insideMenu = { assiettes = 0; fondus = 0; bolo = 0; scampis = 0; tiramisu = 0; tranches = 0 }
-        outsideMenu = { assiettes = 0; fondus = 0; bolo = 0; scampis = 0; tiramisu = 0; tranches = 0 }
+        insideMenu = { mainStarter = 0; extraStarter = 0; bolo = 0; extraDish = 0; boloKids = 0; extraDishKids = 0; dessert = 0 }
+        outsideMenu = { mainStarter = 0; extraStarter = 0; bolo = 0; extraDish = 0; boloKids = 0; extraDishKids = 0; dessert = 0 }
         nameError = None
         emailError = None
         menusErrors = []
         placesErrors = []
-        insideMenuErrors = { assiettes = []; fondus = []; bolo = []; scampis = []; tiramisu = []; tranches = [] }
-        outsideMenuErrors = { assiettes = []; fondus = []; bolo = []; scampis = []; tiramisu = []; tranches = [] }
+        insideMenuErrors = { mainStarter = []; extraStarter = []; bolo = []; extraDish = []; boloKids = []; extraDishKids = []; dessert = [] }
+        outsideMenuErrors = { mainStarter = []; extraStarter = []; bolo = []; extraDish = []; boloKids = []; extraDishKids = []; dessert = [] }
     }
     validateState state
 
 Program.mkSimple init update render
-|> Program.withReactSynchronous "elmish-app"
+|> Program.withReactBatched "elmish-app"
+|> Program.withConsoleTrace
 |> Program.run
