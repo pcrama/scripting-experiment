@@ -23,7 +23,7 @@ module.exports = (env, argv) => {
                     devMiddleware: {
                         publicPath: "/"
                     },
-                    port: 8080,
+                    port: 8081,
                     proxy: undefined,
                     hot: true,
                     static: {
