@@ -99,18 +99,9 @@ as the state of one test is often assumed in the next test.
 
 * NixOS instructions
 #+begin_src shell :exports code
-  nix-shell -p dos2unix nodejs dotnet-sdk_3
+  nix-shell -p dos2unix nodejs-18_x dotnet-sdk_5 yarn
 #+end_src
 
-NB: I tried =dotnet-sdk_7= on [2023-01-17 Tue], but the Fable compiler kept
-complaining about not being able to find my main =App.fs= file, so I
-downgraded to the .Net SDK version I thought I was using when initially
-writing this.
-
 In the nix-shell:
-1. See [[file+emacs:input-form/README.md][input-form README file]]
-   #+begin_src shell :exports code
-     npm install
-     npm run build
-   #+end_src
+1. See [[file+emacs:input-form/README.md][input-form README file]] to build the interactive menu selection form
 2. Use the [[Deployment][Deployment instructions]]

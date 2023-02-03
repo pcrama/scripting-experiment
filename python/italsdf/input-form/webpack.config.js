@@ -1,38 +1,87 @@
-const path = require("path")
+const path = require("path");
+const webpack = require("webpack");
+// const CopyWebpackPlugin = require('copy-webpack-plugin');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
+const MinifyPlugin = require("terser-webpack-plugin");
 
-module.exports = (env, argv) => {
-    // extract build mode from command-line
-    const mode = argv.mode;
-    const result = {
-        mode: mode,
-        entry: "./src/App.fsproj",
-        module: {
-            rules: [{
-                test: /\.fs(x|proj)?$/,
-                use: "fable-loader"
-            }]
+const isProduction = process.argv.indexOf("serve") < 0;
+console.log("Bundling for " + (isProduction ? "production" : "development") + "...");
+
+const commonPlugins = [
+    new HtmlWebpackPlugin({
+        filename: './index.html',
+        template: './src/index.html'
+    }),
+    // new CopyWebpackPlugin({
+    //     patterns: [
+    //         { from: './node_modules/todomvc-app-css/index.css' }
+    //     ]}
+    // )
+    ];
+
+module.exports = {
+    mode: "development",
+    devtool: isProduction ? false : "source-map",
+    entry: isProduction ? // We don't use the same entry for dev and production, to make HMR over style quicker for dev env
+    {
+        demo: [
+            './src/out/App.js'
+        ]
+    } : {
+        app: [
+            './src/out/App.js'
+        ]
+    },
+    output: {
+        path: path.join(__dirname, "./build"),
+        filename: isProduction ? '[name].[contenthash].js' : '[name].js',
+        publicPath: "/"
+    },
+    optimization : {
+        splitChunks: {
+            cacheGroups: {
+                commons: {
+                    test: /node_modules/,
+                    name: "vendors",
+                    chunks: "all"
+                }
+            }
+        },
+	minimize: isProduction,
+        minimizer: isProduction
+            ? [new MinifyPlugin()]
+            : []
+    },
+    devServer: {
+        port: 8090,
+        static: {
+            directory: './build'
         }
-    }
-
-    if ("development" == mode) {
-        Object.assign(
-            result, {
-                devtool: "eval-source-map",
-
-                devServer: {
-                    devMiddleware: {
-                        publicPath: "/"
-                    },
-                    port: 8081,
-                    proxy: undefined,
-                    hot: true,
-                    static: {
-                        directory: path.resolve(__dirname, "./dist"),
-                        staticOptions: {},
-                    },
+    },
+    module: {
+        rules: [
+            {
+                test: /\.js$/,
+                enforce: "pre",
+                use: ["source-map-loader"],
+            },
+            {
+                test: /\.js$/,
+                exclude: /node_modules/,
+                use: {
+                    loader: 'babel-loader',
+                    options: {
+                        presets: [
+                            ["@babel/preset-env", {
+                                "modules": false,
+                                "useBuiltIns": "usage",
+                                "corejs": 3
+                            }]
+                        ],
+                    }
                 },
-            });
-    }
-
-    return result;
+            }
+        ]
+    }, 
+    plugins: commonPlugins
 }

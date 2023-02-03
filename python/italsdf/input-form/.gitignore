@@ -201,3 +201,7 @@ project.lock.json
 .ionide
 main.js
 /dist/*.js.LICENSE.txt
+
+# Manually added output files
+/src/out/
+*.fs.js
