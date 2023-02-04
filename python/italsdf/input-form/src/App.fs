@@ -321,10 +321,10 @@ let inputNumberRaw wrapperElt (id: string) (label: string) labelStyle (value: in
         sprintf "div-just-for-%s" id |> prop.id
         prop.children children]
 
-let inputNumber (tickets: Tickets<int>) (errors: Tickets<string list>) (idPrefix: string) (plate: Plate) (onChange: int -> unit) =
+let inputNumber (state: State) (idPrefix: string) (plate: Plate) (onChange: int -> unit) =
     let id = sprintf "%s_%s" idPrefix <| plate.ToString().ToLower()
-    let value = tickets.Get plate
-    let errorsS = errors.Get plate
+    let value = state.tickets.Get plate
+    let errorsS = state.ticketsErrors.Get plate
     let label = TicketsNames.Get plate
     inputNumberRaw Html.li
                    id
@@ -335,49 +335,80 @@ let inputNumber (tickets: Tickets<int>) (errors: Tickets<string list>) (idPrefix
                    (Some <| length.em 20)
                    onChange
 
-let renderTicket (isMenu: PlateType) (state: State) (dispatch: Msg -> unit) =
-    let setNumber p v = SetNumberOfTickets (isMenu, p, v) |> dispatch
-    let mkInput, header =
-        match isMenu with
-        | InsideMenu ->
-            (inputNumber state.insideMenu state.insideMenuErrors "inside",
-             Html.div [
-                prop.children [
-                Html.input [
-                    prop.style [
-                        length.em 3 |> style.width
-                        style.textAlign.right]
-                    prop.value state.menus
-                    prop.type' "number"
-                    prop.min 0
-                    prop.max FormMaxInt
-                    SetMenus >> dispatch |> prop.onChange]
-                Html.textf " menu%s" <| if state.menus = 1 then "" else "s"]])
-        | OutsideMenu ->
-            let onlyCountIfReasonable p =
-                match state.outsideMenuErrors.Get p with
-                | [] -> state.outsideMenu.Get p
-                | _ -> 0
-            (inputNumber state.outsideMenu state.outsideMenuErrors "outside",
-             naivePlural (List.sumBy onlyCountIfReasonable AllPlates)
-                         "ticket"
-             |> Html.textf "Hors menu: %s")
-    let renderedTicket =
-        [("Entrées", [MainStarter; ExtraStarter])
-         ("Plats", [Bolo; ExtraDish])
-         ("Enfants", [BoloKids; ExtraDishKids])
-         ("Desserts", [Dessert])]
-        |> (List.map <| fun (title: string, plates) ->
-               Html.li [
-                   Html.text title
-                   plates |> List.map (fun p -> setNumber p |> mkInput p) |> Html.ul])
-        |> Html.ul
+let renderDessertDisplay (count: int) =
+    Html.li [
+        Html.text "Dessert"
+        Html.ul [Html.li [Html.textf "%s: %d"
+                                     ((if count = 1 then TicketsNames else TicketsNamesPlural).Get <| OutsideDessert)
+                                     count]]]
+
+let renderTicketList (choices: (string * Plate list) list) (state: State) (idPrefix: string) header (htmlTail: ReactElement list) (dispatch: Msg -> unit) =
+    let setNumber p v = SetNumberOfTickets (p, v) |> dispatch
+    let renderedTickets = Html.ul (
+        (choices
+          |> (List.map <| fun (title: string, plates: Plate list) ->
+                  Html.li [
+                      Html.text title
+                      plates |> List.map (fun p -> setNumber p |> inputNumber state idPrefix p) |> Html.ul]))
+        @ htmlTail)
     Html.div [
         prop.style [
             length.ex 1 |> style.marginRight
             style.verticalAlign.top
             style.display.inlineBlock]
-        prop.children [header; renderedTicket]]
+        prop.children [header; renderedTickets]]
+
+let menuHeader (count: int) formatString (dispatch: int -> unit) =
+    Html.div [
+        prop.children [
+        Html.input [
+            prop.style [
+                length.em 3 |> style.width
+                style.textAlign.right]
+            prop.value count
+            prop.type' "number"
+            prop.min 0
+            prop.max FormMaxInt
+            dispatch |> prop.onChange]
+        Html.textf formatString <| if count = 1 then "" else "s"]]
+
+let renderInsideMenu (state: State) (dispatch: Msg -> unit) =
+    let header = menuHeader (state.menus) "menu%s" (SetMenus >> dispatch)
+    renderTicketList ["Entrées", [InsideMainStarter; InsideExtraStarter];
+                      "Plats", [InsideBolo; InsideExtraDish]]
+                     state
+                     "inside"
+                     header
+                     [renderDessertDisplay <| state.menus]
+                     dispatch
+
+let renderKidsMenu (state: State) (dispatch: Msg -> unit) =
+    let header = menuHeader (state.kidsMenus) "menu%s enfants" (SetKidsMenus >> dispatch)
+    renderTicketList ["Plats", [BoloKids; ExtraDishKids]]
+                     state
+                     "kids"
+                     header
+                     [renderDessertDisplay <| state.kidsMenus]
+                     dispatch
+
+let renderOutsideMenu (state: State) (dispatch: Msg -> unit) =
+    let onlyCountIfReasonable p =
+        match state.ticketsErrors.Get p with
+        | [] -> state.tickets.Get p
+        | _ -> 0
+    let outsideChoices = [("Entrées", [OutsideMainStarter; OutsideExtraStarter])
+                          ("Plats", [OutsideBolo; OutsideExtraDish])
+                          ("Dessert", [OutsideDessert])]
+    let header = naivePlural (List.sumBy (fun (_, plates) -> List.sumBy onlyCountIfReasonable plates)
+                                         outsideChoices)
+                             "ticket"
+              |> Html.textf "Hors menu: %s"
+    renderTicketList outsideChoices
+                     state
+                     "outside"
+                     header
+                     []
+                     dispatch
 
 let inputText (id: string) (type': string) (label: string) (placeholder: string) (value: string) (error: string option) (onChange: string -> unit) =
     let basicChildren s = [
@@ -456,8 +487,9 @@ let render (state: State) (dispatch: Msg -> unit) =
                        None
                        (SetPlaces >> dispatch)
         Html.div [
-            renderTicket InsideMenu state dispatch
-            renderTicket OutsideMenu state dispatch]
+            renderInsideMenu state dispatch
+            renderKidsMenu state dispatch
+            renderOutsideMenu state dispatch]
         match totalPriceInCents state with
         | None
         | Some 0 -> Html.text ""
