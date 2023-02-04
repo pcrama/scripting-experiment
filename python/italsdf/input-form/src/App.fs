@@ -88,6 +88,7 @@ let TicketsNamesPlural = {
 type State = {
     name : string
     email : string
+    extraComment : string
     places : int
     menus : int
     kidsMenus : int
@@ -104,6 +105,7 @@ type Msg =
     | SetNumberOfTickets of Plate * int
     | SetName of string
     | SetEmail of string
+    | SetExtraComment of string
     | SetPlaces of int
     | SetMenus of int
     | SetKidsMenus of int
@@ -127,6 +129,7 @@ let updateNoValidate (msg: Msg) (state: State): State =
     | SetNumberOfTickets (plate, newCount) -> { state with tickets = updateTickets state.tickets plate newCount }
     | SetName newName -> { state with name = newName }
     | SetEmail newEmail -> { state with email = newEmail }
+    | SetExtraComment newComment -> { state with extraComment = newComment }
     | SetPlaces newPlaces -> { state with places = newPlaces }
     | SetMenus newMenus -> { state with menus = newMenus }
     | SetKidsMenus newMenus -> { state with kidsMenus = newMenus }
@@ -446,10 +449,10 @@ let hasErrors (state: State): bool =
 
 let render (state: State) (dispatch: Msg -> unit) =
     let hasErrors = hasErrors state
-    let (secondTextInput, maybeHiddenCsrf, maybeGDPR) =
+    let (secondTextInput, maybeHiddenCsrf, maybeGDPR, maybeExtraComment) =
         match csrfToken with
         // No CSRF token?  We are working for a simple user, so must validate the input and query for GDPR consent
-        | None -> (inputText "email" "email" "Email:" "Nous pourrions avoir besoin de votre email pour le tracing",
+        | None -> (inputText "email" "email" "Email:" "Votre adress email au cas où nous devions vous contacter pour votre commande",
                    Html.text "",
                    Html.div [
                        prop.style [style.overflow.hidden]
@@ -467,17 +470,22 @@ let render (state: State) (dispatch: Msg -> unit) =
                            prop.children [
                                Html.label [
                                    prop.htmlFor "gdpr_accepts_use"
-                                   prop.text "J’autorise la Société Royale d’Harmonie de Braine-l’Alleud à utiliser mon adresse email pour m’avertir de ses futures activités."]]]]])
+                                   prop.text "J’autorise la Société Royale d’Harmonie de Braine-l’Alleud à utiliser mon adresse email pour m’avertir de ses futures activités."]]]]],
+                   Some <| inputText "extraComment" "extraComment" "Commentaire:" "Toute autre information par rapport à votre commande")
         // CSRF token?  We are working for a logged in admin, so we don't validate email but store a comment instead
         | Some x -> (inputText "comment" "text" "Commentaire:" "Commentaire optionnel, p.ex. le numéro de téléphone",
                      Html.input [prop.name "csrf_token"; prop.type' "hidden"; prop.value x],
-                     Html.text "")
+                     Html.text "",
+                     None)
     Html.form [
         prop.method "POST"
         Fable.Core.JS.eval "try { ACTION_DEST } catch { '' }" |> prop.action
         prop.children [
         inputText "name" "text" "Nom:" "Vos places et votre commande de tickets seront à votre nom" state.name state.nameError (SetName >> dispatch)
         secondTextInput state.email state.emailError (SetEmail >> dispatch)
+        match maybeExtraComment with
+        | None -> Html.text ""
+        | Some extraCommentInput -> extraCommentInput state.extraComment None (SetExtraComment >> dispatch)
         inputNumberRaw Html.div
                        "places"
                        "Nombre de convives:"
@@ -508,6 +516,7 @@ let init() =
     let state = {
         name = ""
         email = ""
+        extraComment = ""
         places = 1
         menus = 0
         kidsMenus = 0
