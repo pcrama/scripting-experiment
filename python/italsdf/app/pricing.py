@@ -1,37 +1,41 @@
 import htmlgen
 
-CENTS_STARTER = 900
-CENTS_BOLO = 1200
-CENTS_SCAMPIS = 1700
-CENTS_DESSERT = 600
-CENTS_MENU_BOLO = 2500
-CENTS_MENU_SCAMPIS = 3000
+CENTS_STARTER = 750
+CENTS_BOLO = 1500
+CENTS_EXTRA_DISH = CENTS_BOLO
+CENTS_DESSERT = 750
+CENTS_MENU_BOLO = CENTS_STARTER + CENTS_BOLO + CENTS_DESSERT - 300
+CENTS_MENU_EXTRA_DISH = CENTS_STARTER + CENTS_EXTRA_DISH + CENTS_DESSERT - 300
+CENTS_KIDS_MENU_BOLO = 1600
+CENTS_KIDS_MENU_EXTRA_DISH = CENTS_KIDS_MENU_BOLO
 
 def price_in_cents(r,
-                   outside_fondus=CENTS_STARTER,
-                   outside_assiettes=CENTS_STARTER,
+                   outside_extra_starter=CENTS_STARTER,
+                   outside_main_starter=CENTS_STARTER,
                    outside_bolo=CENTS_BOLO,
-                   outside_scampis=CENTS_SCAMPIS,
-                   outside_tiramisu=CENTS_DESSERT,
-                   outside_tranches=CENTS_DESSERT,
+                   outside_extra_dish=CENTS_EXTRA_DISH,
+                   outside_dessert=CENTS_DESSERT,
                    inside_bolo=CENTS_MENU_BOLO,
-                   inside_scampis=CENTS_MENU_SCAMPIS):
-    # complete_menus = min([r.outside_fondus + r.outside_assiettes, r.outside_bolo + r.outside_scampis, r.outside_tiramisu + r.outside_tranches])
+                   inside_extra_dish=CENTS_MENU_EXTRA_DISH,
+                   kids_bolo=CENTS_KIDS_MENU_BOLO,
+                   kids_extra_dish=CENTS_KIDS_MENU_EXTRA_DISH):
+    # complete_menus = min([r.outside_extra_starter + r.outside_main_starter, r.outside_bolo + r.outside_extra_dish, r.outside_tiramisu + r.outside_tranches])
     # if complete_menus == 0:
     #     correction = 0
-    # elif menu_bolo - outside_bolo == menu_scampis - outside_scampis and outside_fondus == outside_assiettes and outside_tiramisu == outside_tranches:
-    #     correction = (outside_fondus + outside_bolo + outside_tiramisu - menu_bolo) * complete_menus
+    # elif menu_bolo - outside_bolo == menu_extra_dish - outside_extra_dish and outside_extra_starter == outside_main_starter and outside_tiramisu == outside_tranches:
+    #     correction = (outside_extra_starter + outside_bolo + outside_tiramisu - menu_bolo) * complete_menus
     # else:
     #     raise Exception("Unable to compute best price")
     return (
-        r.outside_fondus * outside_fondus
-        + r.outside_assiettes * outside_assiettes
+        r.outside_extra_starter * outside_extra_starter
+        + r.outside_main_starter * outside_main_starter
         + r.outside_bolo * outside_bolo
-        + r.outside_scampis * outside_scampis
-        + r.outside_tiramisu * outside_tiramisu
-        + r.outside_tranches * outside_tranches
+        + r.outside_extra_dish * outside_extra_dish
+        + r.outside_dessert * outside_dessert
         + r.inside_bolo * inside_bolo
-        + r.inside_scampis * inside_scampis)
+        + r.inside_extra_dish * inside_extra_dish
+        + r.kids_bolo * kids_bolo
+        + r.kids_extra_dish * kids_extra_dish)
 
 
 def price_in_euros(r, **kwargs):

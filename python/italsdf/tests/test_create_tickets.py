@@ -14,18 +14,17 @@ def make_reservation(**overrides):
         email='test@example.com',
         places=0,
         date='2022-03-19',
-        outside_fondus=0,
-        outside_assiettes=0,
+        outside_extra_starter=0,
+        outside_main_starter=0,
         outside_bolo=0,
-        outside_scampis=0,
-        outside_tiramisu=0,
-        outside_tranches=0,
-        inside_fondus=0,
-        inside_assiettes=0,
+        outside_extra_dish=0,
+        outside_dessert=0,
+        inside_extra_starter=0,
+        inside_main_starter=0,
         inside_bolo=0,
-        inside_scampis=0,
-        inside_tiramisu=0,
-        inside_tranches=0,
+        inside_extra_dish=0,
+        kids_bolo=0,
+        kids_extra_dish=0,
         gdpr_accepts_use=True,
         uuid='deadbeef',
         time=12345678.9,
@@ -35,81 +34,77 @@ def make_reservation(**overrides):
     return storage.Reservation(**defaults)
 
 
-FONDUS = ((('div', 'class', 'ticket-left-col'),
+EXTRA_STARTER = ((('div', 'class', 'ticket-left-col'),
            ('div', 'table n°'), ('div', 'serveur'), ('div', 'entrée:'), ('div', 'Fondus au fromage')),
           ('div', (('img', 'src', 'ticket-image.png'),)))
 
-ASSIETTES = ((('div', 'class', 'ticket-left-col'),
-              ('div', 'table n°'), ('div', 'serveur'), ('div', 'entrée:'), ('div', 'Assiette italienne')),
-             ('div', (('img', 'src', 'ticket-image.png'),)))
+MAIN_STARTER = ((('div', 'class', 'ticket-left-col'),
+                 ('div', 'table n°'), ('div', 'serveur'), ('div', 'entrée:'), ('div', 'Assiette italienne')),
+                ('div', (('img', 'src', 'ticket-image.png'),)))
 
 BOLO = ((('div', 'class', 'ticket-left-col'),
          ('div', 'table n°'), ('div', 'serveur'), ('div', 'plat:'), ('div', 'Spaghetti bolognaise')),
         ('div', (('img', 'src', 'ticket-image.png'),)))
 
-SCAMPIS = ((('div', 'class', 'ticket-left-col'),
+EXTRA_DISH = ((('div', 'class', 'ticket-left-col'),
             ('div', 'table n°'), ('div', 'serveur'), ('div', 'plat:'), ('div', 'Spaghetti aux scampis')),
            ('div', (('img', 'src', 'ticket-image.png'),)))
 
-TIRAMISU = ((('div', 'class', 'ticket-left-col'),
-             ('div', 'table n°'), ('div', 'serveur'), ('div', 'dessert:'), ('div', 'Tiramisu')),
-            ('div', (('img', 'src', 'ticket-image.png'),)))
-
-TRANCHES = ((('div', 'class', 'ticket-left-col'),
-             ('div', 'table n°'), ('div', 'serveur'), ('div', 'dessert:'), ('div', 'Tranche napolitaine')),
+DESSERT = ((('div', 'class', 'ticket-left-col'),
+             ('div', 'table n°'), ('div', 'serveur'), ('div', 'dessert:'), ('div', 'Dessert')),
             ('div', (('img', 'src', 'ticket-image.png'),)))
 
 
 class TestOneReservation(unittest.TestCase):
-    R1 = make_reservation( # 3 starters + 3 outside_bolo menus + 4 outside_scampis + 11 desserts = 27 + 36 + 68 + 66 = 197
+    R1 = make_reservation( # 3 starters + 3 outside_bolo menus + 4 outside_extra_dish + 11 desserts = 27 + 36 + 68 + 66 = 197
         places=8,
-        outside_fondus=1, outside_assiettes=2,
-        outside_bolo=3, outside_scampis=4,
-        outside_tiramisu=5, outside_tranches=6)
+        outside_extra_starter=1, outside_main_starter=2,
+        outside_bolo=3, outside_extra_dish=4,
+        outside_dessert=11)
 
     R2 = make_reservation(
         name='other', date='2022-03-20',
         places=4,
-        outside_fondus=1, outside_assiettes=1, outside_bolo=1, outside_scampis=1,
-        inside_fondus=1, inside_assiettes=1, inside_bolo=1, inside_scampis=1, inside_tiramisu=2)
+        outside_extra_starter=1, outside_main_starter=2, outside_bolo=1, outside_extra_dish=1,
+        inside_extra_starter=1, inside_bolo=1, kids_extra_dish=1)
 
     E1 = [(('div', 'class', 'no-print-page-break'),
            (('div', 'class', 'ticket-heading'), 'testing', ': ', '8 places', ' le ', '2022-03-19'),
            ('div', 'Total: ', '197.00 €', ' pour ', '21 tickets', ': ',
-            '1+0m fondus, 2+0m assiettes, 3+0m bolos, 4+0m scampis, 5+0m tiramisus, 6+0m tranches', '.')),
+            '1+0m fondus, 2+0m assiettes, 3+0m bolos, 4+0m scampis, 11+0m tiramisus', '.')),
           (('div', 'class', 'tickets'),
-           *FONDUS, *ASSIETTES,
-           *ASSIETTES, *BOLO,
+           *EXTRA_STARTER, *MAIN_STARTER,
+           *MAIN_STARTER, *BOLO,
            *BOLO, *BOLO,
-           *SCAMPIS, *SCAMPIS,
-           *SCAMPIS, *SCAMPIS,
-           *TIRAMISU, *TIRAMISU,
-           *TIRAMISU, *TIRAMISU,
-           *TIRAMISU, *TRANCHES,
-           *TRANCHES, *TRANCHES,
-           *TRANCHES, *TRANCHES,
-           *TRANCHES)]
+           *EXTRA_DISH, *EXTRA_DISH,
+           *EXTRA_DISH, *EXTRA_DISH,
+           *DESSERT, *DESSERT,
+           *DESSERT, *DESSERT,
+           *DESSERT, *DESSERT,
+           *DESSERT, *DESSERT,
+           *DESSERT, *DESSERT,
+           *DESSERT)]
 
     E2 = [(('div', 'class', 'no-print-page-break'),
            (('div', 'class', 'ticket-heading'), 'other', ': ', '4 places', ' le ', '2022-03-20'),
            ('div', 'Total: ', '102.00 €', ' pour ', '10 tickets', ': ',
-            '1+1m fondus, 1+1m assiettes, 1+1m bolos, 1+1m scampis, 0+2m tiramisus', '.')),
+            '1+1m fondus, 1+1m assiettes, 1+1m bolos, 1+1m scampis, 0+2m dessert', '.')),
           (('div', 'class', 'tickets'),
-           *FONDUS, *FONDUS,
-           *ASSIETTES, *ASSIETTES,
+           *EXTRA_STARTER, *EXTRA_STARTER,
+           *MAIN_STARTER, *MAIN_STARTER,
            *BOLO, *BOLO,
-           *SCAMPIS, *SCAMPIS,
-           *TIRAMISU, *TIRAMISU)]
+           *EXTRA_DISH, *EXTRA_DISH,
+           *DESSERT, *DESSERT)]
 
     def test_example0(self):
         self.assertEqual(
             list(create_tickets.create_tickets_for_one_reservation(
-                make_reservation(places=1, outside_fondus=1, name='one fondus'))),
+                make_reservation(places=1, outside_extra_starter=1, name='one extra starter'))),
          [(('div', 'class', 'no-print-page-break'),
-           (('div', 'class', 'ticket-heading'), 'one fondus', ': ', '1 place', ' le ', '2022-03-19'),
+           (('div', 'class', 'ticket-heading'), 'one extra starter', ': ', '1 place', ' le ', '2022-03-19'),
            ('div', 'Total: ', '9.00 €', ' pour ', '1 ticket', ': ', '1+0m fondus', '.')),
           (('div', 'class', 'tickets'),
-           *FONDUS)])
+           *EXTRA_STARTER)])
 
     def test_example1(self):
         self.assertEqual(
@@ -127,64 +122,67 @@ class TestFullTicketList(unittest.TestCase):
         self.assertEqual(
             list(create_tickets.create_full_ticket_list(
                 [TestOneReservation.R1, TestOneReservation.R2],
-                fondus=3,
-                assiettes=5,
+                extra_starter=3,
+                main_starter=5,
                 bolo=7,
-                scampis=9,
-                tiramisu=10,
-                tranches=12)),
+                extra_dish=9,
+                kids_bolo=0,
+                kids_extra_dish=0,
+                dessert=22)),
             [*TestOneReservation.E1,
              *TestOneReservation.E2,
              (('div', 'class', 'ticket-heading'), 'Vente libre'),
-             ('div', 'fondus=0, assiettes=1, bolo=2, ', 'scampis=3, tiramisu=3, tranches=6'),
+             ('div', 'fondus=0, assiettes=1, bolo=2, ', 'scampis=3, dessert=9'),
              (('div', 'class', 'tickets'),
-              *ASSIETTES, *BOLO,
-              *BOLO, *SCAMPIS,
-              *SCAMPIS, *SCAMPIS,
-              *TIRAMISU, *TIRAMISU,
-              *TIRAMISU, *TRANCHES,
-              *TRANCHES, *TRANCHES,
-              *TRANCHES, *TRANCHES,
-              *TRANCHES)])
+              *MAIN_STARTER, *BOLO,
+              *BOLO, *EXTRA_DISH,
+              *EXTRA_DISH, *EXTRA_DISH,
+              *DESSERT, *DESSERT,
+              *DESSERT, *DESSERT,
+              *DESSERT, *DESSERT,
+              *DESSERT, *DESSERT,
+              *DESSERT)])
 
     def test_example2(self):
-        with self.assertRaises(Exception) as cm:
+        with self.assertRaises(RuntimeError) as cm:
             # wrap in list to force all elements of the iterable
             list(create_tickets.create_full_ticket_list(
                 [TestOneReservation.R1, TestOneReservation.R2],
-                fondus=3,
-                assiettes=3,
+                extra_starter=3,
+                main_starter=3,
                 bolo=3,
-                scampis=3,
-                tiramisu=3,
-                tranches=3))
+                extra_dish=3,
+                kids_bolo=0,
+                kids_extra_dish=0,
+                dessert=6))
         self.assertEqual(
             cm.exception.args,
-            ('Not enough tickets: fondus=2, assiettes=1, bolo=0, scampis=-1, tiramisu=-2, tranches=-3',))
+            ('Not enough tickets: fondus=2, assiettes=1, bolo=0, scampis=-1, dessert=-5',))
 
     def test_reservations_without_tickets_elided(self):
         self.assertEqual(
             list(create_tickets.create_full_ticket_list(
                 (make_reservation(name=f'user {idx}') for idx in range(3)),
-                fondus=1,
-                assiettes=2,
+                extra_starter=1,
+                main_starter=2,
                 bolo=1,
-                scampis=2,
-                tiramisu=1,
-                tranches=2)),
+                extra_dish=2,
+                kids_bolo=0,
+                kids_extra_dish=0,
+                dessert=3)),
             [(('div', 'class', 'ticket-heading'), 'Vente libre'),
-             ('div', 'fondus=1, assiettes=2, bolo=1, ', 'scampis=2, tiramisu=1, tranches=2'),
+             ('div', 'fondus=1, assiettes=2, bolo=1, ', 'scampis=2, dessert=3'),
              (('div', 'class', 'tickets'),
-              *FONDUS, *ASSIETTES,
-              *ASSIETTES, *BOLO,
-              *SCAMPIS, *SCAMPIS,
-              *TIRAMISU, *TRANCHES,
-              *TRANCHES)])
+              *EXTRA_STARTER, *MAIN_STARTER,
+              *MAIN_STARTER, *BOLO,
+              *EXTRA_DISH, *EXTRA_DISH,
+              *DESSERT, *DESSERT,
+              *DESSERT)])
     
 
 if __name__ == '__main__':
     unittest.main()
 
 # Local Variables:
-# compile-command: "python test_create_tickets.py"
+# compile-command: "python3 test_create_tickets.py"
 # End:

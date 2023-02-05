@@ -13,18 +13,17 @@ def make_reservation(**overrides):
         email='test@example.com',
         places=0,
         date='2022-03-19',
-        outside_fondus=0,
-        outside_assiettes=0,
+        outside_extra_starter=0,
+        outside_main_starter=0,
         outside_bolo=0,
-        outside_scampis=0,
-        outside_tiramisu=0,
-        outside_tranches=0,
-        inside_fondus=0,
-        inside_assiettes=0,
+        outside_extra_dish=0,
+        outside_dessert=0,
+        inside_extra_starter=0,
+        inside_main_starter=0,
         inside_bolo=0,
-        inside_scampis=0,
-        inside_tiramisu=0,
-        inside_tranches=0,
+        inside_extra_dish=0,
+        kids_bolo=0,
+        kids_extra_dish=0,
         gdpr_accepts_use=True,
         uuid='deadbeef',
         time=12345678.9,
@@ -43,31 +42,31 @@ class PriceInEurosTests(unittest.TestCase):
                              (9009, '90.09 €')):
             with self.subTest(cents=cents, euros=euros):
                 self.assertEqual(
-                    pricing.price_in_euros(make_reservation(outside_assiettes=1), outside_assiettes=cents),
+                    pricing.price_in_euros(make_reservation(outside_main_starter=1), outside_main_starter=cents),
                     euros)
 
 
 class PriceInCentsTests(unittest.TestCase):
-    def test_assiettes(self):
+    def test_main_starter(self):
         with self.subTest(count=0):
-            self.assertEqual(pricing.price_in_cents(make_reservation(outside_assiettes=0)), 0)
+            self.assertEqual(pricing.price_in_cents(make_reservation(outside_main_starter=0)), 0)
         with self.subTest(count=1):
-            self.assertEqual(pricing.price_in_cents(make_reservation(outside_assiettes=1), outside_assiettes=6), 6)
+            self.assertEqual(pricing.price_in_cents(make_reservation(outside_main_starter=1), outside_main_starter=6), 6)
         with self.subTest(count=2):
-            self.assertEqual(pricing.price_in_cents(make_reservation(outside_assiettes=2), outside_assiettes=6), 12)
+            self.assertEqual(pricing.price_in_cents(make_reservation(outside_main_starter=2), outside_main_starter=6), 12)
         with self.subTest(count=3):
-            self.assertEqual(pricing.price_in_cents(make_reservation(outside_assiettes=3)), 2700)
+            self.assertEqual(pricing.price_in_cents(make_reservation(outside_main_starter=3)), 2250)
 
 
-    def test_fondus(self):
+    def test_extra_starter(self):
         with self.subTest(count=0):
-            self.assertEqual(pricing.price_in_cents(make_reservation(outside_fondus=0)), 0)
+            self.assertEqual(pricing.price_in_cents(make_reservation(outside_extra_starter=0)), 0)
         with self.subTest(count=1):
-            self.assertEqual(pricing.price_in_cents(make_reservation(outside_fondus=1), outside_fondus=6), 6)
+            self.assertEqual(pricing.price_in_cents(make_reservation(outside_extra_starter=1), outside_extra_starter=6), 6)
         with self.subTest(count=2):
-            self.assertEqual(pricing.price_in_cents(make_reservation(outside_fondus=2), outside_fondus=6), 12)
+            self.assertEqual(pricing.price_in_cents(make_reservation(outside_extra_starter=2), outside_extra_starter=6), 12)
         with self.subTest(count=3):
-            self.assertEqual(pricing.price_in_cents(make_reservation(outside_fondus=3)), 2700)
+            self.assertEqual(pricing.price_in_cents(make_reservation(outside_extra_starter=3)), 2250)
 
 
     def test_bolo(self):
@@ -78,40 +77,29 @@ class PriceInCentsTests(unittest.TestCase):
         with self.subTest(count=2):
             self.assertEqual(pricing.price_in_cents(make_reservation(outside_bolo=2), outside_bolo=6), 12)
         with self.subTest(count=3):
-            self.assertEqual(pricing.price_in_cents(make_reservation(outside_bolo=3)), 3600)
+            self.assertEqual(pricing.price_in_cents(make_reservation(outside_bolo=3)), 4500)
 
 
-    def test_scampis(self):
+    def test_extra_dish(self):
         with self.subTest(count=0):
-            self.assertEqual(pricing.price_in_cents(make_reservation(outside_scampis=0)), 0)
+            self.assertEqual(pricing.price_in_cents(make_reservation(outside_extra_dish=0)), 0)
         with self.subTest(count=1):
-            self.assertEqual(pricing.price_in_cents(make_reservation(outside_scampis=1), outside_scampis=6), 6)
+            self.assertEqual(pricing.price_in_cents(make_reservation(outside_extra_dish=1), outside_extra_dish=6), 6)
         with self.subTest(count=2):
-            self.assertEqual(pricing.price_in_cents(make_reservation(outside_scampis=2), outside_scampis=6), 12)
+            self.assertEqual(pricing.price_in_cents(make_reservation(outside_extra_dish=2), outside_extra_dish=6), 12)
         with self.subTest(count=3):
-            self.assertEqual(pricing.price_in_cents(make_reservation(outside_scampis=3)), 5100)
+            self.assertEqual(pricing.price_in_cents(make_reservation(outside_extra_dish=3)), 4500)
 
 
-    def test_tiramisu(self):
+    def test_dessert(self):
         with self.subTest(count=0):
-            self.assertEqual(pricing.price_in_cents(make_reservation(outside_tiramisu=0)), 0)
+            self.assertEqual(pricing.price_in_cents(make_reservation(outside_dessert=0)), 0)
         with self.subTest(count=1):
-            self.assertEqual(pricing.price_in_cents(make_reservation(outside_tiramisu=1), outside_tiramisu=6), 6)
+            self.assertEqual(pricing.price_in_cents(make_reservation(outside_dessert=1), outside_dessert=6), 6)
         with self.subTest(count=2):
-            self.assertEqual(pricing.price_in_cents(make_reservation(outside_tiramisu=2), outside_tiramisu=6), 12)
+            self.assertEqual(pricing.price_in_cents(make_reservation(outside_dessert=2), outside_dessert=6), 12)
         with self.subTest(count=3):
-            self.assertEqual(pricing.price_in_cents(make_reservation(outside_tiramisu=3)), 1800)
-
-
-    def test_tranches(self):
-        with self.subTest(count=0):
-            self.assertEqual(pricing.price_in_cents(make_reservation(outside_tranches=0)), 0)
-        with self.subTest(count=1):
-            self.assertEqual(pricing.price_in_cents(make_reservation(outside_tranches=1), outside_tranches=6), 6)
-        with self.subTest(count=2):
-            self.assertEqual(pricing.price_in_cents(make_reservation(outside_tranches=2), outside_tranches=6), 12)
-        with self.subTest(count=3):
-            self.assertEqual(pricing.price_in_cents(make_reservation(outside_tranches=3)), 1800)
+            self.assertEqual(pricing.price_in_cents(make_reservation(outside_dessert=3)), 2250)
 
 
     def test_inside_bolo(self):
@@ -122,34 +110,34 @@ class PriceInCentsTests(unittest.TestCase):
         with self.subTest(count=2):
             self.assertEqual(pricing.price_in_cents(make_reservation(inside_bolo=2), inside_bolo=6), 12)
         with self.subTest(count=3):
-            self.assertEqual(pricing.price_in_cents(make_reservation(inside_bolo=3)), 7500)
+            self.assertEqual(pricing.price_in_cents(make_reservation(inside_bolo=3)), 8100)
 
 
-    def test_inside_scampis(self):
+    def test_inside_extra_dish(self):
         with self.subTest(count=0):
-            self.assertEqual(pricing.price_in_cents(make_reservation(inside_scampis=0)), 0)
+            self.assertEqual(pricing.price_in_cents(make_reservation(inside_extra_dish=0)), 0)
         with self.subTest(count=1):
-            self.assertEqual(pricing.price_in_cents(make_reservation(inside_scampis=1), inside_scampis=6), 6)
+            self.assertEqual(pricing.price_in_cents(make_reservation(inside_extra_dish=1), inside_extra_dish=6), 6)
         with self.subTest(count=2):
-            self.assertEqual(pricing.price_in_cents(make_reservation(inside_scampis=2), inside_scampis=6), 12)
+            self.assertEqual(pricing.price_in_cents(make_reservation(inside_extra_dish=2), inside_extra_dish=6), 12)
         with self.subTest(count=3):
-            self.assertEqual(pricing.price_in_cents(make_reservation(inside_scampis=3)), 9000)
+            self.assertEqual(pricing.price_in_cents(make_reservation(inside_extra_dish=3)), 8100)
 
 
     def test_combinations_pricing(self):
         for combination, expected in (
-                ({'inside_bolo': 2, 'inside_scampis': 3}, 14000),
-                ({'inside_bolo': 2, 'inside_scampis': 3, 'outside_bolo': 1}, 15200),
-                ({'inside_bolo': 2, 'inside_scampis': 3, 'outside_tranches': 2, 'outside_bolo': 1}, 16400),
-                ({'inside_bolo': 1, 'inside_scampis': 2, 'outside_assiettes': 1, 'outside_tranches': 2, 'outside_bolo': 1}, 11800),
-                ({'outside_assiettes': 3, 'outside_bolo': 4}, 7500),
-                ({'outside_fondus': 1, 'outside_assiettes': 2}, 2700),
-                ({'outside_fondus': 1, 'outside_assiettes': 1, 'outside_tiramisu': 1, 'outside_tranches': 1}, 3000),
-                ({'outside_assiettes': 1, 'outside_bolo': 1, 'outside_tranches': 1}, 2700),
-                ({'outside_assiettes': 1, 'outside_scampis': 1, 'outside_tranches': 1}, 3200),
-                ({'outside_fondus': 2, 'outside_scampis': 2, 'outside_tiramisu': 2}, 6400),
-                ({'outside_fondus': 2, 'outside_scampis': 2, 'outside_bolo': 1, 'outside_tiramisu': 2}, 7600),
-                ({'outside_fondus': 2, 'outside_scampis': 1, 'outside_bolo': 1, 'outside_tiramisu': 2, 'outside_tranches': 1}, 6500)):
+                ({'inside_bolo': 2, 'inside_extra_dish': 3}, 13500),
+                ({'inside_bolo': 2, 'inside_extra_dish': 3, 'outside_bolo': 1}, 15000),
+                ({'inside_bolo': 2, 'inside_extra_dish': 3, 'outside_dessert': 2, 'outside_bolo': 1}, 16500),
+                ({'inside_bolo': 1, 'inside_extra_dish': 2, 'outside_main_starter': 1, 'outside_dessert': 2, 'outside_bolo': 1}, 11850),
+                ({'outside_main_starter': 3, 'outside_bolo': 4}, 8250),
+                ({'outside_extra_starter': 1, 'outside_main_starter': 2}, 2250),
+                ({'outside_extra_starter': 1, 'outside_main_starter': 1, 'outside_dessert': 2}, 3000),
+                ({'outside_main_starter': 1, 'outside_bolo': 1, 'outside_dessert': 1}, 3000),
+                ({'outside_main_starter': 1, 'outside_extra_dish': 1, 'outside_dessert': 1}, 3000),
+                ({'outside_extra_starter': 2, 'outside_extra_dish': 2, 'outside_dessert': 2}, 6000),
+                ({'outside_extra_starter': 2, 'outside_extra_dish': 2, 'outside_bolo': 1, 'outside_dessert': 2}, 7500),
+                ({'outside_extra_starter': 2, 'outside_extra_dish': 1, 'outside_bolo': 1, 'outside_dessert': 3}, 6750)):
             with self.subTest(**combination):
                 self.assertEqual(pricing.price_in_cents(make_reservation(**combination)), expected)
 
@@ -158,5 +146,5 @@ if __name__ == '__main__':
     unittest.main()
 
 # Local Variables:
-# compile-command: "python test_pricing.py"
+# compile-command: "python3 test_pricing.py"
 # End:
