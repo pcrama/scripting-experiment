@@ -35,18 +35,17 @@ Input:
 - name
 - email
 - date
-- outside_fondus
-- outside_assiettes
+- outside_main_starter
+- outside_extra_starter
 - outside_bolo
-- outside_scampis
-- outside_tiramisu
-- outside_tranches
-- inside_fondus
-- inside_assiettes
+- outside_extra_dish
+- outside_dessert
+- inside_main_starter
+- inside_extra_starter
 - inside_bolo
-- inside_scampis
-- inside_tiramisu
-- inside_tranches
+- inside_extra_dish
+- kids_bolo
+- kids_extra_dish
 - gdpr_accepts_use
 - uuid
 - time
@@ -57,18 +56,17 @@ Save:
 - name
 - email
 - date
-- outside_fondus
-- outside_assiettes
+- outside_main_starter
+- outside_extra_starter
 - outside_bolo
-- outside_scampis
-- outside_tiramisu
-- outside_tranches
-- inside_fondus
-- inside_assiettes
+- outside_extra_dish
+- outside_dessert
+- inside_main_starter
+- inside_extra_starter
 - inside_bolo
-- inside_scampis
-- inside_tiramisu
-- inside_tranches
+- inside_extra_dish
+- kids_bolo
+- kids_extra_dish
 - gdpr_accepts_use
 - uuid
 - time
@@ -112,27 +110,28 @@ if __name__ == '__main__':
         email = form.getfirst('email', default='')
         places = form.getfirst('places', default=0)
         date = form.getfirst('date', default='')
-        outside_fondus = form.getfirst('outside_fondus', default=0)
-        outside_assiettes = form.getfirst('outside_assiettes', default=0)
+        outside_main_starter = form.getfirst('outside_main_starter', default=0)
+        outside_extra_starter = form.getfirst('outside_extra_starter', default=0)
         outside_bolo = form.getfirst('outside_bolo', default=0)
-        outside_scampis = form.getfirst('outside_scampis', default=0)
-        outside_tiramisu = form.getfirst('outside_tiramisu', default=0)
-        outside_tranches = form.getfirst('outside_tranches', default=0)
-        inside_fondus = form.getfirst('inside_fondus', default=0)
-        inside_assiettes = form.getfirst('inside_assiettes', default=0)
+        outside_extra_dish = form.getfirst('outside_extra_dish', default=0)
+        outside_dessert = form.getfirst('outside_dessert', default=0)
+        inside_main_starter = form.getfirst('inside_main_starter', default=0)
+        inside_extra_starter = form.getfirst('inside_extra_starter', default=0)
         inside_bolo = form.getfirst('inside_bolo', default=0)
-        inside_scampis = form.getfirst('inside_scampis', default=0)
-        inside_tiramisu = form.getfirst('inside_tiramisu', default=0)
-        inside_tranches = form.getfirst('inside_tranches', default=0)
+        inside_extra_dish = form.getfirst('inside_extra_dish', default=0)
+        kids_bolo = form.getfirst('kids_bolo', default=0)
+        kids_extra_dish = form.getfirst('kids_extra_dish', default=0)
         gdpr_accepts_use = form.getfirst('gdpr_accepts_use', default=False)
         try:
             (name, email, places, date,
-             outside_fondus, outside_assiettes, outside_bolo, outside_scampis, outside_tiramisu, outside_tranches,
-             inside_fondus, inside_assiettes, inside_bolo, inside_scampis, inside_tiramisu, inside_tranches,
+             outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert,
+             inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish,
+             kids_bolo, kids_extra_dish,
              gdpr_accepts_use) = validate_data(
                  name, email, places, date,
-                 outside_fondus, outside_assiettes, outside_bolo, outside_scampis, outside_tiramisu, outside_tranches,
-                 inside_fondus, inside_assiettes, inside_bolo, inside_scampis, inside_tiramisu, inside_tranches,
+                 outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert,
+                 inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish,
+                 kids_bolo, kids_extra_dish,
                  gdpr_accepts_use, db_connection)
         except ValidationException as e:
             respond_with_validation_error(form, e, CONFIGURATION)
@@ -142,18 +141,17 @@ if __name__ == '__main__':
                 email,
                 places,
                 date,
-                outside_fondus,
-                outside_assiettes,
+                outside_main_starter,
+                outside_extra_starter,
                 outside_bolo,
-                outside_scampis,
-                outside_tiramisu,
-                outside_tranches,
-                inside_fondus,
-                inside_assiettes,
+                outside_extra_dish,
+                outside_dessert,
+                inside_main_starter,
+                inside_extra_starter,
                 inside_bolo,
-                inside_scampis,
-                inside_tiramisu,
-                inside_tranches,
+                inside_extra_dish,
+                kids_bolo,
+                kids_extra_dish,
                 gdpr_accepts_use,
                 db_connection,
                 CONFIGURATION)

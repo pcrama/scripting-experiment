@@ -27,17 +27,20 @@ def is_test_reservation(name, email):
 
 def validate_data(
         name, email, places, date,
-        outside_fondus, outside_assiettes, outside_bolo, outside_scampis, outside_tiramisu, outside_tranches,
-        inside_fondus, inside_assiettes, inside_bolo, inside_scampis, inside_tiramisu, inside_tranches,
+        outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert,
+        inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish,
+        kids_bolo, kids_extra_dish,
         gdpr_accepts_use, connection):
     (name, email, places, date,
-     outside_fondus, outside_assiettes, outside_bolo, outside_scampis, outside_tiramisu, outside_tranches,
-     inside_fondus, inside_assiettes, inside_bolo, inside_scampis, inside_tiramisu, inside_tranches,
+     outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert,
+     inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish,
+     kids_bolo, kids_extra_dish,
      gdpr_accepts_use
      ) = normalize_data(
          name, email, places, date,
-         outside_fondus, outside_assiettes, outside_bolo, outside_scampis, outside_tiramisu, outside_tranches,
-         inside_fondus, inside_assiettes, inside_bolo, inside_scampis, inside_tiramisu, inside_tranches,
+         outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert,
+         inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish,
+         kids_bolo, kids_extra_dish,
          gdpr_accepts_use)
     if not(name and email):
         raise ValidationException('Vos données de contact sont incomplètes')
@@ -56,10 +59,10 @@ def validate_data(
                     if is_test_reservation(name, email)
                     else ('2022-03-19',)):
         raise ValidationException("Il n'y a pas de repas italien ̀à cette date")
-    total_menus = inside_bolo + inside_scampis
-    if inside_fondus + inside_assiettes != total_menus or inside_tiramisu + inside_tranches != total_menus:
+    total_menus = inside_bolo + inside_extra_dish
+    if inside_extra_starter + inside_main_starter != total_menus
         raise ValidationException(
-            "Le nombre d'entrées ou de desserts ne correspond pas au nombre de plats commandés dans les menus.")
+            "Le nombre d'entrées ne correspond pas au nombre de plats commandés dans les menus.")
     reservations_count, reserved_seats  = Reservation.count_places(connection, name, email)
     if (reservations_count or 0) > 10:
         raise ValidationException('Il y a déjà trop de réservations à votre nom')
@@ -71,15 +74,17 @@ def validate_data(
         max_restantes = MAX_PLACES - (total_bookings or 0)
         raise ValidationException(f"Il n'y a plus assez de place dans la salle, il ne reste plus que {max_restantes} places libres.")
     return (name, email, places, date,
-            outside_fondus, outside_assiettes, outside_bolo, outside_scampis, outside_tiramisu, outside_tranches,
-            inside_fondus, inside_assiettes, inside_bolo, inside_scampis, inside_tiramisu, inside_tranches,
+            outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert,
+            inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish,
+            kids_bolo, kids_extra_dish,
             gdpr_accepts_use)
 
 
 def normalize_data(
         name, email, places, date,
-        outside_fondus, outside_assiettes, outside_bolo, outside_scampis, outside_tiramisu, outside_tranches,
-        inside_fondus, inside_assiettes, inside_bolo, inside_scampis, inside_tiramisu, inside_tranches,
+        outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert,
+        inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish,
+        kids_bolo, kids_extra_dish,
         gdpr_accepts_use):
     def safe_strip(x):
         if x is None:
@@ -96,31 +101,32 @@ def normalize_data(
     email = safe_strip(email)
     places = safe_non_negative_int_less_or_equal_than_50(places)
     date = safe_strip(date)
-    outside_fondus = safe_non_negative_int_less_or_equal_than_50(outside_fondus)
-    outside_assiettes = safe_non_negative_int_less_or_equal_than_50(outside_assiettes)
+    outside_extra_starter = safe_non_negative_int_less_or_equal_than_50(outside_extra_starter)
+    outside_main_starter = safe_non_negative_int_less_or_equal_than_50(outside_main_starter)
     outside_bolo = safe_non_negative_int_less_or_equal_than_50(outside_bolo)
-    outside_scampis = safe_non_negative_int_less_or_equal_than_50(outside_scampis)
-    outside_tiramisu = safe_non_negative_int_less_or_equal_than_50(outside_tiramisu)
-    outside_tranches = safe_non_negative_int_less_or_equal_than_50(outside_tranches)
-    inside_fondus = safe_non_negative_int_less_or_equal_than_50(inside_fondus)
-    inside_assiettes = safe_non_negative_int_less_or_equal_than_50(inside_assiettes)
+    outside_extra_dish = safe_non_negative_int_less_or_equal_than_50(outside_extra_dish)
+    outside_dessert = safe_non_negative_int_less_or_equal_than_50(outside_dessert)
+    inside_extra_starter = safe_non_negative_int_less_or_equal_than_50(inside_extra_starter)
+    inside_main_starter = safe_non_negative_int_less_or_equal_than_50(inside_main_starter)
     inside_bolo = safe_non_negative_int_less_or_equal_than_50(inside_bolo)
-    inside_scampis = safe_non_negative_int_less_or_equal_than_50(inside_scampis)
-    inside_tiramisu = safe_non_negative_int_less_or_equal_than_50(inside_tiramisu)
-    inside_tranches = safe_non_negative_int_less_or_equal_than_50(inside_tranches)
+    inside_extra_dish = safe_non_negative_int_less_or_equal_than_50(inside_extra_dish)
+    kids_bolo = safe_non_negative_int_less_or_equal_than_50(kids_bolo)
+    kids_extra_dish = safe_non_negative_int_less_or_equal_than_50(kids_extra_dish)
     try:
         gdpr_accepts_use = gdpr_accepts_use.lower() in ['yes', 'oui', '1', 'true', 'vrai']
     except Exception:
         gdpr_accepts_use = gdpr_accepts_use and gdpr_accepts_use not in [0, False]
     return (name, email, places, date,
-            outside_fondus, outside_assiettes, outside_bolo, outside_scampis, outside_tiramisu, outside_tranches,
-            inside_fondus, inside_assiettes, inside_bolo, inside_scampis, inside_tiramisu, inside_tranches,
+            outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert,
+            inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish,
+            kids_bolo, kids_extra_dish,
             gdpr_accepts_use)
 
 
 def save_data_sqlite3(name, email, places, date,
-                      outside_fondus, outside_assiettes, outside_bolo, outside_scampis, outside_tiramisu, outside_tranches,
-                      inside_fondus, inside_assiettes, inside_bolo, inside_scampis, inside_tiramisu, inside_tranches,
+                      outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert,
+                      inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish,
+                      kids_bolo, kids_extra_dish,
                       gdpr_accepts_use, origin, connection_or_root_dir):
     connection = ensure_connection(connection_or_root_dir)
     uuid_hex = uuid.uuid4().hex
@@ -133,18 +139,17 @@ def save_data_sqlite3(name, email, places, date,
                                   email=email,
                                   places=places,
                                   date=date,
-                                  outside_fondus=outside_fondus,
-                                  outside_assiettes=outside_assiettes,
+                                  outside_main_starter=outside_main_starter,
+                                  outside_extra_starter=outside_extra_starter,
                                   outside_bolo=outside_bolo,
-                                  outside_scampis=outside_scampis,
-                                  outside_tiramisu=outside_tiramisu,
-                                  outside_tranches=outside_tranches,
-                                  inside_fondus=inside_fondus,
-                                  inside_assiettes=inside_assiettes,
+                                  outside_extra_dish=outside_extra_dish,
+                                  outside_dessert=outside_dessert,
+                                  inside_main_starter=inside_main_starter,
+                                  inside_extra_starter=inside_extra_starter,
                                   inside_bolo=inside_bolo,
-                                  inside_scampis=inside_scampis,
-                                  inside_tiramisu=inside_tiramisu,
-                                  inside_tranches=inside_tranches,
+                                  inside_extra_dish=inside_extra_dish,
+                                  kids_bolo=kids_bolo,
+                                  kids_extra_dish=kids_extra_dish,
                                   gdpr_accepts_use=gdpr_accepts_use,
                                   uuid=uuid_hex,
                                   time=timestamp,
@@ -187,14 +192,16 @@ def make_show_reservation_url(uuid_hex, server_name=None, script_name=None):
 
 def respond_with_reservation_confirmation(
         name, email, places, date,
-        outside_fondus, outside_assiettes, outside_bolo, outside_scampis, outside_tiramisu, outside_tranches,
-        inside_fondus, inside_assiettes, inside_bolo, inside_scampis, inside_tiramisu, inside_tranches,
+        outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert,
+        inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish,
+        kids_bolo, kids_extra_dish,
         gdpr_accepts_use, connection, configuration, origin=None):
     try:
         new_row = save_data_sqlite3(
             name, email, places, date,
-            outside_fondus, outside_assiettes, outside_bolo, outside_scampis, outside_tiramisu, outside_tranches,
-            inside_fondus, inside_assiettes, inside_bolo, inside_scampis, inside_tiramisu, inside_tranches,
+            outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert,
+            inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish,
+            kids_bolo, kids_extra_dish,
             gdpr_accepts_use, origin, connection)
         redirection_url = make_show_reservation_url(
             new_row.uuid,

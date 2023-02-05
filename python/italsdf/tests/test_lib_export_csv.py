@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import unittest
 
 import sys_path_hack
@@ -13,18 +14,17 @@ def make_reservation(**overrides):
         email='test@example.com',
         places=0,
         date='2022-03-19',
-        outside_fondus=0,
-        outside_assiettes=0,
+        outside_extra_starter=0,
+        outside_main_starter=0,
         outside_bolo=0,
-        outside_scampis=0,
-        outside_tiramisu=0,
-        outside_tranches=0,
-        inside_fondus=0,
-        inside_assiettes=0,
+        outside_extra_dish=0,
+        outside_dessert=0,
+        inside_extra_starter=0,
+        inside_main_starter=0,
         inside_bolo=0,
-        inside_scampis=0,
-        inside_tiramisu=0,
-        inside_tranches=0,
+        inside_extra_dish=0,
+        kids_bolo=0,
+        kids_extra_dish=0,
         gdpr_accepts_use=True,
         uuid='deadbeef',
         time=12345678.9,
@@ -50,14 +50,14 @@ class ExportDataRow(unittest.TestCase):
     def test_examples(self):
         writer = FakeWriter()
         for data, expected in (
-                (dict(name='t1',email='comment',places=2,outside_fondus=1,outside_assiettes=2,outside_scampis=3,outside_bolo=4,outside_tiramisu=5,outside_tranches=6,inside_assiettes=7,inside_fondus=15,inside_bolo=8,inside_scampis=14,inside_tiramisu=9,inside_tranches=13,origin='unit test',gdpr_accepts_use=False,active=True),
-                 ('t1',2,2,1,4,3,5,6,7,15,8,14,9,13,'812.00 €','comment','','',True,'unit test')),
-                (dict(name='t2',email='t2@b.com',places=1,outside_fondus=2,outside_assiettes=1,outside_scampis=3,outside_bolo=4,outside_tiramisu=6,outside_tranches=5,inside_assiettes=6,inside_fondus=14,inside_bolo=7,inside_scampis=13,inside_tiramisu=8,inside_tranches=12,origin=None,gdpr_accepts_use=True,active=True),
-                 ('t2',1,1,2,4,3,6,5,6,14,7,13,8,12,'757.00 €','','t2@b.com','t2@b.com',True,None)),
-                (dict(name='t3',email='t3@b.com',places=3,outside_fondus=2,outside_assiettes=0,outside_scampis=0,outside_bolo=0,outside_tiramisu=0,outside_tranches=0,inside_assiettes=0,inside_fondus=0,inside_bolo=0,inside_scampis=0,inside_tiramisu=0,inside_tranches=0,origin=None,gdpr_accepts_use=False,active=True),
-                 ('t3',3,0,2,0,0,0,0,0,0,0,0,0,0,'18.00 €','','t3@b.com','',True,None)),
-                (dict(name='t4',email='t4@b.com',places=3,outside_fondus=2,outside_assiettes=0,outside_scampis=0,outside_bolo=0,outside_tiramisu=0,outside_tranches=0,inside_assiettes=0,inside_fondus=0,inside_bolo=0,inside_scampis=0,inside_tiramisu=0,inside_tranches=0,origin=None,gdpr_accepts_use=False,active=False),
-                 ('t4',3,0,2,0,0,0,0,0,0,0,0,0,0,'18.00 €','','t4@b.com','',False,None)),
+                (dict(name='t1',email='comment',places=2,outside_extra_starter=1,outside_main_starter=2,outside_extra_dish=3,outside_bolo=4,outside_dessert=5+6,inside_main_starter=7,inside_extra_starter=15,inside_bolo=8,inside_extra_dish=14,origin='unit test',gdpr_accepts_use=False,active=True),
+                 ('t1',2,7,15,8,14,22,0,0,0,2,1,4,3,11,'804.00 €','comment','','',True,'unit test')),
+                (dict(name='t2',email='t2@b.com',places=1,outside_extra_starter=2,outside_main_starter=1,outside_extra_dish=3,outside_bolo=4,outside_dessert=6+5,inside_main_starter=6,inside_extra_starter=14,inside_bolo=7,inside_extra_dish=13,kids_bolo=1,kids_extra_dish=2,origin=None,gdpr_accepts_use=True,active=True),
+                 ('t2',1,6,14,7,13,20,1,2,3,1,2,4,3,11,'798.00 €','','t2@b.com','t2@b.com',True,None)),
+                (dict(name='t3',email='t3@b.com',places=3,outside_extra_starter=2,outside_main_starter=0,outside_extra_dish=0,outside_bolo=0,outside_dessert=0,inside_main_starter=0,inside_extra_starter=0,inside_bolo=0,inside_extra_dish=0,origin=None,gdpr_accepts_use=False,active=True),
+                 ('t3',3,0,0,0,0,0,0,0,0,0,2,0,0,0,'15.00 €','','t3@b.com','',True,None)),
+                (dict(name='t4',email='t4@b.com',places=3,outside_extra_starter=2,outside_main_starter=0,outside_extra_dish=0,outside_bolo=0,outside_dessert=0,inside_main_starter=0,inside_extra_starter=0,inside_bolo=0,inside_extra_dish=0,origin=None,gdpr_accepts_use=False,active=False),
+                 ('t4',3,0,0,0,0,0,0,0,0,0,2,0,0,0,'15.00 €','','t4@b.com','',False,None)),
         ):
             with self.subTest(expected=expected):
                 lib_export_csv.export_reservation(writer, make_reservation(**data))
@@ -65,17 +65,29 @@ class ExportDataRow(unittest.TestCase):
 
 
 class ExportHeaders(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        lib_export_csv.MAIN_STARTER_SHORT = "main_starter_short"
+        lib_export_csv.EXTRA_STARTER_SHORT = "extra_starter_short"
+        lib_export_csv.BOLO_SHORT = "bolo_short"
+        lib_export_csv.EXTRA_DISH_SHORT = "extra_dish_short"
+        lib_export_csv.KIDS_BOLO_SHORT = "kids_bolo_short"
+        lib_export_csv.KIDS_EXTRA_DISH_SHORT = "kids_extra_dish_short"
+        lib_export_csv.DESSERT_SHORT = "dessert_short"
+
     def test_static_values(self):
         writer = FakeWriter()
         lib_export_csv.write_column_header_rows(writer)
         for idx, expected in enumerate((
                 ('','',
-                 'À la carte','...','...','...','...','...',
-                 'Menu','...','...','...','...','...',
+                 'Menu','...','...','...','...',
+                 'Enfants','...','...',
+                 'À la carte','...','...','...','...',
                  '','','','','',''),
                 ('Nom','Places',
-                 'Assiette','Fondu','Bolo','Scampi','Tiramisu','Tranche',
-                 'Assiette','Fondu','Bolo','Scampi','Tiramisu','Tranche',
+                 "main_starter_short", "extra_starter_short", "bolo_short", "extra_dish_short", "dessert_short",
+                 "kids_bolo_short", "kids_extra_dish_short", "dessert_short",
+                 "main_starter_short", "extra_starter_short", "bolo_short", "extra_dish_short", "dessert_short",
                  'Total','Commentaire','Email','RGPD','Actif','Origine'),
         )):
             with self.subTest(idx=idx + 1):
@@ -86,5 +98,5 @@ if __name__ == '__main__':
     unittest.main()
 
 # Local Variables:
-# compile-command: "python test_lib_export_csv.py"
+# compile-command: "python3 test_lib_export_csv.py"
 # End:

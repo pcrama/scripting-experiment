@@ -126,6 +126,13 @@ class Reservation(MiniOrm):
         self.active = active
         self.origin = origin
 
+    @property
+    def inside_dessert(self):
+        return self.inside_bolo + self.inside_extra_dish
+
+    @property
+    def kids_dessert(self):
+        return self.kids_bolo + self.kids_extra_dish
 
     def to_dict(self):
         return {
