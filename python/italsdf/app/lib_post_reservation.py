@@ -26,18 +26,18 @@ def is_test_reservation(name, email):
 
 
 def validate_data(
-        name, email, places, date,
+        name, email, extra_comment, places, date,
         outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert,
         inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish,
         kids_bolo, kids_extra_dish,
         gdpr_accepts_use, connection):
-    (name, email, places, date,
+    (name, email, extra_comment, places, date,
      outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert,
      inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish,
      kids_bolo, kids_extra_dish,
      gdpr_accepts_use
      ) = normalize_data(
-         name, email, places, date,
+         name, email, extra_comment, places, date,
          outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert,
          inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish,
          kids_bolo, kids_extra_dish,
@@ -60,7 +60,7 @@ def validate_data(
                     else ('2022-03-19',)):
         raise ValidationException("Il n'y a pas de repas italien ̀à cette date")
     total_menus = inside_bolo + inside_extra_dish
-    if inside_extra_starter + inside_main_starter != total_menus
+    if inside_extra_starter + inside_main_starter != total_menus:
         raise ValidationException(
             "Le nombre d'entrées ne correspond pas au nombre de plats commandés dans les menus.")
     reservations_count, reserved_seats  = Reservation.count_places(connection, name, email)
@@ -73,7 +73,7 @@ def validate_data(
     if (total_bookings or 0) + places > MAX_PLACES:
         max_restantes = MAX_PLACES - (total_bookings or 0)
         raise ValidationException(f"Il n'y a plus assez de place dans la salle, il ne reste plus que {max_restantes} places libres.")
-    return (name, email, places, date,
+    return (name, email, extra_comment, places, date,
             outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert,
             inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish,
             kids_bolo, kids_extra_dish,
@@ -81,7 +81,7 @@ def validate_data(
 
 
 def normalize_data(
-        name, email, places, date,
+        name, email, extra_comment, places, date,
         outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert,
         inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish,
         kids_bolo, kids_extra_dish,
@@ -116,14 +116,14 @@ def normalize_data(
         gdpr_accepts_use = gdpr_accepts_use.lower() in ['yes', 'oui', '1', 'true', 'vrai']
     except Exception:
         gdpr_accepts_use = gdpr_accepts_use and gdpr_accepts_use not in [0, False]
-    return (name, email, places, date,
+    return (name, email, extra_comment, places, date,
             outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert,
             inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish,
             kids_bolo, kids_extra_dish,
             gdpr_accepts_use)
 
 
-def save_data_sqlite3(name, email, places, date,
+def save_data_sqlite3(name, email, extra_comment, places, date,
                       outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert,
                       inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish,
                       kids_bolo, kids_extra_dish,
@@ -137,6 +137,7 @@ def save_data_sqlite3(name, email, places, date,
         try:
             new_row = Reservation(name=name,
                                   email=email,
+                                  extra_comment=extra_comment,
                                   places=places,
                                   date=date,
                                   outside_main_starter=outside_main_starter,
@@ -191,14 +192,14 @@ def make_show_reservation_url(uuid_hex, server_name=None, script_name=None):
 
 
 def respond_with_reservation_confirmation(
-        name, email, places, date,
+        name, email, extra_comment, places, date,
         outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert,
         inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish,
         kids_bolo, kids_extra_dish,
         gdpr_accepts_use, connection, configuration, origin=None):
     try:
         new_row = save_data_sqlite3(
-            name, email, places, date,
+            name, email, extra_comment, places, date,
             outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert,
             inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish,
             kids_bolo, kids_extra_dish,

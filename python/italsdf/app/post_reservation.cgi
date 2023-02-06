@@ -3,7 +3,7 @@
 #
 # Test with
 #
-# echo | (cd app && env REQUEST_METHOD=POST 'QUERY_STRING=name=bambi&email=a@b.com' python post_reservation.cgi)
+# echo | (cd app && script_name=post_reservation.cgi && env REQUEST_METHOD=POST 'QUERY_STRING=name=test&email=i%40example.com&extraComment=commentaire&places=1&insidemainstarter=2&insideextrastarter=1&insidebolo=0&insideextradish=3&bolokids=1&extradishkids=3&outsidemainstarter=9&outsideextrastarter=5&outsidebolo=6&outsideextradish=7&outsidedessert=8&gdpr_accepts_use=true&date=2099-01-01' SERVER_NAME=example.com SCRIPT_NAME=$script_name python3 $script_name)
 import cgi
 import cgitb
 import os
@@ -35,17 +35,17 @@ Input:
 - name
 - email
 - date
-- outside_main_starter
-- outside_extra_starter
-- outside_bolo
-- outside_extra_dish
-- outside_dessert
-- inside_main_starter
-- inside_extra_starter
-- inside_bolo
-- inside_extra_dish
-- kids_bolo
-- kids_extra_dish
+- ou_outsidemainstarter
+- ou_outsideextrastarter
+- ou_outsidebolo
+- ou_outsideextradish
+- ou_outsidedessert
+- in_insidemainstarter
+- in_insideextrastarter
+- in_insidebolo
+- in_insideextradish
+- kd_kidsbolo
+- kd_kidsextradish
 - gdpr_accepts_use
 - uuid
 - time
@@ -108,27 +108,28 @@ if __name__ == '__main__':
         form = cgi.FieldStorage()
         name = form.getfirst('name', default='')
         email = form.getfirst('email', default='')
+        extra_comment = form.getfirst('extraComment', default='')
         places = form.getfirst('places', default=0)
         date = form.getfirst('date', default='')
-        outside_main_starter = form.getfirst('outside_main_starter', default=0)
-        outside_extra_starter = form.getfirst('outside_extra_starter', default=0)
-        outside_bolo = form.getfirst('outside_bolo', default=0)
-        outside_extra_dish = form.getfirst('outside_extra_dish', default=0)
-        outside_dessert = form.getfirst('outside_dessert', default=0)
-        inside_main_starter = form.getfirst('inside_main_starter', default=0)
-        inside_extra_starter = form.getfirst('inside_extra_starter', default=0)
-        inside_bolo = form.getfirst('inside_bolo', default=0)
-        inside_extra_dish = form.getfirst('inside_extra_dish', default=0)
-        kids_bolo = form.getfirst('kids_bolo', default=0)
-        kids_extra_dish = form.getfirst('kids_extra_dish', default=0)
+        outside_main_starter = form.getfirst('outsidemainstarter', default=0)
+        outside_extra_starter = form.getfirst('outsideextrastarter', default=0)
+        outside_bolo = form.getfirst('outsidebolo', default=0)
+        outside_extra_dish = form.getfirst('outsideextradish', default=0)
+        outside_dessert = form.getfirst('outsidedessert', default=0)
+        inside_main_starter = form.getfirst('insidemainstarter', default=0)
+        inside_extra_starter = form.getfirst('insideextrastarter', default=0)
+        inside_bolo = form.getfirst('insidebolo', default=0)
+        inside_extra_dish = form.getfirst('insideextradish', default=0)
+        kids_bolo = form.getfirst('bolokids', default=0)
+        kids_extra_dish = form.getfirst('extradishkids', default=0)
         gdpr_accepts_use = form.getfirst('gdpr_accepts_use', default=False)
         try:
-            (name, email, places, date,
+            (name, email, extra_comment, places, date,
              outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert,
              inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish,
              kids_bolo, kids_extra_dish,
              gdpr_accepts_use) = validate_data(
-                 name, email, places, date,
+                 name, email, extra_comment, places, date,
                  outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert,
                  inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish,
                  kids_bolo, kids_extra_dish,
@@ -139,6 +140,7 @@ if __name__ == '__main__':
             respond_with_reservation_confirmation(
                 name,
                 email,
+                extra_comment,
                 places,
                 date,
                 outside_main_starter,

@@ -65,6 +65,7 @@ class Reservation(MiniOrm):
         f'''CREATE TABLE {TABLE_NAME}
             (name TEXT NOT NULL,
              email TEXT,
+             extra_comment TEXT,
              places INTEGER CHECK(places > 0),
              date TEXT NOT NULL,
              outside_extra_starter INTEGER,
@@ -87,6 +88,7 @@ class Reservation(MiniOrm):
     def __init__(self,
                  name,
                  email,
+                 extra_comment,
                  places,
                  date,
                  outside_extra_starter,
@@ -107,6 +109,7 @@ class Reservation(MiniOrm):
                  origin):
         self.name = name
         self.email = email
+        self.extra_comment = extra_comment
         self.places = places
         self.date = date
         self.outside_extra_starter = outside_extra_starter
@@ -138,6 +141,7 @@ class Reservation(MiniOrm):
         return {
             'name': self.name,
             'email': self.email,
+            'extra_comment': self.extra_comment,
             'places': self.places,
             'date': self.date,
             'outside_extra_starter': self.outside_extra_starter,
@@ -161,8 +165,8 @@ class Reservation(MiniOrm):
     def insert_data(self, connection):
         connection.execute(
             f'''INSERT INTO {self.TABLE_NAME} VALUES (
-                 :name, :email, :places, :date, :outside_extra_starter, :outside_main_starter, :outside_bolo,
-                 :outside_extra_dish, :outside_dessert, :inside_extra_starter,
+                 :name, :email, :extra_comment, :places, :date, :outside_extra_starter, :outside_main_starter,
+                 :outside_bolo, :outside_extra_dish, :outside_dessert, :inside_extra_starter,
                  :inside_main_starter, :inside_bolo, :inside_extra_dish,
                  :kids_bolo, :kids_extra_dish,
                  :gdpr_accepts_use, :uuid, :time, :active, :origin)''',
@@ -229,6 +233,7 @@ class Reservation(MiniOrm):
 
     SORTABLE_COLUMNS = {'name': 'LOWER(name)',
                         'email': 'LOWER(email)',
+                        'extra_comment': 'LOWER(extra_comment)',
                         'date': 'date',
                         'time': 'time',
                         'places': 'places',
@@ -245,6 +250,7 @@ class Reservation(MiniOrm):
 
     FILTERABLE_COLUMNS = {'name': MiniOrm.compare_with_like_lower('name'),
                           'email': MiniOrm.compare_with_like_lower('email'),
+                          'extra_comment': MiniOrm.compare_with_like_lower('extra_comment'),
                           'date': True,
                           'uuid': True,
                           'active': MiniOrm.compare_as_bool('active'),
@@ -323,24 +329,25 @@ class Reservation(MiniOrm):
             yield cls(
                 name=row[0],
                 email=row[1],
-                places=row[2],
-                date=row[3],
-                outside_extra_starter=row[4],
-                outside_main_starter=row[5],
-                outside_bolo=row[6],
-                outside_extra_dish=row[7],
-                outside_dessert=row[8],
-                inside_extra_starter=row[9],
-                inside_main_starter=row[10],
-                inside_bolo=row[11],
-                inside_extra_dish=row[12],
-                kids_bolo=row[13],
-                kids_extra_dish=row[14],
-                gdpr_accepts_use=row[15] != 0,
-                uuid=row[16],
-                time=row[17],
-                active=row[18] != 0,
-                origin=row[19])
+                extra_comment=row[2],
+                places=row[3],
+                date=row[4],
+                outside_extra_starter=row[5],
+                outside_main_starter=row[6],
+                outside_bolo=row[7],
+                outside_extra_dish=row[8],
+                outside_dessert=row[9],
+                inside_extra_starter=row[10],
+                inside_main_starter=row[11],
+                inside_bolo=row[12],
+                inside_extra_dish=row[13],
+                kids_bolo=row[14],
+                kids_extra_dish=row[15],
+                gdpr_accepts_use=row[16] != 0,
+                uuid=row[17],
+                time=row[18],
+                active=row[19] != 0,
+                origin=row[20])
 
 
 class Csrf(MiniOrm):
