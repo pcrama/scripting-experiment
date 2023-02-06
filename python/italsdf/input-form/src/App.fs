@@ -288,6 +288,8 @@ let ErrorRed = "red"
 let ErrorBorderStyle =
     [style.borderColor ErrorRed; style.borderStyle.solid; style.borderWidth 1]
 
+let numberInputStyle = [length.em 2.5 |> style.width; style.textAlign.right]
+
 let errorDiv (len: Styles.ICssUnit option) (e: string) =
     let width = match len with
                 | Some w -> [style.width w]
@@ -295,14 +297,12 @@ let errorDiv (len: Styles.ICssUnit option) (e: string) =
     Html.div [
         [style.color ErrorRed
          style.fontStyle.oblique
-         length.percent 85 |> style.fontSize] |> List.append width |> prop.style
+         length.percent 80 |> style.fontSize] |> List.append width |> prop.style
         prop.text e]
 
 let inputNumberRaw wrapperElt (id: string) (label: string) labelStyle (value: int) (errors: string list) (errorDivWidth: Styles.ICssUnit option) (onChange: int -> unit) =
     let basicInputProps extraStyles = [
-                List.append extraStyles [
-                    length.em 3 |> style.width
-                    style.textAlign.right] |> prop.style
+                prop.style <| extraStyles @ numberInputStyle
                 prop.id id
                 prop.name id
                 prop.type' "number"
@@ -324,18 +324,18 @@ let inputNumberRaw wrapperElt (id: string) (label: string) labelStyle (value: in
         sprintf "div-just-for-%s" id |> prop.id
         prop.children children]
 
-let inputNumber (state: State) (idPrefix: string) (plate: Plate) (onChange: int -> unit) =
-    let id = sprintf "%s_%s" idPrefix <| plate.ToString().ToLower()
+let inputPlateCount (state: State) (plate: Plate) (onChange: int -> unit) =
+    let id = plate.ToString().ToLower()
     let value = state.tickets.Get plate
     let errorsS = state.ticketsErrors.Get plate
     let label = TicketsNames.Get plate
     inputNumberRaw Html.li
                    id
                    label
-                   [style.display.inlineBlock; length.em 15 |> style.width]
+                   [style.display.inlineBlock; length.em 14.5 |> style.width]
                    value
                    errorsS
-                   (Some <| length.em 20)
+                   (Some <| length.em 19)
                    onChange
 
 let renderDessertDisplay (count: int) =
@@ -345,14 +345,14 @@ let renderDessertDisplay (count: int) =
                                      ((if count = 1 then TicketsNames else TicketsNamesPlural).Get <| OutsideDessert)
                                      count]]]
 
-let renderTicketList (choices: (string * Plate list) list) (state: State) (idPrefix: string) header (htmlTail: ReactElement list) (dispatch: Msg -> unit) =
+let renderTicketList (choices: (string * Plate list) list) (state: State) (header: ReactElement) (htmlTail: ReactElement list) (dispatch: Msg -> unit) =
     let setNumber p v = SetNumberOfTickets (p, v) |> dispatch
     let renderedTickets = Html.ul (
         (choices
           |> (List.map <| fun (title: string, plates: Plate list) ->
                   Html.li [
                       Html.text title
-                      plates |> List.map (fun p -> setNumber p |> inputNumber state idPrefix p) |> Html.ul]))
+                      plates |> List.map (fun p -> setNumber p |> inputPlateCount state p) |> Html.ul]))
         @ htmlTail)
     Html.div [
         prop.style [
@@ -365,9 +365,7 @@ let menuHeader (count: int) formatString (dispatch: int -> unit) =
     Html.div [
         prop.children [
         Html.input [
-            prop.style [
-                length.em 3 |> style.width
-                style.textAlign.right]
+            prop.style numberInputStyle
             prop.value count
             prop.type' "number"
             prop.min 0
@@ -380,7 +378,6 @@ let renderInsideMenu (state: State) (dispatch: Msg -> unit) =
     renderTicketList ["Entrées", [InsideMainStarter; InsideExtraStarter];
                       "Plats", [InsideBolo; InsideExtraDish]]
                      state
-                     "inside"
                      header
                      [renderDessertDisplay <| state.menus]
                      dispatch
@@ -389,7 +386,6 @@ let renderKidsMenu (state: State) (dispatch: Msg -> unit) =
     let header = menuHeader (state.kidsMenus) "menu%s enfants" (SetKidsMenus >> dispatch)
     renderTicketList ["Plats", [BoloKids; ExtraDishKids]]
                      state
-                     "kids"
                      header
                      [renderDessertDisplay <| state.kidsMenus]
                      dispatch
@@ -408,7 +404,6 @@ let renderOutsideMenu (state: State) (dispatch: Msg -> unit) =
               |> Html.textf "Hors menu: %s"
     renderTicketList outsideChoices
                      state
-                     "outside"
                      header
                      []
                      dispatch
