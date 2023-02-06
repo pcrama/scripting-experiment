@@ -234,7 +234,6 @@ let csrfToken: string option =
     | x -> Some x
 
 let validateState (state: State): State =
-    // let getErrorsAndTarget (count: int) (text: string): (int option, string list) =
     let getErrorsAndTarget count text =
         let errors = validateInclusiveBelow' count
                                              text
@@ -288,7 +287,14 @@ let ErrorRed = "red"
 let ErrorBorderStyle =
     [style.borderColor ErrorRed; style.borderStyle.solid; style.borderWidth 1]
 
-let numberInputStyle = [length.em 2.5 |> style.width; style.textAlign.right]
+let fullPlateWidthEm = 18.0
+
+let numberInputWidthEm = 2.5
+
+let numberInputStyle = [length.em numberInputWidthEm |> style.width
+                        style.textAlign.right
+                        style.margin 0
+                        style.padding 0]
 
 let errorDiv (len: Styles.ICssUnit option) (e: string) =
     let width = match len with
@@ -324,6 +330,8 @@ let inputNumberRaw wrapperElt (id: string) (label: string) labelStyle (value: in
         sprintf "div-just-for-%s" id |> prop.id
         prop.children children]
 
+let plateLabelFontStyle = [length.percent 85 |> style.fontSize; style.fontFamily "serif"; style.color "black"]
+
 let inputPlateCount (state: State) (plate: Plate) (onChange: int -> unit) =
     let id = plate.ToString().ToLower()
     let value = state.tickets.Get plate
@@ -332,18 +340,23 @@ let inputPlateCount (state: State) (plate: Plate) (onChange: int -> unit) =
     inputNumberRaw Html.li
                    id
                    label
-                   [style.display.inlineBlock; length.em 14.5 |> style.width]
+                   ([style.display.inlineBlock
+                     length.em (0.1 + fullPlateWidthEm - numberInputWidthEm) |> style.width]
+                    @ plateLabelFontStyle)
                    value
                    errorsS
-                   (Some <| length.em 19)
+                   (Some <| length.em fullPlateWidthEm)
                    onChange
 
 let renderDessertDisplay (count: int) =
     Html.li [
         Html.text "Dessert"
-        Html.ul [Html.li [Html.textf "%s: %d"
-                                     ((if count = 1 then TicketsNames else TicketsNamesPlural).Get <| OutsideDessert)
-                                     count]]]
+        Html.ul [Html.li [
+            prop.style plateLabelFontStyle
+            prop.children [
+                Html.textf "%s: %d"
+                           ((if count = 1 then TicketsNames else TicketsNamesPlural).Get <| OutsideDessert)
+                           count]]]]
 
 let renderTicketList (choices: (string * Plate list) list) (state: State) (header: ReactElement) (htmlTail: ReactElement list) (dispatch: Msg -> unit) =
     let setNumber p v = SetNumberOfTickets (p, v) |> dispatch
@@ -365,13 +378,15 @@ let menuHeader (count: int) formatString (dispatch: int -> unit) =
     Html.div [
         prop.children [
         Html.input [
-            prop.style numberInputStyle
+            prop.style <| numberInputStyle
             prop.value count
             prop.type' "number"
             prop.min 0
             prop.max FormMaxInt
             dispatch |> prop.onChange]
-        Html.textf formatString <| if count = 1 then "" else "s"]]
+        Html.span [
+            prop.style plateLabelFontStyle // for visual consistency with food selection controls
+            prop.children [Html.textf formatString <| if count = 1 then "" else "s"]]]]
 
 let renderInsideMenu (state: State) (dispatch: Msg -> unit) =
     let header = menuHeader (state.menus) "menu%s" (SetMenus >> dispatch)
@@ -398,10 +413,12 @@ let renderOutsideMenu (state: State) (dispatch: Msg -> unit) =
     let outsideChoices = [("Entrées", [OutsideMainStarter; OutsideExtraStarter])
                           ("Plats", [OutsideBolo; OutsideExtraDish])
                           ("Dessert", [OutsideDessert])]
-    let header = naivePlural (List.sumBy (fun (_, plates) -> List.sumBy onlyCountIfReasonable plates)
-                                         outsideChoices)
-                             "ticket"
-              |> Html.textf "Hors menu: %s"
+    let header = Html.div [
+        prop.style plateLabelFontStyle // for visual consistency with food selection controls
+        prop.children [
+            Html.textf "Hors menu: %s" <| naivePlural (List.sumBy (fun (_, plates) -> List.sumBy onlyCountIfReasonable plates)
+                                                                  outsideChoices)
+                                                      "ticket"]]
     renderTicketList outsideChoices
                      state
                      header
@@ -416,7 +433,7 @@ let inputText (id: string) (type': string) (label: string) (placeholder: string)
             prop.text label]
         Html.br []
         Html.input [
-            prop.style <| (length.percent 100 |> style.width) :: s
+            prop.style <| [length.percent 100 |> style.width; style.margin 0; style.padding 0] @ s
             prop.id id
             prop.name id
             prop.type' type'
@@ -444,10 +461,11 @@ let hasErrors (state: State): bool =
 
 let render (state: State) (dispatch: Msg -> unit) =
     let hasErrors = hasErrors state
-    let (secondTextInput, maybeHiddenCsrf, maybeGDPR, maybeExtraComment) =
+    let extraComment placeholder = inputText "extraComment" "text" "Commentaire:" placeholder state.extraComment None (SetExtraComment >> dispatch)
+    let (maybeEmailInput, maybeHiddenCsrf, maybeGDPR, extraCommentInput) =
         match csrfToken with
         // No CSRF token?  We are working for a simple user, so must validate the input and query for GDPR consent
-        | None -> (inputText "email" "email" "Email:" "Votre adress email au cas où nous devions vous contacter pour votre commande",
+        | None -> (inputText "email" "email" "Email:" "Votre adress email au cas où nous devrions vous contacter pour votre commande" state.email state.emailError (SetEmail >> dispatch),
                    Html.text "",
                    Html.div [
                        prop.style [style.overflow.hidden]
@@ -466,25 +484,23 @@ let render (state: State) (dispatch: Msg -> unit) =
                                Html.label [
                                    prop.htmlFor "gdpr_accepts_use"
                                    prop.text "J’autorise la Société Royale d’Harmonie de Braine-l’Alleud à utiliser mon adresse email pour m’avertir de ses futures activités."]]]]],
-                   Some <| inputText "extraComment" "extraComment" "Commentaire:" "Toute autre information par rapport à votre commande")
+                   extraComment "Toute autre information par rapport à votre commande")
         // CSRF token?  We are working for a logged in admin, so we don't validate email but store a comment instead
-        | Some x -> (inputText "comment" "text" "Commentaire:" "Commentaire optionnel, p.ex. le numéro de téléphone",
+        | Some x -> (Html.text "",
                      Html.input [prop.name "csrf_token"; prop.type' "hidden"; prop.value x],
                      Html.text "",
-                     None)
+                     extraComment "Commentaire optionnel, p.ex. le numéro de téléphone")
     Html.form [
         prop.method "POST"
         Fable.Core.JS.eval "try { ACTION_DEST } catch { '' }" |> prop.action
         prop.children [
         inputText "name" "text" "Nom:" "Vos places et votre commande de tickets seront à votre nom" state.name state.nameError (SetName >> dispatch)
-        secondTextInput state.email state.emailError (SetEmail >> dispatch)
-        match maybeExtraComment with
-        | None -> Html.text ""
-        | Some extraCommentInput -> extraCommentInput state.extraComment None (SetExtraComment >> dispatch)
+        maybeEmailInput
+        extraCommentInput
         inputNumberRaw Html.div
                        "places"
                        "Nombre de convives:"
-                       []
+                       plateLabelFontStyle // for visual consistency with food selection controls
                        state.places
                        state.placesErrors
                        None
