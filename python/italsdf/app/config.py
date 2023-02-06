@@ -24,7 +24,7 @@ def get_configuration():
         "extra_starter_name_plural": "Croquettes au fromage",
         "bolo_short": "Bolo",
         "bolo_name": "Spaghetti bolognaise",
-        "bolo_name_plural": "Spathettis bolognaise",
+        "bolo_name_plural": "Spaghettis bolognaise",
         "extra_dish_short": "Veg",
         "extra_dish_name": "Spaghetti aux légumes",
         "extra_dish_name_plural": "Spaghettis aux légumes",

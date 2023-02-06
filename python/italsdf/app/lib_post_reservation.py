@@ -57,7 +57,7 @@ def validate_data(
         raise ValidationException("Vous n'avez pas indiqué combien de places vous vouliez réserver")
     if date not in (('2099-01-01', '2099-01-02')
                     if is_test_reservation(name, email)
-                    else ('2022-03-19',)):
+                    else ('2023-03-25',)):
         raise ValidationException("Il n'y a pas de repas italien ̀à cette date")
     total_menus = inside_bolo + inside_extra_dish
     if inside_extra_starter + inside_main_starter != total_menus:
@@ -99,6 +99,7 @@ def normalize_data(
             return 0
     name = safe_strip(name)
     email = safe_strip(email)
+    extra_comment = safe_strip(extra_comment)
     places = safe_non_negative_int_less_or_equal_than_50(places)
     date = safe_strip(date)
     outside_extra_starter = safe_non_negative_int_less_or_equal_than_50(outside_extra_starter)

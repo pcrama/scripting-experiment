@@ -526,12 +526,47 @@ function test_17_generate_tickets_form_input
 # Temporary dir to store test outputs and also used as deployment directory name
 test_dir="$(mktemp --directory)"
 folder="$(basename "$test_dir")"
-ssh_app_folder="$host_path_prefix/$folder"
 db_file="$test_dir/db.db"
 
 cat <<EOF
 Storing test output in '$test_dir', clean with
     rm -r '$test_dir';
+EOF
+
+app_dir="$(dirname "$0")/../app"
+
+if [ -n "$dash_x" ];
+then
+    set -x
+fi
+
+test_01_output="$test_dir/test_01_output.log"
+echo | (cd "$app_dir" && script_name=post_reservation.cgi && env TEMP="$test_dir" REQUEST_METHOD=POST 'QUERY_STRING=name=test&email=i%40example.com&extraComment=commentaire&places=1&insidemainstarter=2&insideextrastarter=5&insidebolo=4&insideextradish=3&bolokids=8&extradishkids=9&outsidemainstarter=10&outsideextrastarter=11&outsidebolo=12&outsideextradish=13&outsidedessert=14&gdpr_accepts_use=true&date=2099-01-01' SERVER_NAME=example.com SCRIPT_NAME=$script_name python3 $script_name || die "test_01 execution problem, see $test_01_output") > "$test_01_output"
+grep -q "Status: 302" "$test_01_output" || die "test_01 No Status: 302 redirect"
+if uuid_hex="$(sed -ne '/Location:.*uuid_hex=/ { s///p ; q0 }' -e '$q1' "$test_01_output")"; then
+    [ "$(count_reservations)" = 1 ] || die "test_01: Reservation count"
+    data=$(sql_query "SELECT name, email, extra_comment, date, places, inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish, outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert, kids_bolo, kids_extra_dish FROM reservations WHERE uuid='$uuid_hex'")
+    [ "$data" = "test|i@example.com|commentaire|2099-01-01|1|2|5|4|3|10|11|12|13|14|8|9" ] || die "test_01 Wrong data inserted for $uuid_hex"
+else
+    die "test_01 uuid_hex not found in $test_01_output"
+fi
+
+# Invalid input to show_reservation.cgi redirects to main website
+test_02_output="$test_dir/test_02_output.log"
+(cd "$app_dir" && python3 show_reservation.cgi || die "test_02 execution problem, see $test_02_output") > "$test_02_output"
+grep -q "Status: 302" "$test_02_output" "$test_02_output" || die "test_02 No Status: 302 redirect"
+grep -q --fixed-strings 'Location: https://www.srhbraine.be/' "$test_02_output" || die "test_02 not redirecting to correct site"
+
+# Reuse reservation from test_01 to look at output
+test_03_output="$test_dir/test_03_output.log"
+echo | (cd "$app_dir" && script_name=show_reservation.cgi && env TEMP="$test_dir" REQUEST_METHOD=GET "QUERY_STRING=uuid_hex=$uuid_hex" SERVER_NAME=example.com SCRIPT_NAME=$script_name python3 $script_name || die "test_03 execution problem, see $test_03_output") > "$test_03_output"
+grep "A problem occurred in a Python script" "$test_03_output" && die "test_03 Exception during execution"
+
+# Temporarily disable command logging for deployment
+set +x
+
+ssh_app_folder="$host_path_prefix/$folder"
+cat <<EOF
 Deploying to '$ssh_app_folder', clean with
     ssh '$destination' "rm -r '$ssh_app_folder'";
 EOF

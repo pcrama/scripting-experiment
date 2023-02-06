@@ -22,7 +22,25 @@ from pricing import (
 )
 
 
-def commande(categorie, nombre1, nom1, nombre2, nom2):
+_CONFIGURATION = config.get_configuration()
+
+MAIN_STARTER_NAME = _CONFIGURATION["main_starter_name"]
+MAIN_STARTER_NAME_PLURAL = _CONFIGURATION["main_starter_name_plural"]
+EXTRA_STARTER_NAME = _CONFIGURATION["extra_starter_name"]
+EXTRA_STARTER_NAME_PLURAL = _CONFIGURATION["extra_starter_name_plural"]
+BOLO_NAME = _CONFIGURATION["bolo_name"]
+BOLO_NAME_PLURAL = _CONFIGURATION["bolo_name_plural"]
+EXTRA_DISH_NAME = _CONFIGURATION["extra_dish_name"]
+EXTRA_DISH_NAME_PLURAL = _CONFIGURATION["extra_dish_name_plural"]
+DESSERT_NAME = _CONFIGURATION["dessert_name"]
+DESSERT_NAME_PLURAL = _CONFIGURATION["dessert_name_plural"]
+KIDS_BOLO_NAME = _CONFIGURATION["kids_bolo_name"]
+KIDS_BOLO_NAME_PLURAL = _CONFIGURATION["kids_bolo_name_plural"]
+KIDS_EXTRA_DISH_NAME = _CONFIGURATION["kids_extra_dish_name"]
+KIDS_EXTRA_DISH_NAME_PLURAL = _CONFIGURATION["kids_extra_dish_name_plural"]
+
+
+def commande(categorie, nombre1, nom1, nombre2=0, nom2=[]):
     commandes = [
         pluriel_naif(n, x) for (n, x) in ((nombre1, nom1), (nombre2, nom2)) if n > 0]
     if len(commandes) == 0:
@@ -59,20 +77,23 @@ if __name__ == '__main__':
             print()
 
         commandes = [x for x in (commande('Entrée',
-                                          reservation.outside_fondus + reservation.inside_fondus,
-                                          ['Assiette de fondus au fromage', 'Assiettes de fondus au fromage'],
-                                          reservation.outside_assiettes + reservation.inside_assiettes,
-                                          ['Assiette de charcuterie italienne', 'Assiettes de charcuterie italienne']),
+                                          reservation.outside_main_starter + reservation.inside_main_starter,
+                                          [MAIN_STARTER_NAME, MAIN_STARTER_NAME_PLURAL],
+                                          reservation.outside_extra_starter + reservation.inside_extra_starter,
+                                          [EXTRA_STARTER_NAME, EXTRA_STARTER_NAME_PLURAL]),
                                  commande('Plat',
                                           reservation.outside_bolo + reservation.inside_bolo,
-                                          ['Spaghetti Bolognaise', 'Spaghettis Bolognaise'],
-                                          reservation.outside_scampis + reservation.inside_scampis,
-                                          ['Spaghetti aux Scampis', 'Spaghettis aux Scampis']),
+                                          [BOLO_NAME, BOLO_NAME_PLURAL],
+                                          reservation.outside_extra_dish + reservation.inside_extra_dish,
+                                          [EXTRA_DISH_NAME, EXTRA_DISH_NAME_PLURAL]),
+                                 commande('Plat enfants',
+                                          reservation.kids_bolo,
+                                          [KIDS_BOLO_NAME, KIDS_BOLO_NAME_PLURAL],
+                                          reservation.kids_extra_dish,
+                                          [KIDS_EXTRA_DISH_NAME, KIDS_EXTRA_DISH_NAME_PLURAL]),
                                  commande('Dessert',
-                                          reservation.outside_tiramisu + reservation.inside_tiramisu,
-                                          'Tiramisu',
-                                          reservation.outside_tranches + reservation.inside_tranches,
-                                          ['Tranche Napolitaine', 'Tranches Napolitaines']))
+                                          reservation.outside_dessert + reservation.inside_dessert,
+                                          [DESSERT_NAME, DESSERT_NAME_PLURAL]))
                      if x]
         if commandes:
             commandes = (('p', "Merci de nous avoir informé de votre commande à titre indicatif.  ",
