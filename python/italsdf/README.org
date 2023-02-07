@@ -12,7 +12,7 @@ See also [[file+emacs:app/gestion/index.org][usage instructions and checklists (
 
 Use the ~deploy.sh~ script like this:
 #+begin_src shell :exports code
-  ./deploy.sh 'user@host' 'username' 'groupname' 'destination_folder'
+  ./deploy.sh 'user@host' 'username' 'groupname' 'https://host' 'prefix_folder' 'deploy_folder'
 #+end_src
 
 - ~user@host~ :: anything that `ssh` accepts.
@@ -20,12 +20,17 @@ Use the ~deploy.sh~ script like this:
   to a specific user/group that does not correspond to the user/group of the
   system where development happens.  These parameters set the user/group in
   the destination.
-- ~destination_folder~ :: where to deploy (relative to the SSH host, not
-  necessarily the path typed in your browser)
+- ~prefix_folder/destination_folder~ :: where to deploy (relative to the
+  SSH host, not necessarily the path typed in your browser)
 
 Then configure the application
-- upload an image to =destination_folder/gestion/=
-- edit =destination_folder/configuration.json= on your webserver (cf
+- upload images for the dishes to =prefix_folder/deploy_folder/gestion/=, e.g.
+  + [[https://www.vecteezy.com/vector-art/3736403-spaghetti-bolognese-with-tomato-sauce][spaghetti bolognese with tomato sauce]]
+  + [[https://www.vecteezy.com/vector-art/965991-spaghetti-meal-set][spaghetti meal set]]
+  + [[https://www.vecteezy.com/search?qterm=croquette-cheese&content_type=vector][cheese croquette]]
+  + [[https://www.vecteezy.com/vector-art/10456729-vector-contour-drawing-of-mozzarella-cheese-slices-on-a-white-background][mozzarella cheese]]
+  + [[https://www.vecteezy.com/vector-art/150043-free-sweet-food-line-icon-vector][sweet food]]
+- edit =prefix_folder/deploy_folder/configuration.json= on your webserver (cf
   [[file+emacs:app/config.py][app/config.py]]).
 - Put up the dynamic or static input form
 
@@ -37,7 +42,8 @@ that generates an input form dynamically.
   <script>
     const ACTION_DEST = 'https://your-host/.../post_reservation.cgi';
     const CONCERT_DATE = '1234-56-78';</script>
-  <script src="http://your-host/.../main.js"></script>
+  <script defer src="http://your-host/.../demo.???.js"></script>
+  <script defer src="http://your-host/.../vendors.???.js"></script>
 #+end_example
 ** Static input form
 Host an HTML form that will =POST= its content to the =post_reservation.cgi=

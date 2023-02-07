@@ -9,22 +9,25 @@ fi
 destination="$1"
 user="$2"
 group="$3"
-folder="$4"
-admin_user="$5"
-admin_pw="$6"
+base_url="$4"
+prefix_folder="$5"
+deploy_folder="$6"
+admin_user="$7"
+admin_pw="$8"
 
-if [ -z "$destination" -o -z "$user" -o -z "$group" -o -z "$folder" ] ;
+if [ -z "$destination" -o -z "$user" -o -z "$group" -o -z "$base_url" -o -z "$prefix_folder" -o -z "$deploy_folder" ] ;
 then
-    echo -n "Missing parameters: $0 '$destination' '$user' '$group' '$folder'"
+    echo -n "Missing parameters: $0 '$destination' '$user' '$group' '$base_url' '$prefix_folder' '$deploy_folder'"
     if [ -n "$admin_user" -o -n "$admin_pw" ];
     then
         echo " '$admin_user' '$admin_pw'"
     else
         echo
     fi
-    echo "Usage: $(basename "$0") <ssh-host> <user> <group> <folder> [<admin-user> <admin-pw>]"
+    echo "Usage: $(basename "$0") <ssh-host> <user> <group> <https://base_url> <prefix_folder> <deploy_folder> [<admin-user> <admin-pw>]"
     exit 1
 else
+    folder="$prefix_folder/$deploy_folder"
     if [ -n "$admin_user" ];
     then
         protected_folder="$folder/gestion"
@@ -46,13 +49,25 @@ else
          && emacs --batch \
                   --eval "(progn (find-file \"index.org\") (org-html-export-to-html))")
     if [ -z "$excludes" ]; then
-        (cd "$(dirname "$0")/input-form/dist" \
-             && cp main.js main.js.LICENSE.txt "$staging_dir")
+        default_index_html="$HOME/Downloads/srh-index.html"
+        if [ -r "$default_index_html" ]; then
+            index_html="$default_index_html"
+        else
+            index_html="index.html"
+        fi
+        dest_index_html="$staging_dir/index.html"
+        (cd "$(dirname "$0")/input-form/build" \
+             && cp *.js *.js.LICENSE.txt "$staging_dir" \
+             && sed -n -e '/script defer src="/q' -e 'p' "$index_html" > "$dest_index_html" \
+             && echo "<script>const ACTION_DEST=\"$base_url/$deploy_folder/post_reservation.cgi\"; const CONCERT_DATE=\"2023-03-25\";</script>" >> "$dest_index_html" \
+             && for js in *.js ; do echo "<script defer src=\"$js\"></script>" >> "$dest_index_html" ; done \
+             && sed -n -e '/script defer src="/ { s,.*</script>,,p ; q }' "$index_html" >> "$dest_index_html" \
+             && sed -e '1,/script defer src="/d' "$index_html" >>"$dest_index_html" )
     fi
-    tar czf - --exclude "#*" --exclude "*~" --exclude "*.bak" --exclude "*cache*" --exclude "index.org" $excludes \
+    tar cf - --exclude "#*" --exclude "*~" --exclude "*.bak" --exclude "*cache*" --exclude "index.org" --exclude ".dir-locals.el" $excludes \
         -C "$(dirname "$0")/app" \
         . \
-        | tar xzf - -C "$staging_dir"
+        | tar xf - -C "$staging_dir"
     rm -f "$(dirname "$0")/app/gestion/index.html"
     find "$staging_dir" -type f '(' -name '*.cgi' -o -name '*.py' ')' -print0 | xargs -0 dos2unix
     tar czf - --"owner=$user" --"group=$group" -C "$staging_dir" . \
