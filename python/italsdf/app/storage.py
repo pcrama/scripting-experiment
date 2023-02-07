@@ -80,10 +80,14 @@ class Reservation(MiniOrm):
              kids_bolo INTEGER,
              kids_extra_dish INTEGER,
              gdpr_accepts_use INTEGER,
+             cents_due INTEGER,
+             bank_id TEXT NOT NULL,
              uuid TEXT NOT NULL,
              time REAL,
              active INTEGER,
-             origin TEXT)''']
+             origin TEXT)''',
+        f'CREATE UNIQUE INDEX index_bank_id_{TABLE_NAME} ON {TABLE_NAME} (bank_id)',
+        f'CREATE UNIQUE INDEX index_uuid_{TABLE_NAME} ON {TABLE_NAME} (uuid)']
 
     def __init__(self,
                  name,
@@ -103,6 +107,8 @@ class Reservation(MiniOrm):
                  kids_bolo,
                  kids_extra_dish,
                  gdpr_accepts_use,
+                 cents_due,
+                 bank_id,
                  uuid,
                  time,
                  active,
@@ -124,6 +130,8 @@ class Reservation(MiniOrm):
         self.kids_bolo = kids_bolo
         self.kids_extra_dish = kids_extra_dish
         self.gdpr_accepts_use = gdpr_accepts_use
+        self.cents_due = cents_due
+        self.bank_id = bank_id
         self.uuid = uuid
         self.timestamp = time
         self.active = active
@@ -156,6 +164,8 @@ class Reservation(MiniOrm):
             'kids_bolo': self.kids_bolo,
             'kids_extra_dish': self.kids_extra_dish,
             'gdpr_accepts_use': self.gdpr_accepts_use,
+            'cents_due': self.cents_due,
+            'bank_id': self.bank_id,
             'uuid': self.uuid,
             'time': self.timestamp,
             'active': self.active,
@@ -169,7 +179,7 @@ class Reservation(MiniOrm):
                  :outside_bolo, :outside_extra_dish, :outside_dessert, :inside_extra_starter,
                  :inside_main_starter, :inside_bolo, :inside_extra_dish,
                  :kids_bolo, :kids_extra_dish,
-                 :gdpr_accepts_use, :uuid, :time, :active, :origin)''',
+                 :gdpr_accepts_use, :cents_due, :bank_id, :uuid, :time, :active, :origin)''',
             self.to_dict())
 
 
@@ -252,6 +262,7 @@ class Reservation(MiniOrm):
                           'email': MiniOrm.compare_with_like_lower('email'),
                           'extra_comment': MiniOrm.compare_with_like_lower('extra_comment'),
                           'date': True,
+                          'bank_id': True,
                           'uuid': True,
                           'active': MiniOrm.compare_as_bool('active'),
                           'origin': ('LOWER(origin)', '=', str.lower),
@@ -344,10 +355,12 @@ class Reservation(MiniOrm):
                 kids_bolo=row[14],
                 kids_extra_dish=row[15],
                 gdpr_accepts_use=row[16] != 0,
-                uuid=row[17],
-                time=row[18],
-                active=row[19] != 0,
-                origin=row[20])
+                cents_due=row[17],
+                bank_id=row[18],
+                uuid=row[19],
+                time=row[20],
+                active=row[21] != 0,
+                origin=row[22])
 
 
 class Csrf(MiniOrm):

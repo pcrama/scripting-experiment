@@ -19,6 +19,14 @@ else
     dash_x=''
 fi
 
+if [ "$1" == "-f" ];
+then
+    skip_deploy=' -f'
+    shift
+else
+    skip_deploy=''
+fi
+
 base_url="$1"
 host_path_prefix="$2"
 destination="$3"
@@ -30,10 +38,10 @@ admin_pw="$(or_default "$7" "pw_$pseudo_random")"
 bank_account="BExx-$pseudo_random"
 info_email="mrx.$pseudo_random@example.com"
 
-if [ -z "$host_path_prefix" -o -z "$base_url" ];
+if [ -z "$skip_deploy" -a '(' -z "$host_path_prefix" -o -z "$base_url" ')' ];
 then
-    echo "Missing parameters: '$0'$dash_x '$base_url' '$host_path_prefix' '$destination' '$user' '$group' '$admin_user' '$admin_pw'"
-    echo "Usage: $(basename "$0") [-x] <base-url> <host-path-prefix> <ssh-host> <user> <group> [<admin-user> <admin-pw>]"
+    echo "Missing parameters: '$0'$dash_x$skip_deploy '$base_url' '$host_path_prefix' '$destination' '$user' '$group' '$admin_user' '$admin_pw'"
+    echo "Usage: $(basename "$0") [-x] [-f] <base-url> <host-path-prefix> <ssh-host> <user> <group> [<admin-user> <admin-pw>]"
     exit 1
 fi
 
@@ -253,7 +261,119 @@ function make_list_reservations_output_deterministic
     fi
 }
 
+app_dir="$(dirname "$0")/../app"
+
+function simulate_cgi_request
+{
+    local method script_name query_string
+    method="$1"
+    script_name="$2"
+    query_string="$3"
+    echo | (
+        cd "$app_dir" \
+            && env TEMP="$test_dir" \
+                   REQUEST_METHOD="$method" \
+                   QUERY_STRING="$query_string" \
+                   SERVER_NAME=example.com \
+                   SCRIPT_NAME="$script_name" \
+                   python3 "$script_name"
+    )
+}
+
+function redirect_cgi_output
+{
+    local test_name method script_name query_string test_output
+    test_name="$1"
+    method="$2"
+    script_name="$3"
+    query_string="$4"
+    if [ -z "$5" ]; then
+        test_output="$test_dir/$test_name.log"
+    else
+        test_output="$5"
+    fi
+    simulate_cgi_request "$method" "$script_name" "$query_string" > "$test_output" || die "$test_name CGI execution problem, look in $test_output"
+    echo "$test_output"
+}
+
+function assert_html_response
+{
+    local test_name test_output pattern
+    test_name="$1"
+    test_output="$2"
+    grep -q "Content-Type: text/html; charset=utf-8" "$test_output" || die "$test_name No Content-Type in $test_output"
+    grep -q '<!DOCTYPE HTML><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>' "$test_output" || die "$test_name no HTML preamble boilerplate in $test_output"
+    grep -q '</title><link rel="stylesheet" href="styles.css"></head><body><div id="branding" role="banner"><h1 id="site-title">Société Royale d'\''Harmonie de Braine-l'\''Alleud</h1><img src="https://www.srhbraine.be/wp-content/uploads/2019/10/site-en-tete.jpg" width="940" height="198" alt=""></div>' "$test_output" || die "$test_name no banner in $test_output"
+
+    shift 2
+    for pattern in "$@" ; do
+        grep -q "$pattern" "$test_output" || die "$test_name \`\`$pattern'' not found in $test_output"
+    done
+}
+
 # Test definitions
+
+function test_01_locally_valid_post_reservation
+{
+    local test_name test_output uuid_hex
+    test_name="test_01_locally_valid_post_reservation"
+    test_output="$(redirect_cgi_output "$test_name" POST post_reservation.cgi 'name=test&email=i%40example.com&extraComment=commentaire&places=1&insidemainstarter=2&insideextrastarter=5&insidebolo=4&insideextradish=3&bolokids=8&extradishkids=9&outsidemainstarter=10&outsideextrastarter=11&outsidebolo=12&outsideextradish=13&outsidedessert=14&gdpr_accepts_use=true&date=2099-01-01')"
+    grep -q "Status: 302" "$test_output" || die "$test_name No Status: 302 redirect in $test_output"
+    if uuid_hex="$(sed -ne '/Location:.*uuid_hex=/ { s///p ; q0 }' -e '$q1' "$test_output")"; then
+        [ "$(count_reservations)" = 1 ] || die "$test_name: Reservation count"
+        data=$(sql_query "SELECT name, email, extra_comment, date, places, inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish, outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert, kids_bolo, kids_extra_dish FROM reservations WHERE uuid='$uuid_hex'")
+        [ "$data" = "test|i@example.com|commentaire|2099-01-01|1|2|5|4|3|10|11|12|13|14|8|9" ] || die "$test_name Wrong data inserted for $uuid_hex"
+    else
+        die "$test_name uuid_hex not found in $test_output"
+    fi
+}
+
+# Invalid input to show_reservation.cgi redirects to main website
+function test_02_locally_invalid_show_reservation
+{
+    local test_name test_output
+    test_name="test_02_locally_invalid_show_reservation"
+    test_output="$(redirect_cgi_output "$test_name" GET show_reservation.cgi "")"
+    grep -q "Status: 302" "$test_output" || die "$test_name No Status: 302 redirect in $test_output"
+    grep -q --fixed-strings 'Location: https://www.srhbraine.be/' "$test_output" || die "$test_name not redirecting to correct site in $test_output"
+}
+
+# Reuse reservation from test_01 to look at output
+function test_03_locally_display_existing_reservation
+{
+    local test_name test_output uuid_hex
+    test_name="test_03_locally_display_existing_reservation"
+    uuid_hex=$(sql_query "SELECT uuid FROM reservations LIMIT 1")
+    test_output="$(redirect_cgi_output "$test_name" GET show_reservation.cgi "uuid_hex=$uuid_hex")"
+    assert_html_response "$test_name" "$test_output"
+}
+
+# Some validation testing
+function test_04_locally_invalid_post_reservation
+{
+    local test_name test_output uuid_hex inside_menu_mismatch_query_string invalid_email_query_string query_string
+    test_name="test_04_locally_invalid_post_reservation"
+
+    inside_menu_mismatch_query_string='name=test&email=i%40example.com&extraComment=commentaire&places=1&insidemainstarter=2&insideextrastarter=5&insidebolo=0&insideextradish=3&bolokids=8&extradishkids=9&outsidemainstarter=10&outsideextrastarter=11&outsidebolo=12&outsideextradish=13&outsidedessert=14&gdpr_accepts_use=true&date=2099-01-01'
+    query_string="$inside_menu_mismatch_query_string"
+    test_output="$(redirect_cgi_output "$test_name" POST post_reservation.cgi "$query_string")"
+    if uuid_hex="$(sed -ne '/Location:.*uuid_hex=/ { s///p ; q0 }' -e '$q1' "$test_output")"; then
+        die "$test_name reservation $uuid_hex created for invalid $query_string"
+    fi
+    assert_html_response "$test_name" "$test_output" \
+                         "invalides dans le formulaire" \
+                         "ne correspond pas au nombre de plats"
+
+    invalid_email_query_string='name=test&email=example.com%40&extraComment=commentaire&places=1&insidemainstarter=2&insideextrastarter=5&insidebolo=4&insideextradish=3&bolokids=8&extradishkids=9&outsidemainstarter=10&outsideextrastarter=11&outsidebolo=12&outsideextradish=13&outsidedessert=14&gdpr_accepts_use=true&date=2099-01-01'
+    query_string="$invalid_email_query_string"
+    test_output="$(redirect_cgi_output "$test_name" POST post_reservation.cgi "$query_string")"
+    if uuid_hex="$(sed -ne '/Location:.*uuid_hex=/ { s///p ; q0 }' -e '$q1' "$test_output")"; then
+        die "$test_name reservation $uuid_hex created for invalid $query_string"
+    fi
+    assert_html_response "$test_name" "$test_output" \
+                         "invalides dans le formulaire" \
+                         "adresse email.*n'a pas le format requis"
+}
 
 # 01: List reservations when DB is still empty, then
 # - Verify output HTML
@@ -533,37 +653,24 @@ Storing test output in '$test_dir', clean with
     rm -r '$test_dir';
 EOF
 
-app_dir="$(dirname "$0")/../app"
-
 if [ -n "$dash_x" ];
 then
     set -x
 fi
 
-test_01_output="$test_dir/test_01_output.log"
-echo | (cd "$app_dir" && script_name=post_reservation.cgi && env TEMP="$test_dir" REQUEST_METHOD=POST 'QUERY_STRING=name=test&email=i%40example.com&extraComment=commentaire&places=1&insidemainstarter=2&insideextrastarter=5&insidebolo=4&insideextradish=3&bolokids=8&extradishkids=9&outsidemainstarter=10&outsideextrastarter=11&outsidebolo=12&outsideextradish=13&outsidedessert=14&gdpr_accepts_use=true&date=2099-01-01' SERVER_NAME=example.com SCRIPT_NAME=$script_name python3 $script_name || die "test_01 execution problem, see $test_01_output") > "$test_01_output"
-grep -q "Status: 302" "$test_01_output" || die "test_01 No Status: 302 redirect"
-if uuid_hex="$(sed -ne '/Location:.*uuid_hex=/ { s///p ; q0 }' -e '$q1' "$test_01_output")"; then
-    [ "$(count_reservations)" = 1 ] || die "test_01: Reservation count"
-    data=$(sql_query "SELECT name, email, extra_comment, date, places, inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish, outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert, kids_bolo, kids_extra_dish FROM reservations WHERE uuid='$uuid_hex'")
-    [ "$data" = "test|i@example.com|commentaire|2099-01-01|1|2|5|4|3|10|11|12|13|14|8|9" ] || die "test_01 Wrong data inserted for $uuid_hex"
-else
-    die "test_01 uuid_hex not found in $test_01_output"
-fi
-
-# Invalid input to show_reservation.cgi redirects to main website
-test_02_output="$test_dir/test_02_output.log"
-(cd "$app_dir" && python3 show_reservation.cgi || die "test_02 execution problem, see $test_02_output") > "$test_02_output"
-grep -q "Status: 302" "$test_02_output" "$test_02_output" || die "test_02 No Status: 302 redirect"
-grep -q --fixed-strings 'Location: https://www.srhbraine.be/' "$test_02_output" || die "test_02 not redirecting to correct site"
-
-# Reuse reservation from test_01 to look at output
-test_03_output="$test_dir/test_03_output.log"
-echo | (cd "$app_dir" && script_name=show_reservation.cgi && env TEMP="$test_dir" REQUEST_METHOD=GET "QUERY_STRING=uuid_hex=$uuid_hex" SERVER_NAME=example.com SCRIPT_NAME=$script_name python3 $script_name || die "test_03 execution problem, see $test_03_output") > "$test_03_output"
-grep "A problem occurred in a Python script" "$test_03_output" && die "test_03 Exception during execution"
+test_01_locally_valid_post_reservation
+test_02_locally_invalid_show_reservation
+test_03_locally_display_existing_reservation
+test_04_locally_invalid_post_reservation
 
 # Temporarily disable command logging for deployment
 set +x
+
+if [ -n "$skip_deploy" ];
+then
+    echo "Skipping tests requiring deployment"
+    exit 0
+fi
 
 ssh_app_folder="$host_path_prefix/$folder"
 cat <<EOF

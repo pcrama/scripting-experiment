@@ -23,6 +23,8 @@ def make_reservation(**overrides):
         kids_bolo=0,
         kids_extra_dish=0,
         gdpr_accepts_use=True,
+        cents_due=1253,
+        bank_id="12349876",
         uuid='deadbeef',
         time=12345678.9,
         active=True,

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import htmlgen
 
 CENTS_STARTER = 750
@@ -40,4 +41,4 @@ def price_in_cents(r,
 
 def price_in_euros(r, **kwargs):
     cents = price_in_cents(r, **kwargs)
-    return htmlgen.cents_to_euro(cents)
+    return htmlgen.cents_to_euro(cents) + " €"

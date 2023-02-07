@@ -15,6 +15,13 @@ def print_content_type(content_type):
     return True
 
 
+def format_bank_id(x):
+    bank_id = ''.join(c for c in x if c.isdigit())
+    if len(bank_id) != 12:
+        return x
+    return f'+++{bank_id[0:3]}/{bank_id[3:7]}/{bank_id[7:12]}+++'
+
+
 def pluriel_naif(nombre, nom_et_pluriel):
     if isinstance(nom_et_pluriel, str):
         nom_et_pluriel = [nom_et_pluriel, f'{nom_et_pluriel}s']
@@ -25,7 +32,7 @@ def pluriel_naif(nombre, nom_et_pluriel):
 
 
 def cents_to_euro(cents):
-    return f'{cents // 100}.{cents % 100:02} €'
+    return f'{cents // 100}.{cents % 100:02}'
 
 
 def html_gen(data):
@@ -69,6 +76,10 @@ def html_document(title, body):
                         ('title', title),
                         (('link', 'rel', 'stylesheet', 'href', 'styles.css'),)),
                        ('body',
+                        (('div', 'id', 'branding', 'role', 'banner'),
+                         (('h1', 'id', 'site-title'),
+                          "Société Royale d'Harmonie de Braine-l'Alleud"),
+                         (('img', 'src', 'https://www.srhbraine.be/wp-content/uploads/2019/10/site-en-tete.jpg', 'width', "940", "height", "198", "alt", ""),)),
                         *body,
                         ('hr', ),
                         ('p',
@@ -95,7 +106,7 @@ def redirect(new_url, and_exit=True):
         sys.exit(0)
 
 
-CONCERT_PAGE = 'https://www.srhbraine.be/soiree-italienne/'
+CONCERT_PAGE = 'https://www.srhbraine.be/'
 
 
 def redirect_to_event(and_exit=True):

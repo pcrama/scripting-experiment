@@ -11,6 +11,9 @@ from htmlgen import (
     redirect,
     respond_html,
 )
+from pricing import (
+    price_in_cents,
+)
 from storage import(
     Reservation,
     ensure_connection,
@@ -130,11 +133,13 @@ def save_data_sqlite3(name, email, extra_comment, places, date,
                       kids_bolo, kids_extra_dish,
                       gdpr_accepts_use, origin, connection_or_root_dir):
     connection = ensure_connection(connection_or_root_dir)
-    uuid_hex = uuid.uuid4().hex
+    process_id = os.getpid()
     retries = 3
     while retries > 0:
+        uuid_hex = uuid.uuid4().hex
         retries -= 1
         timestamp = time.time()
+        bank_id = generate_bank_id(timestamp, Reservation.length(connection), process_id)
         try:
             new_row = Reservation(name=name,
                                   email=email,
@@ -153,10 +158,13 @@ def save_data_sqlite3(name, email, extra_comment, places, date,
                                   kids_bolo=kids_bolo,
                                   kids_extra_dish=kids_extra_dish,
                                   gdpr_accepts_use=gdpr_accepts_use,
+                                  cents_due=-1, # To be fixed once the object is initialized
+                                  bank_id=append_bank_id_control_number(bank_id),
                                   uuid=uuid_hex,
                                   time=timestamp,
                                   active=True,
                                   origin=origin)
+            new_row.cents_due = price_in_cents(new_row)
             with connection:
                 new_row.insert_data(connection)
             return new_row
@@ -166,6 +174,32 @@ def save_data_sqlite3(name, email, extra_comment, places, date,
                 pass
             else:
                 raise
+
+
+def generate_bank_id(time_time, number_of_previous_calls, process_id):
+    data = [(x & ((1 << b) - 1), b)
+            for (x, b)
+            in ((round(time_time * 100.0), 7),
+                (number_of_previous_calls, 10),
+                (process_id, 16))]
+    bits = 0
+    n = 0
+    for (x, b) in data:
+        n = (n << b) + x
+    return f'{n:010}'
+
+
+def append_bank_id_control_number(s):
+    n = 0
+    for c in s:
+        if c == '/':
+            continue
+        elif not c.isdigit():
+            raise Exception(f'{c} is not a digit')
+        n = (n * 10 + int(c)) % 97
+    if n == 0:
+        n = 97
+    return f'{s}{n:02}'
 
 
 def respond_with_reservation_failed(configuration):
