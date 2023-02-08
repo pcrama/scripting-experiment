@@ -26,12 +26,12 @@ class ExportDataRow(unittest.TestCase):
         writer = FakeWriter()
         for data, expected in (
                 (dict(name='t1',email='comment',places=2,outside_extra_starter=1,outside_main_starter=2,outside_extra_dish=3,outside_bolo=4,outside_dessert=5+6,inside_main_starter=7,inside_extra_starter=15,inside_bolo=8,inside_extra_dish=14,origin='unit test',gdpr_accepts_use=False,active=True),
-                 ('t1',2,7,15,8,14,22,0,0,0,2,1,4,3,11,'804.00 €','comment','','',True,'unit test')),
-                (dict(name='t2',email='t2@b.com',places=1,outside_extra_starter=2,outside_main_starter=1,outside_extra_dish=3,outside_bolo=4,outside_dessert=6+5,inside_main_starter=6,inside_extra_starter=14,inside_bolo=7,inside_extra_dish=13,kids_bolo=1,kids_extra_dish=2,origin=None,gdpr_accepts_use=True,active=True),
-                 ('t2',1,6,14,7,13,20,1,2,3,1,2,4,3,11,'798.00 €','','t2@b.com','t2@b.com',True,None)),
+                 ('t1',2,7,15,8,14,22,0,0,0,2,1,4,3,11,'804.00 €','unit test extra comment','','',True,'unit test')),
+                (dict(name='t2',email='t2@b.com',places=1,outside_extra_starter=2,outside_main_starter=1,outside_extra_dish=3,outside_bolo=4,outside_dessert=6+5,inside_main_starter=6,inside_extra_starter=14,inside_bolo=7,inside_extra_dish=13,kids_bolo=1,kids_extra_dish=2,origin=None,gdpr_accepts_use=True,active=True,extra_comment='foobar'),
+                 ('t2',1,6,14,7,13,20,1,2,3,1,2,4,3,11,'798.00 €','foobar','t2@b.com','t2@b.com',True,None)),
                 (dict(name='t3',email='t3@b.com',places=3,outside_extra_starter=2,outside_main_starter=0,outside_extra_dish=0,outside_bolo=0,outside_dessert=0,inside_main_starter=0,inside_extra_starter=0,inside_bolo=0,inside_extra_dish=0,origin=None,gdpr_accepts_use=False,active=True),
-                 ('t3',3,0,0,0,0,0,0,0,0,0,2,0,0,0,'15.00 €','','t3@b.com','',True,None)),
-                (dict(name='t4',email='t4@b.com',places=3,outside_extra_starter=2,outside_main_starter=0,outside_extra_dish=0,outside_bolo=0,outside_dessert=0,inside_main_starter=0,inside_extra_starter=0,inside_bolo=0,inside_extra_dish=0,origin=None,gdpr_accepts_use=False,active=False),
+                 ('t3',3,0,0,0,0,0,0,0,0,0,2,0,0,0,'15.00 €','unit test extra comment','t3@b.com','',True,None)),
+                (dict(name='t4',email='t4@b.com',places=3,outside_extra_starter=2,outside_main_starter=0,outside_extra_dish=0,outside_bolo=0,outside_dessert=0,inside_main_starter=0,inside_extra_starter=0,inside_bolo=0,inside_extra_dish=0,origin=None,gdpr_accepts_use=False,active=False,extra_comment=''),
                  ('t4',3,0,0,0,0,0,0,0,0,0,2,0,0,0,'15.00 €','','t4@b.com','',False,None)),
         ):
             with self.subTest(expected=expected):

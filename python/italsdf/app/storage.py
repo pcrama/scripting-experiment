@@ -219,7 +219,7 @@ class Reservation(MiniOrm):
             date_condition = ' AND date = :date'
             bindings = {'date': date}
         return connection.execute(
-            f'''SELECT COUNT(*), SUM(outside_extra_starter + inside_extra_starter), SUM(outside_main_starter + inside_main_starter), SUM(outside_bolo + inside_bolo), SUM(outside_extra_dish + inside_extra_dish), SUM(kids_bolo + kids_extra_dish), SUM(outside_dessert + inside_bolo + inside_extra_dish + kids_bolo + kids_extra_dish + inside_bolo + inside_extra_dish) FROM {cls.TABLE_NAME}
+            f'''SELECT COUNT(*), SUM(outside_main_starter + inside_main_starter), SUM(outside_extra_starter + inside_extra_starter), SUM(outside_bolo + inside_bolo), SUM(outside_extra_dish + inside_extra_dish), SUM(kids_bolo), SUM(kids_extra_dish), SUM(outside_dessert + inside_bolo + inside_extra_dish + kids_bolo + kids_extra_dish) FROM {cls.TABLE_NAME}
                 WHERE active != 0{date_condition}''',
             bindings
         ).fetchone()

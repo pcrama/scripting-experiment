@@ -133,12 +133,12 @@ def create_full_ticket_list(rs, main_starter, extra_starter, bolo, extra_dish, k
         dessert=dessert)
 
 
-def ul_for_menu_data(total_main_starter, total_extra_starter, total_bolo, total_extra_dish, total_dessert):
+def ul_for_menu_data(total_main_starter, total_extra_starter, total_bolo, total_extra_dish, total_kids_bolo, total_kids_extra_dish, total_dessert):
     return ('ul',
             *(('li', pluriel_naif(count, (singular_name, plural_name)))
               for (count, singular_name, plural_name) in (
                       (total_main_starter, MAIN_STARTER_NAME, MAIN_STARTER_NAME_PLURAL),
-                      (total_extra_starer, EXTRA_STARER_NAME, EXTRA_STARER_NAME_PLURAL),
+                      (total_extra_starter, EXTRA_STARTER_NAME, EXTRA_STARTER_NAME_PLURAL),
                       (total_bolo, BOLO_NAME, BOLO_NAME_PLURAL),
                       (total_extra_dish, EXTRA_DISH_NAME, EXTRA_DISH_NAME_PLURAL),
                       (total_kids_bolo, KIDS_BOLO_NAME, KIDS_BOLO_NAME_PLURAL),

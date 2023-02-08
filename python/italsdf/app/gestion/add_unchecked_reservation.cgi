@@ -1,9 +1,9 @@
 #!/usr/pkg/bin/python3
 # -*- coding: utf-8 -*-
 #
-# Test with
+# After finding a way to make the CSRF check allow the script to proceed, test with
 #
-# echo | (cd app/gestion && env REMOTE_USER=admin REQUEST_METHOD=POST 'QUERY_STRING=name=bambi&email=a@b.com' python add_unchecked_reservation.cgi)
+# echo | (script_name=add_unchecked_reservation.cgi && env SERVER_NAME=1.2.3.4 SCRIPT_NAME=$script_name REMOTE_USER=admin REQUEST_METHOD=POST 'QUERY_STRING=name=Qui+m%27appelle%3F&extraComment=02%2F123.45.67&places=1&insidemainstarter=1&insideextrastarter=0&insidebolo=0&insideextradish=1&bolokids=0&extradishkids=0&outsidemainstarter=0&outsideextrastarter=0&outsidebolo=0&outsideextradish=0&outsidedessert=0&csrf_token=e0eb75317b2d4084b0aa3594a8545375&date=2023-03-25' python3 $script_name)
 import cgi
 import cgitb
 import os
@@ -64,67 +64,66 @@ if __name__ == '__main__':
                 Csrf.get(db_connection, csrf_token)
             except KeyError:
                 fail_add_unchecked_reservation()
-        
+
         name = form.getfirst('name', default='')
-        comment = form.getfirst('comment', default='')
+        email = ''
+        extra_comment = form.getfirst('extraComment', default='')
         places = form.getfirst('places', default=0)
         date = form.getfirst('date', default='')
-        outside_fondus = form.getfirst('outside_fondus', default=0)
-        outside_assiettes = form.getfirst('outside_assiettes', default=0)
-        outside_bolo = form.getfirst('outside_bolo', default=0)
-        outside_scampis = form.getfirst('outside_scampis', default=0)
-        outside_tiramisu = form.getfirst('outside_tiramisu', default=0)
-        outside_tranches = form.getfirst('outside_tranches', default=0)
-        inside_fondus = form.getfirst('inside_fondus', default=0)
-        inside_assiettes = form.getfirst('inside_assiettes', default=0)
-        inside_bolo = form.getfirst('inside_bolo', default=0)
-        inside_scampis = form.getfirst('inside_scampis', default=0)
-        inside_tiramisu = form.getfirst('inside_tiramisu', default=0)
-        inside_tranches = form.getfirst('inside_tranches', default=0)
-        # Abuse 'email' field to store 'comment'
-        (name, email, places, date,
-         outside_fondus, outside_assiettes, outside_bolo, outside_scampis, outside_tiramisu, outside_tranches,
-         inside_fondus, inside_assiettes, inside_bolo, inside_scampis, inside_tiramisu, inside_tranches,
+        outside_main_starter = form.getfirst('outsidemainstarter', default=0)
+        outside_extra_starter = form.getfirst('outsideextrastarter', default=0)
+        outside_bolo = form.getfirst('outsidebolo', default=0)
+        outside_extra_dish = form.getfirst('outsideextradish', default=0)
+        outside_dessert = form.getfirst('outsidedessert', default=0)
+        inside_main_starter = form.getfirst('insidemainstarter', default=0)
+        inside_extra_starter = form.getfirst('insideextrastarter', default=0)
+        inside_bolo = form.getfirst('insidebolo', default=0)
+        inside_extra_dish = form.getfirst('insideextradish', default=0)
+        kids_bolo = form.getfirst('bolokids', default=0)
+        kids_extra_dish = form.getfirst('extradishkids', default=0)
+        gdpr_accepts_use = form.getfirst('gdpr_accepts_use', default=False)
+        (name, email, extra_comment, places, date,
+         outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert,
+         inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish,
+         kids_bolo, kids_extra_dish,
          gdpr_accepts_use) = normalize_data(
-            name,
-            comment,
-            places,
-            date,
-            outside_fondus,
-            outside_assiettes,
-            outside_bolo,
-            outside_scampis,
-            outside_tiramisu,
-            outside_tranches,
-            inside_fondus,
-            inside_assiettes,
-            inside_bolo,
-            inside_scampis,
-            inside_tiramisu,
-            inside_tranches,
-            # there is no email address or they would have registered
-            # themselves -> No GDPR
-            False)
+             name=name,
+             email=email,
+             extra_comment=extra_comment,
+             places=places,
+             date=date,
+             outside_main_starter=outside_main_starter,
+             outside_extra_starter=outside_extra_starter,
+             outside_bolo=outside_bolo,
+             outside_extra_dish=outside_extra_dish,
+             outside_dessert=outside_dessert,
+             inside_main_starter=inside_main_starter,
+             inside_extra_starter=inside_extra_starter,
+             inside_bolo=inside_bolo,
+             inside_extra_dish=inside_extra_dish,
+             kids_bolo=kids_bolo,
+             kids_extra_dish=kids_extra_dish,
+             gdpr_accepts_use=gdpr_accepts_use)
         respond_with_reservation_confirmation(
-            name,
-            email,
-            places,
-            date,
-            outside_fondus,
-            outside_assiettes,
-            outside_bolo,
-            outside_scampis,
-            outside_tiramisu,
-            outside_tranches,
-            inside_fondus,
-            inside_assiettes,
-            inside_bolo,
-            inside_scampis,
-            inside_tiramisu,
-            inside_tranches,
-            gdpr_accepts_use,
-            db_connection,
-            CONFIGURATION,
+            name=name,
+            email=email,
+            extra_comment=extra_comment,
+            places=places,
+            date=date,
+            outside_main_starter=outside_main_starter,
+            outside_extra_starter=outside_extra_starter,
+            outside_bolo=outside_bolo,
+            outside_extra_dish=outside_extra_dish,
+            outside_dessert=outside_dessert,
+            inside_main_starter=inside_main_starter,
+            inside_extra_starter=inside_extra_starter,
+            inside_bolo=inside_bolo,
+            inside_extra_dish=inside_extra_dish,
+            kids_bolo=kids_bolo,
+            kids_extra_dish=kids_extra_dish,
+            gdpr_accepts_use=gdpr_accepts_use,
+            connection=db_connection,
+            configuration=CONFIGURATION,
             origin=os.getenv('REMOTE_USER'))
     except Exception:
         # cgitb needs the content-type header

@@ -197,6 +197,56 @@ class TestFullTicketList(ConfiguredTestCase):
               *DESSERT)])
     
 
+class UlForMenuDataTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.maxDiff = None
+        create_tickets.BOLO_NAME = "bolo"
+        create_tickets.BOLO_NAME_PLURAL = "bolos"
+        create_tickets.EXTRA_DISH_NAME = "sampis"
+        create_tickets.EXTRA_DISH_NAME_PLURAL = "sampis"
+        create_tickets.MAIN_STARTER_NAME = "main_starter"
+        create_tickets.MAIN_STARTER_NAME_PLURAL = "main_starter_plural"
+        create_tickets.EXTRA_STARTER_NAME = "extra_starter"
+        create_tickets.EXTRA_STARTER_NAME_PLURAL = "extra_starter_plural"
+        create_tickets.BOLO_NAME = "bolo"
+        create_tickets.BOLO_NAME_PLURAL = "bolo_plural"
+        create_tickets.EXTRA_DISH_NAME = "extra_dish"
+        create_tickets.EXTRA_DISH_NAME_PLURAL = "extra_dish_plural"
+        create_tickets.DESSERT_NAME = "dessert"
+        create_tickets.DESSERT_NAME_PLURAL = "dessert_plural"
+        create_tickets.KIDS_BOLO_NAME = "kids_bolo"
+        create_tickets.KIDS_BOLO_NAME_PLURAL = "kids_bolo_plural"
+        create_tickets.KIDS_EXTRA_DISH_NAME = "kids_extra_dish"
+        create_tickets.KIDS_EXTRA_DISH_NAME_PLURAL = "kids_extra_dish_plural"
+        create_tickets.MAIN_STARTER_IMAGE = "main_starter_image"
+        create_tickets.EXTRA_STARTER_IMAGE = "extra_starter_image"
+        create_tickets.BOLO_IMAGE = "bolo_image"
+        create_tickets.EXTRA_DISH_IMAGE = "extra_dish_image"
+        create_tickets.DESSERT_IMAGE = "dessert_image"
+        create_tickets.KIDS_BOLO_IMAGE = "kids_bolo_image"
+        create_tickets.KIDS_EXTRA_DISH_IMAGE = "kids_extra_dish_image"
+
+    def test_full_example(self):
+        self.assertEqual(
+            create_tickets.ul_for_menu_data(
+                total_main_starter=1,
+                total_extra_starter=2,
+                total_bolo=3,
+                total_extra_dish=4,
+                total_kids_bolo=5,
+                total_kids_extra_dish=0,
+                total_dessert=7),
+            ('ul',
+             ('li', '1 main_starter'),
+                ('li', '2 extra_starter_plural'),
+                ('li', '3 bolo_plural'),
+                ('li', '4 extra_dish_plural'),
+                ('li', '5 kids_bolo_plural'),
+                ('li', '0 kids_extra_dish_plural'),
+                ('li', '7 dessert_plural')))
+
+
 if __name__ == '__main__':
     unittest.main()
 

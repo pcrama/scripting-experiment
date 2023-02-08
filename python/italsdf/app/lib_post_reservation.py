@@ -215,9 +215,6 @@ def respond_with_reservation_failed(configuration):
 def make_show_reservation_url(uuid_hex, server_name=None, script_name=None):
     server_name = os.environ["SERVER_NAME"] if server_name is None else server_name
     script_name = os.environ["SCRIPT_NAME"] if script_name is None else script_name
-    base_url = urllib.parse.urljoin(
-        f'https://{server_name}{script_name}', 'show_reservation.cgi')
-    split_result = urllib.parse.urlsplit(base_url)
     return urllib.parse.urlunsplit((
         'https',
         server_name,

@@ -35,11 +35,9 @@ def write_column_header_rows(writer):
 
 def export_reservation(writer, x):
     if x.origin:
-        comment = x.email
         email = ''
         gdpr_email = ''
     else:
-        comment = ''
         email = x.email
         gdpr_email = x.email if x.gdpr_accepts_use else ''
     writer.writerow((
@@ -53,5 +51,5 @@ def export_reservation(writer, x):
         x.outside_bolo, x.outside_extra_dish,
         x.outside_dessert,
         price_in_euros(x),
-        comment, email, gdpr_email, x.active, x.origin
+        x.extra_comment, email, gdpr_email, x.active, x.origin
     ))

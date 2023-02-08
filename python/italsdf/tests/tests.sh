@@ -75,7 +75,7 @@ function do_curl_as_admin {
     _do_curl "$1" "$2" "$3" "$admin_user:$admin_pw@"
 }
 
-function assert_redirect_to_concert_page
+function assert_redirect_to_concert_page_for_integration_test
 {
     local test_stderr
     test_stderr="$1"
@@ -219,7 +219,7 @@ function generic_test_new_reservation_without_valid_CSRF_token_fails
     if [ "$(count_reservations)" != "3" ]; then
         die "Reservations table wrong."
     fi
-    assert_redirect_to_concert_page "$test_stderr"
+    assert_redirect_to_concert_page_for_integration_test "$test_stderr"
     echo "test_$test_name: ok"
 }
 
@@ -234,7 +234,7 @@ function generic_test_generate_tickets_without_valid_CSRF_token_fails
                      "$test_output" \
                      "-X POST -F outside_fondus=20 -F outside_assiettes=20 -F outside_bolo=20 -F outside_scampis=20 -F outside_tiramisu=20 -F outside_tranches=20 places=3 $csrf_arg --verbose" \
                      2> "$test_stderr"
-    assert_redirect_to_concert_page "$test_stderr"
+    assert_redirect_to_concert_page_for_integration_test "$test_stderr"
     echo "test_$test_name: ok"
 }
 
@@ -262,6 +262,7 @@ function make_list_reservations_output_deterministic
 }
 
 app_dir="$(dirname "$0")/../app"
+admin_sub_dir="gestion"
 
 function simulate_cgi_request
 {
@@ -269,14 +270,16 @@ function simulate_cgi_request
     method="$1"
     script_name="$2"
     query_string="$3"
+    shift 3
     echo | (
-        cd "$app_dir" \
+        cd "$app_dir/$(dirname "$script_name")" \
             && env TEMP="$test_dir" \
                    REQUEST_METHOD="$method" \
                    QUERY_STRING="$query_string" \
                    SERVER_NAME=example.com \
                    SCRIPT_NAME="$script_name" \
-                   python3 "$script_name"
+                   "$@" \
+                   python3 "$(basename "$script_name")"
     )
 }
 
@@ -287,12 +290,32 @@ function redirect_cgi_output
     method="$2"
     script_name="$3"
     query_string="$4"
+    shift 4
     if [ -z "$5" ]; then
         test_output="$test_dir/$test_name.log"
     else
         test_output="$5"
+        shift
     fi
-    simulate_cgi_request "$method" "$script_name" "$query_string" > "$test_output" || die "$test_name CGI execution problem, look in $test_output"
+    simulate_cgi_request "$method" "$script_name" "$query_string" "$@" > "$test_output" || die "$test_name CGI execution problem, look in $test_output"
+    echo "$test_output"
+}
+
+function redirect_admin_cgi_output
+{
+    local test_name method script_name query_string test_output
+    test_name="$1"
+    method="$2"
+    script_name="$3"
+    query_string="$4"
+    shift 4
+    if [ -z "$5" ]; then
+        test_output="$test_dir/$test_name.log"
+    else
+        test_output="$5"
+        shift
+    fi
+    simulate_cgi_request "$method" "$admin_sub_dir/$script_name" "$query_string" REMOTE_USER="secretaire" REMOTE_ADDR="1.2.3.4" "$@" > "$test_output" || die "$test_name admin CGI execution problem, look in $test_output"
     echo "$test_output"
 }
 
@@ -328,14 +351,22 @@ function test_01_locally_valid_post_reservation
     fi
 }
 
+function assert_redirect_to_concert_page_for_local_test
+{
+    local test_name test_output
+    test_name="$1"
+    test_output="$2"
+    grep -q "Status: 302" "$test_output" || die "$test_name No Status: 302 redirect in $test_output"
+    grep -q --fixed-strings 'Location: https://www.srhbraine.be/' "$test_output" || die "$test_name not redirecting to correct site in $test_output"
+}
+
 # Invalid input to show_reservation.cgi redirects to main website
 function test_02_locally_invalid_show_reservation
 {
     local test_name test_output
     test_name="test_02_locally_invalid_show_reservation"
     test_output="$(redirect_cgi_output "$test_name" GET show_reservation.cgi "")"
-    grep -q "Status: 302" "$test_output" || die "$test_name No Status: 302 redirect in $test_output"
-    grep -q --fixed-strings 'Location: https://www.srhbraine.be/' "$test_output" || die "$test_name not redirecting to correct site in $test_output"
+    assert_redirect_to_concert_page_for_local_test "$test_name" "$test_output"
 }
 
 # Reuse reservation from test_01 to look at output
@@ -345,7 +376,9 @@ function test_03_locally_display_existing_reservation
     test_name="test_03_locally_display_existing_reservation"
     uuid_hex=$(sql_query "SELECT uuid FROM reservations LIMIT 1")
     test_output="$(redirect_cgi_output "$test_name" GET show_reservation.cgi "uuid_hex=$uuid_hex")"
-    assert_html_response "$test_name" "$test_output"
+    assert_html_response "$test_name" "$test_output" \
+                         "Merci de nous avoir " \
+                         "Le prix total est de "
 }
 
 # Some validation testing
@@ -373,6 +406,55 @@ function test_04_locally_invalid_post_reservation
     assert_html_response "$test_name" "$test_output" \
                          "invalides dans le formulaire" \
                          "adresse email.*n'a pas le format requis"
+}
+
+function test_05_locally_list_reservations
+{
+    local test_name test_output js_files
+    test_name="test_05_locally_list_reservations"
+    test_output="$(redirect_admin_cgi_output "$test_name" GET list_reservations.cgi "")"
+    if js_files="$(ls $(dirname "$0")/../input-form/build/*.js 2> /dev/null)" ; then
+        js_file_patterns="$(basename -a $js_files | sed -e 's;^;<script.defer.src=.*;')"
+    else
+        js_file_patterns=""
+        # die "Build the JS application first!"
+    fi
+    assert_html_response "$test_name" "$test_output" \
+                         "https://example.com/gestion/list_reservations\\.cgi" \
+                         "<li>12 Tomates Mozzarella</li>" \
+                         "<li>16 Croquettes au fromage</li>" \
+                         "<li>16 Spaghettis bolognaise</li>" \
+                         "<li>16 Spaghettis aux légumes</li>" \
+                         "<li>8 Spag\\. bolognaise (enfants)</li>" \
+                         "<li>9 Spag\\. aux légumes (enfants)</li>" \
+                         "<li>38 Assiettes de 3 Mignardises</li>" \
+                         'const CSRF_TOKEN = "' \
+                         '<div id="elmish-app"></div><script>const ACTION_DEST = "add_unchecked_reservation.cgi";' \
+                         $js_file_patterns
+}
+
+function test_06_locally_add_unchecked_reservation_CSRF_failure
+{
+    local test_name test_output
+    test_name="test_06_locally_add_unchecked_reservation_CSRF_failure"
+    test_output="$(redirect_admin_cgi_output "$test_name" POST add_unchecked_reservation.cgi 'name=Qui+m%27appelle%3F&extraComment=02%2F123.45.67&places=1&insidemainstarter=1&insideextrastarter=0&insidebolo=0&insideextradish=1&bolokids=0&extradishkids=0&outsidemainstarter=0&outsideextrastarter=0&outsidebolo=0&outsideextradish=0&outsidedessert=0&csrf_token=this-is-not-a-valid-CSRF-token&date=2023-03-25')"
+    assert_redirect_to_concert_page_for_local_test "$test_name" "$test_output"
+}
+
+function test_07_locally_add_unchecked_reservation
+{
+    local test_name test_output csrf uuid_hex
+    test_name="test_07_locally_add_unchecked_reservation"
+    csrf="$(sql_query "SELECT token FROM csrfs LIMIT 1")"
+    test_output="$(redirect_admin_cgi_output "$test_name" POST add_unchecked_reservation.cgi "name=Qui+m%27appelle%3F&extraComment=02%2F123.45.67&places=1&insidemainstarter=1&insideextrastarter=0&insidebolo=0&insideextradish=1&bolokids=0&extradishkids=0&outsidemainstarter=0&outsideextrastarter=0&outsidebolo=0&outsideextradish=0&outsidedessert=0&csrf_token=$csrf&date=2023-03-25")"
+    grep -q "Status: 302" "$test_output" || die "$test_name No Status: 302 redirect in $test_output"
+    if uuid_hex="$(sed -ne '/Location:.*uuid_hex=/ { s///p ; q0 }' -e '$q1' "$test_output")"; then
+        [ "$(count_reservations)" = 2 ] || die "$test_name: Reservation count"
+        data=$(sql_query "SELECT name, email, extra_comment, date, places, inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish, outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert, kids_bolo, kids_extra_dish FROM reservations WHERE uuid='$uuid_hex'")
+        [ "$data" = "Qui m'appelle?||02/123.45.67|2023-03-25|1|1|0|0|1|0|0|0|0|0|0|0" ] || die "$test_name Wrong data inserted for $uuid_hex"
+    else
+        die "$test_name uuid_hex not found in $test_output"
+    fi
 }
 
 # 01: List reservations when DB is still empty, then
@@ -585,9 +667,9 @@ function test_13_show_reservation_redirects_to_concert_page_on_error
     test_output="$test_dir/13_show_reservation_redirects_to_concert_page_on_error.html"
     test_stderr="$test_dir/13_show_reservation_redirects_to_concert_page_on_error.stderr.log"
     do_curl 'show_reservation.cgi' "$test_output" --verbose 2> "$test_stderr"
-    assert_redirect_to_concert_page "$test_stderr"
+    assert_redirect_to_concert_page_for_integration_test "$test_stderr"
     do_curl 'show_reservation.cgi?uuid_hex=invalid_uuid' "$test_output" --verbose 2> "$test_stderr"
-    assert_redirect_to_concert_page "$test_stderr"
+    assert_redirect_to_concert_page_for_integration_test "$test_stderr"
     do_curl "show_reservation.cgi?uuid_hex=$valid_uuid" "$test_output" --verbose 2> "$test_stderr"
     grep -q '^< HTTP/1.1 200' "$test_stderr" \
          || die "Failed to get show_reservation.cgi?uuid_hex=$valid_uuid"
@@ -662,13 +744,16 @@ test_01_locally_valid_post_reservation
 test_02_locally_invalid_show_reservation
 test_03_locally_display_existing_reservation
 test_04_locally_invalid_post_reservation
+test_05_locally_list_reservations
+test_06_locally_add_unchecked_reservation_CSRF_failure
+test_07_locally_add_unchecked_reservation
 
 # Temporarily disable command logging for deployment
 set +x
 
 if [ -n "$skip_deploy" ];
 then
-    echo "Skipping tests requiring deployment"
+    echo "Everything is fine so far.  Skipping tests requiring deployment"
     exit 0
 fi
 
@@ -718,3 +803,7 @@ ssh $destination "rm -r '$host_path_prefix/$folder'"
 rm -r "$test_dir"
 
 echo Done
+
+# Local Variables:
+# compile-command: "time ./tests.sh -x -f"
+# End:
