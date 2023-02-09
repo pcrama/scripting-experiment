@@ -28,6 +28,8 @@ then
     exit 1
 else
     folder="$prefix_folder/$deploy_folder"
+    # https://stackoverflow.com/a/2530404
+    prevent_directory_listing="; [ -r '$folder/.htaccess' ] || echo 'Options -Indexes' > '$folder/.htaccess'"
     if [ -n "$admin_user" ];
     then
         protected_folder="$folder/gestion"
@@ -70,7 +72,8 @@ else
         | tar xf - -C "$staging_dir"
     rm -f "$(dirname "$0")/app/gestion/index.html"
     find "$staging_dir" -type f '(' -name '*.cgi' -o -name '*.py' ')' -print0 | xargs -0 dos2unix
+    echo ""
     tar czf - --"owner=$user" --"group=$group" -C "$staging_dir" . \
-        | ssh "$destination" "mkdir -p '$folder'; tar xvzf - -C '$folder' $setup_password $setup_access"
+        | ssh "$destination" "mkdir -p '$folder'; rm -f '$folder'/*.js; tar xvzf - -C '$folder' $setup_password $setup_access $prevent_directory_listing"
     rm -r "$staging_dir" || echo "Unable to clean up staging_dir='$staging_dir'"
 fi

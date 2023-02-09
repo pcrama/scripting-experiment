@@ -12,7 +12,7 @@ See also [[file+emacs:app/gestion/index.org][usage instructions and checklists (
 
 Use the ~deploy.sh~ script like this:
 #+begin_src shell :exports code
-  ./deploy.sh 'user@host' 'username' 'groupname' 'https://host' 'prefix_folder' 'deploy_folder'
+  ./deploy.sh 'user@host' 'username' 'groupname' 'https://host' 'prefix_folder' 'deploy_folder' ['admin_user' 'admin_pw']
 #+end_src
 
 - ~user@host~ :: anything that `ssh` accepts.
@@ -22,14 +22,32 @@ Use the ~deploy.sh~ script like this:
   the destination.
 - ~prefix_folder/destination_folder~ :: where to deploy (relative to the
   SSH host, not necessarily the path typed in your browser)
+- ~admin_user~ and ~admin_pw~ :: the administrative interface should be
+  protected by authentication.  If the parameters are given, HTTP basic
+  authentication is setup in that folder.
 
 Then configure the application
 - upload images for the dishes to =prefix_folder/deploy_folder/gestion/=, e.g.
   + [[https://www.vecteezy.com/vector-art/3736403-spaghetti-bolognese-with-tomato-sauce][spaghetti bolognese with tomato sauce]]
+    #+begin_example
+      <a href="https://www.vecteezy.com/free-vector/cartoon">Cartoon Vectors by Vecteezy</a>
+    #+end_example
   + [[https://www.vecteezy.com/vector-art/965991-spaghetti-meal-set][spaghetti meal set]]
+    #+begin_example
+      <a href="https://www.vecteezy.com/free-vector/cartoon">Cartoon Vectors by Vecteezy</a>
+    #+end_example
   + [[https://www.vecteezy.com/search?qterm=croquette-cheese&content_type=vector][cheese croquette]]
+    #+begin_example
+      <a href="https://www.vecteezy.com/free-vector/croquette">Croquette Vectors by Vecteezy</a>
+    #+end_example
   + [[https://www.vecteezy.com/vector-art/10456729-vector-contour-drawing-of-mozzarella-cheese-slices-on-a-white-background][mozzarella cheese]]
+    #+begin_example
+      <a href="https://www.vecteezy.com/free-vector/black">Black Vectors by Vecteezy</a>
+    #+end_example
   + [[https://www.vecteezy.com/vector-art/150043-free-sweet-food-line-icon-vector][sweet food]]
+    #+begin_example
+      <a href="https://www.vecteezy.com/free-vector/vector">Vector Vectors by Vecteezy</a>
+    #+end_example
 - edit =prefix_folder/deploy_folder/configuration.json= on your webserver (cf
   [[file+emacs:app/config.py][app/config.py]]).
 - Put up the dynamic or static input form
@@ -86,13 +104,13 @@ script:
 #+end_example
 
 * Test mode
-There are 4 dates for the dinner: 2 fake dates in 2099 and the 2 real dates
-in 2022.
+There are 3 dates for the dinner: 2 fake dates in 2099 and the real dates
+in 2023.
 
 The trick to be able to book dates for the fake dates is that the name must
 start with ~Test~ and that the email address must end with ~@example.com~.
 
-There are some automated test in [[file+emacs:tests/tests.sh][this shell script]].  It exercises various
+There are some automated tests in [[file+emacs:tests/tests.sh][this shell script]].  It exercises various
 end-points and compares the HTML output with known good HTML output.  The
 tests are unfortunately not real unit tests: they have to be run in sequence
 as the state of one test is often assumed in the next test.
@@ -104,8 +122,10 @@ as the state of one test is often assumed in the next test.
   who pays.
 
 * NixOS instructions
+If you don't use [[https://direnv.net/][direnv]] to automatically activate your nix-shell, use this
+command line (note that there are no quotes on purpose!):
 #+begin_src shell :exports code
-  nix-shell -p dos2unix nodejs-18_x dotnet-sdk_5 yarn
+  nix-shell $(sed 's/use nix //' .envrc)
 #+end_src
 
 In the nix-shell:
