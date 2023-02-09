@@ -250,7 +250,10 @@ let validateState (state: State): State =
           emailError = match (csrfToken, state.email.Trim()) with
                        | (Some _, _) -> None
                        | (None, "") -> Some "Ce champ est obligatoire."
-                       | (None, x) when (let at = x.IndexOf('@') in at > -1 && x.IndexOf('.', at) - at > 1)
+                       | (None, x) when (let at = x.IndexOf('@') in (
+                                               at > 0
+                                               && x.IndexOf('.', at) - at > 1
+                                               && String.length(x) - x.LastIndexOf('.') > 2))
                            -> None
                        | _ -> Some "Veuillez saisir une adresse email valide."
           placesErrors = validateInclusiveBelow' state.places
