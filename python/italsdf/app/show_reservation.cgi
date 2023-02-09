@@ -95,7 +95,7 @@ if __name__ == '__main__':
                                           [DESSERT_NAME, DESSERT_NAME_PLURAL]))
                      if x]
         if commandes:
-            commandes = (('p', "Merci de nous avoir informé de votre commande à titre indicatif.  ",
+            commandes = (('p', "Merci de nous avoir informé à l'avance de votre commande.  ",
                           "Nous préparerons vos tickets à l'entrée pour faciliter votre commande.  ",
                           'Le prix total est de ', price_in_euros(reservation), ' pour le repas.  ',
                           "Nous vous saurions gré de déjà verser cette somme avec la communication ",
@@ -103,7 +103,8 @@ if __name__ == '__main__':
                           BANK_ACCOUNT, " pour confirmer votre réservation."),
                          (('ul', ), *((('li',), *x) for x in commandes)))
         else:
-            commandes = (('p', "La commande des repas se fera à l'entrée."),)
+            commandes = (('p', "La commande des repas se fera à l'entrée: nous préférons le paiement mobile "
+                          "mais accepterons aussi le paiement en liquide."),)
         respond_html(html_document(
             'Réservation effectuée',
             (('p', 'Votre réservation au nom de ', reservation.name,

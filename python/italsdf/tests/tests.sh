@@ -87,6 +87,15 @@ function assert_redirect_to_concert_page_for_integration_test
         || die "Target is not concert page: $test_stderr"
 }
 
+function assert_redirect_to_concert_page_for_local_test
+{
+    local test_name test_output
+    test_name="$1"
+    test_output="$2"
+    grep -q "Status: 302" "$test_output" || die "$test_name No Status: 302 redirect in $test_output"
+    grep -q --fixed-strings 'Location: https://www.srhbraine.be/' "$test_output" || die "$test_name not redirecting to correct site in $test_output"
+}
+
 function do_curl_with_redirect
 {
     local credentials end_point test_output options test_stderr location
@@ -351,15 +360,6 @@ function test_01_locally_valid_post_reservation
     fi
 }
 
-function assert_redirect_to_concert_page_for_local_test
-{
-    local test_name test_output
-    test_name="$1"
-    test_output="$2"
-    grep -q "Status: 302" "$test_output" || die "$test_name No Status: 302 redirect in $test_output"
-    grep -q --fixed-strings 'Location: https://www.srhbraine.be/' "$test_output" || die "$test_name not redirecting to correct site in $test_output"
-}
-
 # Invalid input to show_reservation.cgi redirects to main website
 function test_02_locally_invalid_show_reservation
 {
@@ -373,12 +373,21 @@ function test_02_locally_invalid_show_reservation
 function test_03_locally_display_existing_reservation
 {
     local test_name test_output uuid_hex
-    test_name="test_03_locally_display_existing_reservation"
+    test_name="test_03_locally_display_existing_reservation_1"
     uuid_hex=$(sql_query "SELECT uuid FROM reservations LIMIT 1")
     test_output="$(redirect_cgi_output "$test_name" GET show_reservation.cgi "uuid_hex=$uuid_hex")"
     assert_html_response "$test_name" "$test_output" \
                          "Merci de nous avoir " \
                          "Le prix total est de "
+
+    # insert reservation for places without any food reservation, using the
+    # opportunity to double-check on HTML escaping.
+    test_name="test_03_locally_display_existing_reservation_2"
+    sql_query 'INSERT INTO reservations VALUES ("<name>", "email@domain.com", "<this> & </that>'\''""", 2, "2099-01-01", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, "", "'"$test_name"'", "'$(date +"%s")'", 1, "<a test&>")'
+    test_output="$(redirect_cgi_output "$test_name" GET show_reservation.cgi "uuid_hex=$test_name")"
+    assert_html_response "$test_name" "$test_output" \
+                         "La commande des repas se fera.*paiement mobile mais accepterons" \
+                         " &lt;name&gt; "
 }
 
 # Some validation testing
@@ -449,7 +458,7 @@ function test_07_locally_add_unchecked_reservation
     test_output="$(redirect_admin_cgi_output "$test_name" POST add_unchecked_reservation.cgi "name=Qui+m%27appelle%3F&extraComment=02%2F123.45.67&places=1&insidemainstarter=1&insideextrastarter=0&insidebolo=0&insideextradish=1&bolokids=0&extradishkids=0&outsidemainstarter=0&outsideextrastarter=0&outsidebolo=0&outsideextradish=0&outsidedessert=0&csrf_token=$csrf&date=2023-03-25")"
     grep -q "Status: 302" "$test_output" || die "$test_name No Status: 302 redirect in $test_output"
     if uuid_hex="$(sed -ne '/Location:.*uuid_hex=/ { s///p ; q0 }' -e '$q1' "$test_output")"; then
-        [ "$(count_reservations)" = 2 ] || die "$test_name: Reservation count"
+        [ "$(count_reservations)" = 3 ] || die "$test_name: Reservation count"
         data=$(sql_query "SELECT name, email, extra_comment, date, places, inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish, outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert, kids_bolo, kids_extra_dish FROM reservations WHERE uuid='$uuid_hex'")
         [ "$data" = "Qui m'appelle?||02/123.45.67|2023-03-25|1|1|0|0|1|0|0|0|0|0|0|0" ] || die "$test_name Wrong data inserted for $uuid_hex"
     else
