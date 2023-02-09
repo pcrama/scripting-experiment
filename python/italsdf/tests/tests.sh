@@ -292,9 +292,15 @@ function simulate_cgi_request
     )
 }
 
-function redirect_cgi_output
+function capture_cgi_output
 {
-    local test_name method script_name query_string test_output
+    local ignore_cgitb test_name method script_name query_string test_output
+    if [ "$1" = "--ignore-cgitb" ]; then
+        ignore_cgitb="$1"
+        shift
+    else
+        ignore_cgitb=""
+    fi
     test_name="$1"
     method="$2"
     script_name="$3"
@@ -306,13 +312,21 @@ function redirect_cgi_output
         test_output="$5"
         shift
     fi
-    simulate_cgi_request "$method" "$script_name" "$query_string" "$@" > "$test_output" || die "$test_name CGI execution problem, look in $test_output"
+    if ! simulate_cgi_request "$method" "$script_name" "$query_string" "$@" > "$test_output" ; then
+        [ -z "$ignore_cgitb" ] && die "$test_name CGI execution problem, look in $test_output"
+    fi
     echo "$test_output"
 }
 
-function redirect_admin_cgi_output
+function capture_admin_cgi_output
 {
-    local test_name method script_name query_string test_output
+    local ignore_cgitb test_name method script_name query_string test_output
+    if [ "$1" = "--ignore-cgitb" ]; then
+        ignore_cgitb="$1"
+        shift
+    else
+        ignore_cgitb=""
+    fi
     test_name="$1"
     method="$2"
     script_name="$3"
@@ -324,19 +338,31 @@ function redirect_admin_cgi_output
         test_output="$5"
         shift
     fi
-    simulate_cgi_request "$method" "$admin_sub_dir/$script_name" "$query_string" REMOTE_USER="secretaire" REMOTE_ADDR="1.2.3.4" "$@" > "$test_output" || die "$test_name admin CGI execution problem, look in $test_output"
+    if ! simulate_cgi_request "$method" "$admin_sub_dir/$script_name" "$query_string" REMOTE_USER="secretaire" REMOTE_ADDR="1.2.3.4" "$@" > "$test_output" ; then
+        [ -z "$ignore_cgitb" ] && die "$test_name admin CGI execution problem, look in $test_output"
+    fi
+
     echo "$test_output"
 }
 
 function assert_html_response
 {
-    local test_name test_output pattern
+    local no_banner test_name test_output pattern
+    if [ "$1" == "--no-banner" ]; then
+        no_banner="$1"
+        shift
+    else
+        no_banner=""
+    fi
     test_name="$1"
     test_output="$2"
     grep -q "Content-Type: text/html; charset=utf-8" "$test_output" || die "$test_name No Content-Type in $test_output"
     grep -q '<!DOCTYPE HTML><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>' "$test_output" || die "$test_name no HTML preamble boilerplate in $test_output"
-    grep -q '</title><link rel="stylesheet" href="styles.css"></head><body><div id="branding" role="banner"><h1 id="site-title">Société Royale d'\''Harmonie de Braine-l'\''Alleud</h1><img src="https://www.srhbraine.be/wp-content/uploads/2019/10/site-en-tete.jpg" width="940" height="198" alt=""></div>' "$test_output" || die "$test_name no banner in $test_output"
-
+    if [ -z "$no_banner" ]; then
+        grep -q '</title><link rel="stylesheet" href="styles.css"></head><body><div id="branding" role="banner"><h1 id="site-title">Société Royale d'\''Harmonie de Braine-l'\''Alleud</h1><img src="https://www.srhbraine.be/wp-content/uploads/2019/10/site-en-tete.jpg" width="940" height="198" alt=""></div>' "$test_output" || die "$test_name no banner in $test_output"
+    else
+        grep -q '<h1.*Braine.*Alleud</h1><img src' "$test_output" && die "$test_name banner in $test_output"
+    fi
     shift 2
     for pattern in "$@" ; do
         grep -q "$pattern" "$test_output" || die "$test_name \`\`$pattern'' not found in $test_output"
@@ -349,7 +375,7 @@ function test_01_locally_valid_post_reservation
 {
     local test_name test_output uuid_hex
     test_name="test_01_locally_valid_post_reservation"
-    test_output="$(redirect_cgi_output "$test_name" POST post_reservation.cgi 'name=test&email=i%40example.com&extraComment=commentaire&places=1&insidemainstarter=2&insideextrastarter=5&insidebolo=4&insideextradish=3&bolokids=8&extradishkids=9&outsidemainstarter=10&outsideextrastarter=11&outsidebolo=12&outsideextradish=13&outsidedessert=14&gdpr_accepts_use=true&date=2099-01-01')"
+    test_output="$(capture_cgi_output "$test_name" POST post_reservation.cgi 'name=test&email=i%40example.com&extraComment=commentaire&places=1&insidemainstarter=2&insideextrastarter=5&insidebolo=4&insideextradish=3&bolokids=8&extradishkids=9&outsidemainstarter=10&outsideextrastarter=11&outsidebolo=12&outsideextradish=13&outsidedessert=14&gdpr_accepts_use=true&date=2099-01-01')"
     grep -q "Status: 302" "$test_output" || die "$test_name No Status: 302 redirect in $test_output"
     if uuid_hex="$(sed -ne '/Location:.*uuid_hex=/ { s///p ; q0 }' -e '$q1' "$test_output")"; then
         [ "$(count_reservations)" = 1 ] || die "$test_name: Reservation count"
@@ -365,7 +391,7 @@ function test_02_locally_invalid_show_reservation
 {
     local test_name test_output
     test_name="test_02_locally_invalid_show_reservation"
-    test_output="$(redirect_cgi_output "$test_name" GET show_reservation.cgi "")"
+    test_output="$(capture_cgi_output "$test_name" GET show_reservation.cgi "")"
     assert_redirect_to_concert_page_for_local_test "$test_name" "$test_output"
 }
 
@@ -375,7 +401,7 @@ function test_03_locally_display_existing_reservation
     local test_name test_output uuid_hex
     test_name="test_03_locally_display_existing_reservation_1"
     uuid_hex=$(sql_query "SELECT uuid FROM reservations LIMIT 1")
-    test_output="$(redirect_cgi_output "$test_name" GET show_reservation.cgi "uuid_hex=$uuid_hex")"
+    test_output="$(capture_cgi_output "$test_name" GET show_reservation.cgi "uuid_hex=$uuid_hex")"
     assert_html_response "$test_name" "$test_output" \
                          "Merci de nous avoir " \
                          "Le prix total est de "
@@ -384,7 +410,7 @@ function test_03_locally_display_existing_reservation
     # opportunity to double-check on HTML escaping.
     test_name="test_03_locally_display_existing_reservation_2"
     sql_query 'INSERT INTO reservations VALUES ("<name>", "email@domain.com", "<this> & </that>'\''""", 2, "2099-01-01", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, "", "'"$test_name"'", "'$(date +"%s")'", 1, "<a test&>")'
-    test_output="$(redirect_cgi_output "$test_name" GET show_reservation.cgi "uuid_hex=$test_name")"
+    test_output="$(capture_cgi_output "$test_name" GET show_reservation.cgi "uuid_hex=$test_name")"
     assert_html_response "$test_name" "$test_output" \
                          "La commande des repas se fera.*paiement mobile mais accepterons" \
                          " &lt;name&gt; "
@@ -398,7 +424,7 @@ function test_04_locally_invalid_post_reservation
 
     inside_menu_mismatch_query_string='name=test&email=i%40example.com&extraComment=commentaire&places=1&insidemainstarter=2&insideextrastarter=5&insidebolo=0&insideextradish=3&bolokids=8&extradishkids=9&outsidemainstarter=10&outsideextrastarter=11&outsidebolo=12&outsideextradish=13&outsidedessert=14&gdpr_accepts_use=true&date=2099-01-01'
     query_string="$inside_menu_mismatch_query_string"
-    test_output="$(redirect_cgi_output "$test_name" POST post_reservation.cgi "$query_string")"
+    test_output="$(capture_cgi_output "$test_name" POST post_reservation.cgi "$query_string")"
     if uuid_hex="$(sed -ne '/Location:.*uuid_hex=/ { s///p ; q0 }' -e '$q1' "$test_output")"; then
         die "$test_name reservation $uuid_hex created for invalid $query_string"
     fi
@@ -408,7 +434,7 @@ function test_04_locally_invalid_post_reservation
 
     invalid_email_query_string='name=test&email=example.com%40&extraComment=commentaire&places=1&insidemainstarter=2&insideextrastarter=5&insidebolo=4&insideextradish=3&bolokids=8&extradishkids=9&outsidemainstarter=10&outsideextrastarter=11&outsidebolo=12&outsideextradish=13&outsidedessert=14&gdpr_accepts_use=true&date=2099-01-01'
     query_string="$invalid_email_query_string"
-    test_output="$(redirect_cgi_output "$test_name" POST post_reservation.cgi "$query_string")"
+    test_output="$(capture_cgi_output "$test_name" POST post_reservation.cgi "$query_string")"
     if uuid_hex="$(sed -ne '/Location:.*uuid_hex=/ { s///p ; q0 }' -e '$q1' "$test_output")"; then
         die "$test_name reservation $uuid_hex created for invalid $query_string"
     fi
@@ -421,7 +447,7 @@ function test_05_locally_list_reservations
 {
     local test_name test_output js_files
     test_name="test_05_locally_list_reservations"
-    test_output="$(redirect_admin_cgi_output "$test_name" GET list_reservations.cgi "")"
+    test_output="$(capture_admin_cgi_output "$test_name" GET list_reservations.cgi "")"
     if js_files="$(ls $(dirname "$0")/../input-form/build/*.js 2> /dev/null)" ; then
         js_file_patterns="$(basename -a $js_files | sed -e 's;^;<script.defer.src=.*;')"
     else
@@ -446,7 +472,7 @@ function test_06_locally_add_unchecked_reservation_CSRF_failure
 {
     local test_name test_output
     test_name="test_06_locally_add_unchecked_reservation_CSRF_failure"
-    test_output="$(redirect_admin_cgi_output "$test_name" POST add_unchecked_reservation.cgi 'name=Qui+m%27appelle%3F&extraComment=02%2F123.45.67&places=1&insidemainstarter=1&insideextrastarter=0&insidebolo=0&insideextradish=1&bolokids=0&extradishkids=0&outsidemainstarter=0&outsideextrastarter=0&outsidebolo=0&outsideextradish=0&outsidedessert=0&csrf_token=this-is-not-a-valid-CSRF-token&date=2023-03-25')"
+    test_output="$(capture_admin_cgi_output "$test_name" POST add_unchecked_reservation.cgi 'name=Qui+m%27appelle%3F&extraComment=02%2F123.45.67&places=1&insidemainstarter=1&insideextrastarter=0&insidebolo=0&insideextradish=1&bolokids=0&extradishkids=0&outsidemainstarter=0&outsideextrastarter=0&outsidebolo=0&outsideextradish=0&outsidedessert=0&csrf_token=this-is-not-a-valid-CSRF-token&date=2023-03-25')"
     assert_redirect_to_concert_page_for_local_test "$test_name" "$test_output"
 }
 
@@ -455,7 +481,7 @@ function test_07_locally_add_unchecked_reservation
     local test_name test_output csrf uuid_hex
     test_name="test_07_locally_add_unchecked_reservation"
     csrf="$(sql_query "SELECT token FROM csrfs LIMIT 1")"
-    test_output="$(redirect_admin_cgi_output "$test_name" POST add_unchecked_reservation.cgi "name=Qui+m%27appelle%3F&extraComment=02%2F123.45.67&places=1&insidemainstarter=1&insideextrastarter=0&insidebolo=0&insideextradish=1&bolokids=0&extradishkids=0&outsidemainstarter=0&outsideextrastarter=0&outsidebolo=0&outsideextradish=0&outsidedessert=0&csrf_token=$csrf&date=2023-03-25")"
+    test_output="$(capture_admin_cgi_output "$test_name" POST add_unchecked_reservation.cgi "name=Qui+m%27appelle%3F&extraComment=02%2F123.45.67&places=1&insidemainstarter=1&insideextrastarter=0&insidebolo=0&insideextradish=1&bolokids=0&extradishkids=0&outsidemainstarter=0&outsideextrastarter=0&outsidebolo=0&outsideextradish=0&outsidedessert=0&csrf_token=$csrf&date=2023-03-25")"
     grep -q "Status: 302" "$test_output" || die "$test_name No Status: 302 redirect in $test_output"
     if uuid_hex="$(sed -ne '/Location:.*uuid_hex=/ { s///p ; q0 }' -e '$q1' "$test_output")"; then
         [ "$(count_reservations)" = 3 ] || die "$test_name: Reservation count"
@@ -464,6 +490,47 @@ function test_07_locally_add_unchecked_reservation
     else
         die "$test_name uuid_hex not found in $test_output"
     fi
+}
+
+function test_08_locally_GET_generate_tickets
+{
+    local test_name test_output csrf
+    test_name="test_08_locally_GET_generate_tickets"
+    test_output="$(capture_admin_cgi_output "$test_name" GET generate_tickets.cgi "")"
+    csrf="$(sql_query "SELECT token FROM csrfs LIMIT 1")"
+    assert_html_response "$test_name" "$test_output" \
+                         "Impression des tickets pour la nourriture" \
+                         'name="csrf_token" value="'"$csrf"'"' \
+                         '<form method="POST"' \
+                         'label for="main_starter">.*:</label><input type="number" id="main_starter" name="main_starter"' \
+                         'label for="extra_starter">.*:</label><input type="number" id="extra_starter" name="extra_starter"' \
+                         'label for="bolo">.*:</label><input type="number" id="bolo" name="bolo"' \
+                         'label for="extra_dish">.*:</label><input type="number" id="extra_dish" name="extra_dish"' \
+                         'label for="kids_bolo">.*:</label><input type="number" id="kids_bolo" name="kids_bolo"' \
+                         'label for="kids_extra_dish">.*:</label><input type="number" id="kids_extra_dish" name="kids_extra_dish"' \
+                         'label for="dessert">.*:</label><input type="number" id="dessert" name="dessert"'
+
+    test_name="${test_name}_unauthenticated"
+    test_output="$(capture_cgi_output "$test_name" GET gestion/generate_tickets.cgi "")"
+    assert_redirect_to_concert_page_for_local_test "$test_name" "$test_output"
+}
+
+function test_09_locally_POST_generate_tickets
+{
+    local test_name test_output csrf
+    test_name="test_09_locally_POST_generate_tickets"
+    test_output="$(capture_admin_cgi_output "${test_name}_no_csrf" POST generate_tickets.cgi "")"
+    assert_redirect_to_concert_page_for_local_test "${test_name}_no_csrf" "$test_output"
+
+    csrf="$(sql_query "SELECT token FROM csrfs LIMIT 1")"
+    test_output="$(capture_admin_cgi_output --ignore-cgitb "${test_name}_only_csrf" POST generate_tickets.cgi "csrf_token=$csrf")"
+    grep -q "RuntimeError: Not enough tickets" "$test_output" || die "${test_name}_only_csrf should contain RuntimeError because a lack of tickets"
+
+    test_output="$(capture_admin_cgi_output "${test_name}" POST generate_tickets.cgi "csrf_token=$csrf&main_starter=20&extra_starter=41&bolo=42&extra_dish=73&kids_bolo=74&kids_extra_dish=75&dessert=76")"
+    assert_html_response --no-banner "$test_name" "$test_output" \
+                         "<title>Liste des tickets à imprimer</title>" \
+                         "Qui m'appelle[^:]*: 1 place.*pour 3 tickets: 1m[+0c]* Tomate Mozzarella, 1m[+0c]* Spaghetti aux légumes, 1m[+0c]* Assiette de 3 Mignardises" \
+                         "Vente libre</div><div>Tomate Mozzarella=7, Croquettes au fromage=25, Spaghetti bolognaise=26, Spaghetti aux légumes=56, Spag. bolognaise (enfants)=66, Spag. aux légumes (enfants)=66, Assiette de 3 Mignardises=37</div>"
 }
 
 # 01: List reservations when DB is still empty, then
@@ -756,6 +823,8 @@ test_04_locally_invalid_post_reservation
 test_05_locally_list_reservations
 test_06_locally_add_unchecked_reservation_CSRF_failure
 test_07_locally_add_unchecked_reservation
+test_08_locally_GET_generate_tickets
+test_09_locally_POST_generate_tickets
 
 # Temporarily disable command logging for deployment
 set +x

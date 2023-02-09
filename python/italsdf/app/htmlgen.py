@@ -67,7 +67,7 @@ def html_gen(data):
         yield html.escape(str(data), quote=False)
 
 
-def html_document(title, body):
+def html_document(title, body, with_banner=True):
     yield '<!DOCTYPE HTML>'
     for x in html_gen((('html', 'lang', 'fr'),
                        ('head',
@@ -76,10 +76,12 @@ def html_document(title, body):
                         ('title', title),
                         (('link', 'rel', 'stylesheet', 'href', 'styles.css'),)),
                        ('body',
-                        (('div', 'id', 'branding', 'role', 'banner'),
-                         (('h1', 'id', 'site-title'),
-                          "Société Royale d'Harmonie de Braine-l'Alleud"),
-                         (('img', 'src', 'https://www.srhbraine.be/wp-content/uploads/2019/10/site-en-tete.jpg', 'width', "940", "height", "198", "alt", ""),)),
+                        ((('div', 'id', 'branding', 'role', 'banner'),
+                          (('h1', 'id', 'site-title'),
+                           "Société Royale d'Harmonie de Braine-l'Alleud"),
+                          (('img', 'src', 'https://www.srhbraine.be/wp-content/uploads/2019/10/site-en-tete.jpg', 'width', "940", "height", "198", "alt", ""),))
+                         if with_banner else
+                         ''),
                         *body,
                         ('hr', ),
                         ('p',
