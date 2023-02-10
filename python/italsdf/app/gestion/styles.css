@@ -110,12 +110,19 @@ div.ticket-heading {
         grid-template-columns: 7cm 2.5cm 7cm 2.5cm;
         page-break-after: auto;
         page-break-before: avoid;
+        border-top: dimgray dashed 0.05cm;
     }
     div.tickets > div.ticket-left-col {
         page-break-inside: avoid;
         page-break-after: auto;
         page-break-before: avoid;
         grid-template-rows: 1cm 1cm 1cm 1cm;
+    }
+    div.tickets > div {
+        border-bottom: dimgray dashed 0.05cm;
+    }
+    div.tickets > div.ticket-left-col:nth-child(4n+3) {
+        border-left: dimgray dashed 0.05cm;
     }
     div.no-print-page-break {
         page-break-inside: avoid;
