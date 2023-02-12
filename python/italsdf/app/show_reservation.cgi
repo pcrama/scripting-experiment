@@ -91,7 +91,7 @@ if __name__ == '__main__':
                                           reservation.kids_extra_dish,
                                           [KIDS_EXTRA_DISH_NAME, KIDS_EXTRA_DISH_NAME_PLURAL]),
                                  commande('Dessert',
-                                          reservation.outside_dessert + reservation.inside_dessert,
+                                          reservation.outside_dessert + reservation.inside_dessert + reservation.kids_dessert,
                                           [DESSERT_NAME, DESSERT_NAME_PLURAL]))
                      if x]
         if commandes:

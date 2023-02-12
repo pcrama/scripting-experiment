@@ -533,6 +533,23 @@ function test_09_locally_POST_generate_tickets
                          "Vente libre</div><div>Tomate Mozzarella=7, Croquettes au fromage=25, Spaghetti bolognaise=26, Spaghetti aux légumes=56, Spag. bolognaise (enfants)=66, Spag. aux légumes (enfants)=66, Assiette de 3 Mignardises=37</div>"
 }
 
+function test_10_locally_reservation_example
+{
+    local test_name test_output
+    test_name="test_10_locally_reservation_example"
+    test_output="$(capture_cgi_output "$test_name" POST post_reservation.cgi 'name=realperson&email=i%40gmail.com&extraComment=commentaire&places=2&insidemainstarter=1&insideextrastarter=0&insidebolo=1&insideextradish=0&bolokids=1&extradishkids=0&outsidemainstarter=0&outsideextrastarter=1&outsidebolo=0&outsideextradish=0&outsidedessert=3&gdpr_accepts_use=true&date=2023-03-25')"
+    grep -q "Status: 302" "$test_output" || die "$test_name No Status: 302 redirect in $test_output"
+    if uuid_hex="$(sed -ne '/Location:.*uuid_hex=/ { s///p ; q0 }' -e '$q1' "$test_output")"; then
+        test_output="$(capture_cgi_output "$test_name" GET show_reservation.cgi "uuid_hex=$uuid_hex")"
+        assert_html_response "$test_name" "$test_output" \
+                             ">1 Tomate Mozzarella</li>" \
+                             ">1 Croquettes au fromage</li>" \
+                             ">Plat: 1 Spaghetti bolognaise</li>" \
+                             ">Plat enfants: 1 Spag. bolognaise (enfants)</li>" \
+                             ">Dessert: 5 Assiettes de 3 Mignardises</li>"
+    fi
+}
+
 # 01: List reservations when DB is still empty, then
 # - Verify output HTML
 # - Verify CSRF is in DB
@@ -825,6 +842,7 @@ test_06_locally_add_unchecked_reservation_CSRF_failure
 test_07_locally_add_unchecked_reservation
 test_08_locally_GET_generate_tickets
 test_09_locally_POST_generate_tickets
+test_10_locally_reservation_example
 
 # Temporarily disable command logging for deployment
 set +x

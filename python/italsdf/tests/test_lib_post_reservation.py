@@ -138,6 +138,46 @@ class ValidateDate(unittest.TestCase):
                 self.assertTrue("email" in message and "format" in message)
 
 
+    def test_date_validation_date_is_OK(self):
+        for (name, email, date) in (
+                ("Test Name", "test.email@example.com", "2099-01-01"),
+                ("Test Name", "test.email@example.com", "2099-01-02"),
+                ("Someone", "an.email@gmail.com", "2023-03-25"),
+        ):
+            with self.subTest(name=name, email=email, date=date), \
+                 self.assertRaises(AttributeError) as cm:
+                lib_post_reservation.validate_data(
+                     name=name, email=email, extra_comment="extra_comment", places=3, date=date,
+                     outside_main_starter=0, outside_extra_starter=0, outside_bolo=0, outside_extra_dish=0, outside_dessert=0,
+                     inside_main_starter=1, inside_extra_starter=0, inside_bolo=1, inside_extra_dish=0,
+                     kids_bolo=1, kids_extra_dish=0,
+                     gdpr_accepts_use=True,
+                     connection='connection is not a correct object, so force validation to fail in time')
+            message = cm.exception.args[0]
+            # If this exact Exception was raised, we got past the date validation
+            self.assertEqual(message, "'str' object has no attribute 'execute'")
+
+
+    def test_date_validation_date_is_not_OK(self):
+        for (name, email, date) in (
+                ("Name", "test.email@gmail.com", "2099-01-01"),
+                ("Name", "test.email@gmail.com", "2099-01-02"),
+                ("Someone", "an.email@gmail.com", "2023-02-02"),
+        ):
+            with self.subTest(name=name, email=email, date=date), \
+                 self.assertRaises(lib_post_reservation.ValidationException) as cm:
+                lib_post_reservation.validate_data(
+                     name=name, email=email, extra_comment="extra_comment", places=3, date=date,
+                     outside_main_starter=0, outside_extra_starter=0, outside_bolo=0, outside_extra_dish=0, outside_dessert=0,
+                     inside_main_starter=1, inside_extra_starter=3, inside_bolo=1, inside_extra_dish=0,
+                     kids_bolo=1, kids_extra_dish=0,
+                     gdpr_accepts_use=True,
+                     connection='connection is not a correct object, so force validation to fail in time')
+            message = cm.exception.args[0]
+            self.assertTrue(message.startswith("Il n'y a pas de repas italien"))
+            self.assertTrue(date in message)
+
+
 if __name__ == '__main__':
     unittest.main()
 

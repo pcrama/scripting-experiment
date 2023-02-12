@@ -58,10 +58,11 @@ def validate_data(
             raise ValidationException(INVALID_EMAIL)
     if places < 1:
         raise ValidationException("Vous n'avez pas indiqué combien de places vous vouliez réserver")
+    REAL_DATES = ('2023-03-25',)
     if date not in (('2099-01-01', '2099-01-02')
                     if is_test_reservation(name, email)
-                    else ('2023-03-25',)):
-        raise ValidationException("Il n'y a pas de repas italien ̀à cette date")
+                    else REAL_DATES):
+        raise ValidationException(f"Il n'y a pas de repas italien ̀à cette date: {date=}")
     total_menus = inside_bolo + inside_extra_dish
     if inside_extra_starter + inside_main_starter != total_menus:
         raise ValidationException(
