@@ -19,10 +19,14 @@ sys.path.append('..')
 import config
 from htmlgen import (
     html_document,
+    format_bank_id,
     pluriel_naif,
     print_content_type,
     redirect_to_event,
     respond_html,
+)
+from lib_post_reservation import (
+    make_show_reservation_url
 )
 from storage import (
     Csrf,
@@ -86,6 +90,16 @@ def sort_direction(col, sort_order):
         return ''
 
 
+def make_show_reservation_link_elt(r, link_text):
+    return (
+        ('a',
+         'href',
+         make_show_reservation_url(
+             r.uuid,
+             script_name=os.path.dirname(os.environ["SCRIPT_NAME"]))),
+        link_text)
+
+
 DEFAULT_LIMIT = 20
 MAX_LIMIT = 500
 
@@ -129,7 +143,7 @@ if __name__ == '__main__':
                    ('bolo', BOLO_SHORT), ('extra_dish', EXTRA_DISH_SHORT),
                    ('kids_bolo', KIDS_BOLO_SHORT), ('kids_extra_dish', KIDS_EXTRA_DISH_SHORT),
                    ('dessert', DESSERT_SHORT),
-                   ('origin', 'Origine'), ('date', 'Date'),
+                   ('bank_id', 'Transaction'), ('date', 'Date'),
                    ('time', 'Réservé le')]
         table_header_row = tuple(
             ('th', make_navigation_a_elt(update_sort_order(column, sort_order), limit, offset,
@@ -193,9 +207,9 @@ if __name__ == '__main__':
              (('table', 'class', 'list'),
               ('tr', *table_header_row),
               *tuple(('tr',
-                      ('td', r.name),
-                      ('td', r.email),
-                      ('td', r.extra_comment),
+                      ('td', make_show_reservation_link_elt(r, r.name)),
+                      ('td', make_show_reservation_link_elt(r, r.email)),
+                      ('td', make_show_reservation_link_elt(r, r.extra_comment)),
                       ('td', r.places),
                       ('td', r.outside_main_starter + r.inside_main_starter),
                       ('td', r.outside_extra_starter + r.inside_extra_starter),
@@ -204,8 +218,7 @@ if __name__ == '__main__':
                       ('td', r.kids_bolo),
                       ('td', r.kids_extra_dish),
                       ('td', r.outside_dessert + r.inside_dessert + r.kids_dessert),
-                      ('td', r.origin if r.origin else (('span', 'class', 'null_value'),
-                                                        'formulaire web')),
+                      ('td', format_bank_id(r.bank_id)),
                       ('td', r.date),
                       ('td', time.strftime('%d/%m/%Y %H:%M', time.gmtime(r.timestamp))))
                      for r in Reservation.select(connection,

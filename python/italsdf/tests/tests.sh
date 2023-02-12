@@ -168,7 +168,7 @@ function do_diff {
 
 function generic_test_valid_reservation_for_test_date
 {
-    local test_name spectator_name spectator_email places concert_date outside_fondus outside_assiettes outside_bolo outside_scampis outside_tiramisu outside_tranches inside_assiettes_bolo_tiramisu gdpr_accepts_use total_reservations_count test_output communication formatted_communication
+    local test_name spectator_name spectator_email places concert_date outside_fondus outside_assiettes outside_bolo outside_scampis outside_tiramisu outside_tranches inside_assiettes_bolo_tiramisu gdpr_accepts_use total_reservations_count test_output
     test_name="$1"
     spectator_name="$2"
     spectator_email="$3"
@@ -445,7 +445,7 @@ function test_04_locally_invalid_post_reservation
 
 function test_05_locally_list_reservations
 {
-    local test_name test_output js_files
+    local test_name test_output js_files uuid_hex bank_transaction_number
     test_name="test_05_locally_list_reservations"
     test_output="$(capture_admin_cgi_output "$test_name" GET list_reservations.cgi "")"
     if js_files="$(ls $(dirname "$0")/../input-form/build/*.js 2> /dev/null)" ; then
@@ -454,6 +454,9 @@ function test_05_locally_list_reservations
         js_file_patterns=""
         # die "Build the JS application first!"
     fi
+    # Check that the output contains a link to the payment info and the transaction number
+    uuid_hex="$(sql_query 'select uuid from reservations limit 1')"
+    bank_transaction_number="$(sql_query "select bank_id from reservations where uuid='$uuid_hex'" | sed -e 's;\(...\)\(....\)\(.....\);+++\1/\2/\3+++;')"
     assert_html_response "$test_name" "$test_output" \
                          "https://example.com/gestion/list_reservations\\.cgi" \
                          "<li>12 Tomates Mozzarella</li>" \
@@ -463,6 +466,8 @@ function test_05_locally_list_reservations
                          "<li>8 Spag\\. bolognaise (enfants)</li>" \
                          "<li>9 Spag\\. aux légumes (enfants)</li>" \
                          "<li>38 Assiettes de 3 Mignardises</li>" \
+                         "<a href=[^ ]*show_reservation[^ ]*$uuid_hex" \
+                         "$bank_transaction_number" \
                          'const CSRF_TOKEN = "' \
                          '<div id="elmish-app"></div><script>const ACTION_DEST = "add_unchecked_reservation.cgi";' \
                          $js_file_patterns
@@ -668,7 +673,7 @@ function test_08_new_reservation_with_wrong_CSRF_token_fails
 # - Verify new data created
 function test_09_new_reservation_with_correct_CSRF_token_succeeds
 {
-    local test_output csrf_token communication
+    local test_output csrf_token
     test_output="$test_dir/09_new_reservation_with_correct_CSRF_token_succeeds.html"
     csrf_token="$(get_csrf_token_of_user "$admin_user")"
     do_curl_with_redirect --admin \
