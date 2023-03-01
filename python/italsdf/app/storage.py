@@ -21,7 +21,15 @@ def ensure_connection(connection_or_root_dir):
             create_db(connection_or_root_dir))
 
 
+def default_creation_statement(table_name: str, columns: list[tuple[str, str]]):
+    return f'''CREATE TABLE {table_name} ({", ".join(" ".join(col) for col in columns)})'''
+
+
+
 class MiniOrm:
+    SORTABLE_COLUMNS = {} # override with column info for `select'
+    FILTERABLE_COLUMNS = {} # override with column info for `select'
+
     @classmethod
     def create_in_db(cls, connection):
         with connection:
@@ -57,35 +65,112 @@ class MiniOrm:
         return (x, '=', lambda val: 1 if val else 0)
 
 
+    @classmethod
+    def select(cls, connection, filtering=None, order_columns=None, limit=None, offset=None):
+        params = dict()
+        query = [f'SELECT {",".join(col[0] for col in cls.COLUMNS)} FROM {cls.TABLE_NAME}']
+        if filtering is not None:
+            clauses, extra_params = cls.where_clause(filtering)
+            query.append(f'WHERE {clauses}')
+            params.update(extra_params)
+        if order_columns is not None:
+            ordering = ','.join((y for y in (
+                cls.column_ordering_clause(x) for x in order_columns)
+                                if y is not None))
+            if ordering:
+                query.append(f'ORDER BY {ordering}')
+        if limit is not None:
+            query.append('LIMIT :limit')
+            params['limit'] = limit
+        if offset is not None:
+            query.append('OFFSET :offset')
+            params['offset'] = offset
+        for row in connection.execute(' '.join(query), params):
+            yield cls.from_row(row)
+
+    @classmethod
+    def from_row(cls, row):
+        assert len(row) == len(cls.COLUMNS)
+        return cls(**{column_name: elt for ((column_name, _type), elt)
+                      in zip(cls.COLUMNS, row)})
+
+
+    @classmethod
+    def column_ordering_clause(cls, col):
+        try:
+            clause = cls.SORTABLE_COLUMNS[col.lower()]
+            asc_or_desc = 'DESC' if col[0].isupper() else 'ASC'
+            return f'{clause} {asc_or_desc}'
+        except KeyError:
+            return None
+
+
+    @classmethod
+    def encode_column_value_for_search(cls, col, val, info):
+        try:
+            col_value = info[0]
+        except Exception:
+            col_value = col
+        try:
+            operator = info[1]
+        except Exception:
+            operator = '='
+        try:
+            target_value = info[2](val)
+        except Exception:
+            target_value = val
+        return (col_value, operator, target_value)
+
+
+    @classmethod
+    def where_clause(cls, filtering):
+        params = dict()
+        clauses = []
+        for (col, val) in filtering:
+            try:
+                info = cls.FILTERABLE_COLUMNS[col]
+            except KeyError:
+                continue
+            var_name = f'filter_{col}'
+            col_value, operator, target_value = cls.encode_column_value_for_search(
+                col, val, info)
+            params[var_name] = target_value
+            clauses.append(f'{col_value} {operator} :{var_name}')
+        if clauses:
+            return ('(' + ' AND '.join(clauses) + ')', params)
+        else:
+            return ([], {})
+
 
 class Reservation(MiniOrm):
     TABLE_NAME = 'reservations'
-
+    COLUMNS = [
+        ("name", "TEXT NOT NULL"),
+        ("email", "TEXT"),
+        ("extra_comment", "TEXT"),
+        ("places", "INTEGER CHECK(places > 0)"),
+        ("date", "TEXT NOT NULL"),
+        ("outside_extra_starter", "INTEGER"),
+        ("outside_main_starter", "INTEGER"),
+        ("outside_bolo", "INTEGER"),
+        ("outside_extra_dish", "INTEGER"),
+        ("outside_dessert", "INTEGER"),
+        ("inside_extra_starter", "INTEGER CHECK(inside_extra_starter + inside_main_starter = inside_bolo + inside_extra_dish)"),
+        ("inside_main_starter", "INTEGER"),
+        ("inside_bolo", "INTEGER"),
+        ("inside_extra_dish", "INTEGER"),
+        ("kids_bolo", "INTEGER"),
+        ("kids_extra_dish", "INTEGER"),
+        ("gdpr_accepts_use", "INTEGER"),
+        ("cents_due", "INTEGER"),
+        ("bank_id", "TEXT NOT NULL"),
+        ("uuid", "TEXT NOT NULL"),
+        ("time", "REAL"),
+        ("active", "INTEGER"),
+        ("origin", "TEXT"),
+    ]
     CREATION_STATEMENTS = [
-        f'''CREATE TABLE {TABLE_NAME}
-            (name TEXT NOT NULL,
-             email TEXT,
-             extra_comment TEXT,
-             places INTEGER CHECK(places > 0),
-             date TEXT NOT NULL,
-             outside_extra_starter INTEGER,
-             outside_main_starter INTEGER,
-             outside_bolo INTEGER,
-             outside_extra_dish INTEGER,
-             outside_dessert INTEGER,
-             inside_extra_starter INTEGER CHECK(inside_extra_starter + inside_main_starter = inside_bolo + inside_extra_dish),
-             inside_main_starter INTEGER,
-             inside_bolo INTEGER,
-             inside_extra_dish INTEGER,
-             kids_bolo INTEGER,
-             kids_extra_dish INTEGER,
-             gdpr_accepts_use INTEGER,
-             cents_due INTEGER,
-             bank_id TEXT NOT NULL,
-             uuid TEXT NOT NULL,
-             time REAL,
-             active INTEGER,
-             origin TEXT)''',
+        default_creation_statement(TABLE_NAME, COLUMNS),
         f'CREATE UNIQUE INDEX index_bank_id_{TABLE_NAME} ON {TABLE_NAME} (bank_id)',
         f'CREATE UNIQUE INDEX index_uuid_{TABLE_NAME} ON {TABLE_NAME} (uuid)']
 
@@ -113,6 +198,8 @@ class Reservation(MiniOrm):
                  time,
                  active,
                  origin):
+        # !!! Keep in sync with COLUMNS if you want to use the default !!!
+        # !!! from_row implementation !!!
         self.name = name
         self.email = email
         self.extra_comment = extra_comment
@@ -269,109 +356,18 @@ class Reservation(MiniOrm):
                           'gdpr_accepts_use': MiniOrm.compare_as_bool('gdpr_accepts_use')}
 
 
-    @classmethod
-    def column_ordering_clause(cls, col):
-        try:
-            clause = cls.SORTABLE_COLUMNS[col.lower()]
-            asc_or_desc = 'DESC' if col[0].isupper() else 'ASC'
-            return f'{clause} {asc_or_desc}'
-        except KeyError:
-            return None
-
-
-    @classmethod
-    def encode_column_value_for_search(cls, col, val, info):
-        try:
-            col_value = info[0]
-        except Exception:
-            col_value = col
-        try:
-            operator = info[1]
-        except Exception:
-            operator = '='
-        try:
-            target_value = info[2](val)
-        except Exception:
-            target_value = val
-        return (col_value, operator, target_value)
-
-
-    @classmethod
-    def where_clause(cls, filtering):
-        params = dict()
-        clauses = []
-        for (col, val) in filtering:
-            try:
-                info = cls.FILTERABLE_COLUMNS[col]
-            except KeyError:
-                continue
-            var_name = f'filter_{col}'
-            col_value, operator, target_value = cls.encode_column_value_for_search(
-                col, val, info)
-            params[var_name] = target_value
-            clauses.append(f'{col_value} {operator} :{var_name}')
-        if clauses:
-            return ('(' + ' AND '.join(clauses) + ')', params)
-        else:
-            return ([], {})
-
-
-    @classmethod
-    def select(cls, connection, filtering=None, order_columns=None, limit=None, offset=None):
-        params = dict()
-        query = [f'SELECT * FROM {cls.TABLE_NAME}']
-        if filtering is not None:
-            clauses, extra_params = cls.where_clause(filtering)
-            query.append(f'WHERE {clauses}')
-            params.update(extra_params)
-        if order_columns is not None:
-            ordering = ','.join((y for y in (
-                cls.column_ordering_clause(x) for x in order_columns)
-                                if y is not None))
-            if ordering:
-                query.append(f'ORDER BY {ordering}')
-        if limit is not None:
-            query.append('LIMIT :limit')
-            params['limit'] = limit
-        if offset is not None:
-            query.append('OFFSET :offset')
-            params['offset'] = offset
-        for row in connection.execute(' '.join(query), params):
-            yield cls(
-                name=row[0],
-                email=row[1],
-                extra_comment=row[2],
-                places=row[3],
-                date=row[4],
-                outside_extra_starter=row[5],
-                outside_main_starter=row[6],
-                outside_bolo=row[7],
-                outside_extra_dish=row[8],
-                outside_dessert=row[9],
-                inside_extra_starter=row[10],
-                inside_main_starter=row[11],
-                inside_bolo=row[12],
-                inside_extra_dish=row[13],
-                kids_bolo=row[14],
-                kids_extra_dish=row[15],
-                gdpr_accepts_use=row[16] != 0,
-                cents_due=row[17],
-                bank_id=row[18],
-                uuid=row[19],
-                time=row[20],
-                active=row[21] != 0,
-                origin=row[22])
 
 
 class Csrf(MiniOrm):
     TABLE_NAME = 'csrfs'
     SESSION_IN_SECONDS = 7200
-    CREATION_STATEMENTS = [
-        f'''CREATE TABLE {TABLE_NAME}
-            (token TEXT NOT NULL PRIMARY KEY,
-             timestamp REAL,
-             user TEXT NOT NULL,
-             ip TEXT NOT NULL)''']
+    COLUMNS = (
+        ("token", "TEXT NOT NULL PRIMARY KEY"),
+        ("timestamp", "REAL"),
+        ("user", "TEXT NOT NULL"),
+        ("ip", "TEXT NOT NULL"),
+    )
+    CREATION_STATEMENTS = [default_creation_statement(TABLE_NAME, COLUMNS)]
 
     def __init__(self, token=None, timestamp=None, user=None, ip=None):
         self.token = token or uuid.uuid4().hex
