@@ -7,7 +7,7 @@ import uuid
 def create_db(configuration):
     root_dir = configuration['dbdir']
     connection = sqlite3.connect(os.path.join(root_dir, 'db.db'))
-    for table in (Csrf, Reservation):
+    for table in (Csrf, Reservation, Payment):
         try:
             connection.execute(f'SELECT COUNT(*) FROM {table.TABLE_NAME}')
         except Exception as e:
@@ -356,6 +356,57 @@ class Reservation(MiniOrm):
                           'gdpr_accepts_use': MiniOrm.compare_as_bool('gdpr_accepts_use')}
 
 
+class Payment(MiniOrm):
+    TABLE_NAME = 'payments'
+    COLUMNS = (
+        ("id", "INTEGER NOT NULL PRIMARY KEY"),
+        ("timestamp", "REAL"),
+        ("amount_in_cents", "INTEGER NOT NULL"),
+        ("comment", "TEXT"),
+        ("uuid", "TEXT"),
+        ("user", "TEXT NOT NULL"),
+        ("ip", "TEXT NOT NULL"),
+    )
+    CREATION_STATEMENTS = [
+        default_creation_statement(TABLE_NAME, COLUMNS),
+    ]
+    SORTABLE_COLUMNS = {
+        'user': 'LOWER(user)',
+        'comment': 'LOWER(comment)',
+        'timestamp': 'timestamp',
+        'amount_in_cents': 'amount_in_cents',
+        'ip': 'ip,'
+    }
+    FILTERABLE_COLUMNS = {
+        'user': MiniOrm.compare_with_like_lower('user'),
+        'comment': MiniOrm.compare_with_like_lower('comment'),
+    }
+
+    def __init__(self, id, timestamp, amount_in_cents, comment, uuid, user, ip):
+        self.id = id
+        self.timestamp = timestamp
+        self.amount_in_cents = amount_in_cents
+        self.comment = comment
+        self.uuid = uuid
+        self.user = user
+        self.ip = ip
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "timestamp": self.timestamp,
+            "amount_in_cents": self.amount_in_cents,
+            "comment": self.comment,
+            "uuid": self.uuid,
+            "user": self.user,
+            "ip": self.ip,
+        }
+
+    def insert_data(self, connection):
+        connection.execute(
+            f'''INSERT INTO {self.TABLE_NAME} VALUES (
+                 :id, :timestamp, :amount_in_cents, :comment, :uuid, :user, :ip)''',
+            self.to_dict())
 
 
 class Csrf(MiniOrm):
