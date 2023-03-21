@@ -372,6 +372,7 @@ class Payment(MiniOrm):
     )
     CREATION_STATEMENTS = [
         default_creation_statement(TABLE_NAME, COLUMNS),
+        f"CREATE INDEX index_uuid_{TABLE_NAME} ON {TABLE_NAME} (uuid)",
     ]
     SORTABLE_COLUMNS = {
         'user': 'LOWER(user)',

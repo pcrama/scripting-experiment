@@ -416,7 +416,8 @@ function test_03_locally_display_existing_reservation
     test_output="$(capture_cgi_output "$test_name" GET show_reservation.cgi "uuid_hex=$uuid_hex")"
     assert_html_response "$test_name" "$test_output" \
                          "Merci de nous avoir " \
-                         "Le prix total est de "
+                         "Le prix total est de " \
+                         "Nous vous saurions "
 
     # insert reservation for places without any food reservation, using the
     # opportunity to double-check on HTML escaping.
@@ -564,7 +565,8 @@ function test_10_locally_reservation_example
                              ">1 Croquettes au fromage</li>" \
                              ">Plat: 1 Spaghetti bolognaise</li>" \
                              ">Plat enfants: 1 Spag. bolognaise (enfants)</li>" \
-                             ">Dessert: 5 Assiettes de 3 Mignardises</li>"
+                             ">Dessert: 5 Assiettes de 3 Mignardises</li>" \
+                             "Nous vous saurions gré de déjà verser cette somme avec la communication structurée"
 
         sql_query 'INSERT INTO payments VALUES (1, 2.3, 350, "partial payment", "'"$uuid_hex"'", "unit test admin user", "1.2.3.4")'
         test_output="$(capture_cgi_output "$test_name" GET show_reservation.cgi "uuid_hex=$uuid_hex")"
@@ -574,7 +576,9 @@ function test_10_locally_reservation_example
                              ">1 Croquettes au fromage</li>" \
                              ">Plat: 1 Spaghetti bolognaise</li>" \
                              ">Plat enfants: 1 Spag. bolognaise (enfants)</li>" \
-                             ">Dessert: 5 Assiettes de 3 Mignardises</li>"
+                             ">Dessert: 5 Assiettes de 3 Mignardises</li>" \
+                             "Nous vous saurions gré de déjà verser cette somme avec la communication structurée"
+
         sql_query 'INSERT INTO payments VALUES (2, 4.5, 6950, "partial payment", "'"$uuid_hex"'", "unit test admin user", "1.2.3.4")'
         test_output="$(capture_cgi_output "$test_name" GET show_reservation.cgi "uuid_hex=$uuid_hex")"
         assert_html_response "$test_name" "$test_output" \
@@ -584,6 +588,10 @@ function test_10_locally_reservation_example
                              ">Plat: 1 Spaghetti bolognaise</li>" \
                              ">Plat enfants: 1 Spag. bolognaise (enfants)</li>" \
                              ">Dessert: 5 Assiettes de 3 Mignardises</li>"
+        grep -q  \
+             "Nous vous saurions gré de déjà verser cette somme avec la communication structurée" \
+             "$test_output" \
+            && die "$test_name this sentence should not be there: 'Nous vous saurions ...'"
     else
         die "$test_name unable to extract uuid_hex"
     fi

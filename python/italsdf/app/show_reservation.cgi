@@ -100,14 +100,14 @@ if __name__ == '__main__':
             else:
                 due_amount_info = (
                     'Le prix total est de ', cents_to_euro(reservation.cents_due), ' € pour le repas dont ',
-                    cents_to_euro(remaining_due), ' € sont encore dûs.  '
+                    cents_to_euro(remaining_due), ' € sont encore dûs.  ',
+                    "Nous vous saurions gré de déjà verser cette somme avec la communication ",
+                    "structurée ", ("code", format_bank_id(reservation.bank_id)), " sur le compte ",
+                    BANK_ACCOUNT, " pour confirmer votre réservation."
                 )
             commandes = (('p', "Merci de nous avoir informé à l'avance de votre commande.  ",
                           "Nous préparerons vos tickets à l'entrée pour faciliter votre commande.  ",
-                          *due_amount_info,
-                          "Nous vous saurions gré de déjà verser cette somme avec la communication ",
-                          "structurée ", ("code", format_bank_id(reservation.bank_id)), " sur le compte ",
-                          BANK_ACCOUNT, " pour confirmer votre réservation."),
+                          *due_amount_info),
                          (('ul', ), *((('li',), *x) for x in commandes)))
         else:
             commandes = (('p', "La commande des repas se fera à l'entrée: nous préférons le paiement mobile "
