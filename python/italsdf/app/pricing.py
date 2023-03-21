@@ -39,6 +39,6 @@ def price_in_cents(r,
         + r.kids_extra_dish * kids_extra_dish)
 
 
-def price_in_euros(r, **kwargs):
-    cents = price_in_cents(r, **kwargs)
-    return htmlgen.cents_to_euro(cents) + " €"
+# def price_in_euros(r, **kwargs):
+#     cents = price_in_cents(r, **kwargs)
+#     return htmlgen.cents_to_euro(cents) + " €"

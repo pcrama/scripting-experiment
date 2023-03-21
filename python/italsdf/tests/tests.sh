@@ -369,6 +369,18 @@ function assert_html_response
     done
 }
 
+function assert_csv_response
+{
+    local test_name test_output pattern
+    test_name="$1"
+    test_output="$2"
+    grep -q "Content-Type: text/csv; charset=utf-8" "$test_output" || die "$test_name No Content-Type in $test_output"
+    shift 2
+    for pattern in "$@" ; do
+        grep -q "$pattern" "$test_output" || die "$test_name \`\`$pattern'' not found in $test_output"
+    done
+}
+
 # Test definitions
 
 function test_01_locally_valid_post_reservation
@@ -547,12 +559,44 @@ function test_10_locally_reservation_example
     if uuid_hex="$(sed -ne '/Location:.*uuid_hex=/ { s///p ; q0 }' -e '$q1' "$test_output")"; then
         test_output="$(capture_cgi_output "$test_name" GET show_reservation.cgi "uuid_hex=$uuid_hex")"
         assert_html_response "$test_name" "$test_output" \
+                             "Le prix total est de 73.00 € pour le repas" \
                              ">1 Tomate Mozzarella</li>" \
                              ">1 Croquettes au fromage</li>" \
                              ">Plat: 1 Spaghetti bolognaise</li>" \
                              ">Plat enfants: 1 Spag. bolognaise (enfants)</li>" \
                              ">Dessert: 5 Assiettes de 3 Mignardises</li>"
+
+        sql_query 'INSERT INTO payments VALUES (1, 2.3, 350, "partial payment", "'"$uuid_hex"'", "unit test admin user", "1.2.3.4")'
+        test_output="$(capture_cgi_output "$test_name" GET show_reservation.cgi "uuid_hex=$uuid_hex")"
+        assert_html_response "$test_name" "$test_output" \
+                             "Le prix total est de 73.00 € pour le repas dont 69.50 € sont encore dûs" \
+                             ">1 Tomate Mozzarella</li>" \
+                             ">1 Croquettes au fromage</li>" \
+                             ">Plat: 1 Spaghetti bolognaise</li>" \
+                             ">Plat enfants: 1 Spag. bolognaise (enfants)</li>" \
+                             ">Dessert: 5 Assiettes de 3 Mignardises</li>"
+        sql_query 'INSERT INTO payments VALUES (2, 4.5, 6950, "partial payment", "'"$uuid_hex"'", "unit test admin user", "1.2.3.4")'
+        test_output="$(capture_cgi_output "$test_name" GET show_reservation.cgi "uuid_hex=$uuid_hex")"
+        assert_html_response "$test_name" "$test_output" \
+                             "Merci d'avoir déjà réglé l'entiéreté des 73.00 € dûs" \
+                             ">1 Tomate Mozzarella</li>" \
+                             ">1 Croquettes au fromage</li>" \
+                             ">Plat: 1 Spaghetti bolognaise</li>" \
+                             ">Plat enfants: 1 Spag. bolognaise (enfants)</li>" \
+                             ">Dessert: 5 Assiettes de 3 Mignardises</li>"
+    else
+        die "$test_name unable to extract uuid_hex"
     fi
+}
+
+function test_11_locally_export_csv
+{
+    local test_name test_output
+    test_name="test_11_locally_export_csv"
+    test_output="$(capture_admin_cgi_output "${test_name}" GET export_csv.cgi "")"
+    assert_csv_response "$test_name" "$test_output" \
+                        "realperson,2,1,0,1,0,1,1,0,1,0,1,0,0,3,73.00 €,0.00 €,commentaire,i@gmail.com,i@gmail.com,1," \
+                        '<name>,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0.00 €,0.00 €,"<this> & </that>.""",,,1,<a test&>'
 }
 
 # 01: List reservations when DB is still empty, then
@@ -848,6 +892,7 @@ test_07_locally_add_unchecked_reservation
 test_08_locally_GET_generate_tickets
 test_09_locally_POST_generate_tickets
 test_10_locally_reservation_example
+test_11_locally_export_csv
 
 # Temporarily disable command logging for deployment
 set +x

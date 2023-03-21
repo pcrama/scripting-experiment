@@ -111,6 +111,7 @@ def post_method(db_connection):
     respond_html(html_document(
         'Liste des tickets à imprimer',
         create_full_ticket_list(
+            db_connection,
             Reservation.select(
                 db_connection,
                 filtering=[('active', True)],

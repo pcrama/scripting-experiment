@@ -4,21 +4,20 @@ import sys_path_hack
 from conftest import make_reservation
 
 with sys_path_hack.app_in_path():
+    import htmlgen
     import pricing
     import storage
 
 
 class PriceInEurosTests(unittest.TestCase):
     def test_examples(self):
-        for cents, euros in ((1, '0.01 €'),
-                             (100, '1.00 €'),
-                             (123, '1.23 €'),
-                             (10120, '101.20 €'),
-                             (9009, '90.09 €')):
+        for cents, euros in ((1, '0.01'),
+                             (100, '1.00'),
+                             (123, '1.23'),
+                             (10120, '101.20'),
+                             (9009, '90.09')):
             with self.subTest(cents=cents, euros=euros):
-                self.assertEqual(
-                    pricing.price_in_euros(make_reservation(outside_main_starter=1), outside_main_starter=cents),
-                    euros)
+                self.assertEqual(htmlgen.cents_to_euro(cents), euros)
 
 
 class PriceInCentsTests(unittest.TestCase):

@@ -17,9 +17,6 @@ from storage import (
     Reservation,
     create_db,
 )
-from pricing import (
-    price_in_euros
-)
 from lib_export_csv import (
     export_reservation,
     write_column_header_rows,
@@ -40,7 +37,7 @@ if __name__ == '__main__':
         write_column_header_rows(writer)
         for x in Reservation.select(connection,
                                     order_columns=('ACTIVE', 'date', 'name')):
-            export_reservation(writer, x)
+            export_reservation(writer, connection, x)
     except Exception:
         if print_content_type('text/html; charset=utf-8'):
             print()

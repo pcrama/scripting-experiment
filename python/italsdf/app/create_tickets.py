@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import itertools
 import pricing
-from htmlgen import (pluriel_naif)
+from htmlgen import (cents_to_euro, pluriel_naif)
 import config
 
 _CONFIGURATION = config.get_configuration()
@@ -55,7 +55,7 @@ def _heading(*content):
     return (('div', 'class', 'ticket-heading'), *content)
 
 
-def create_tickets_for_one_reservation(r):
+def create_tickets_for_one_reservation(connection, r):
     total_tickets = (
         r.outside_extra_starter + r.inside_extra_starter +
         r.outside_main_starter + r.inside_main_starter +
@@ -79,7 +79,7 @@ def create_tickets_for_one_reservation(r):
         if total_tickets == 0
         else ((('div', 'class', 'no-print-page-break'),
                _heading(r.name, ': ', pluriel_naif(r.places, 'place'), ' le ', r.date),
-               ('div', 'Total: ', pricing.price_in_euros(r), ' pour ',
+               ('div', 'Total dû: ', cents_to_euro(r.remaining_amount_due_in_cents(connection)) + " €", ' pour ',
                 pluriel_naif(total_tickets, 'ticket'), ': ', ticket_details, '.')),
               _ticket_table(
                   main_starter=r.outside_main_starter + r.inside_main_starter,
@@ -91,7 +91,7 @@ def create_tickets_for_one_reservation(r):
                   dessert=r.outside_dessert + r.inside_dessert + r.kids_dessert)))
 
 
-def create_full_ticket_list(rs, main_starter, extra_starter, bolo, extra_dish, kids_bolo, kids_extra_dish, dessert):
+def create_full_ticket_list(connection, rs, main_starter, extra_starter, bolo, extra_dish, kids_bolo, kids_extra_dish, dessert):
     for r in rs:
         extra_starter -= r.outside_extra_starter + r.inside_extra_starter
         main_starter -= r.outside_main_starter + r.inside_main_starter
@@ -110,7 +110,7 @@ def create_full_ticket_list(rs, main_starter, extra_starter, bolo, extra_dish, k
                     (KIDS_BOLO_NAME, kids_bolo),
                     (KIDS_EXTRA_DISH_NAME, kids_extra_dish),
                     (DESSERT_NAME, dessert))))
-        for e in create_tickets_for_one_reservation(r):
+        for e in create_tickets_for_one_reservation(connection, r):
             yield e
     
     yield _heading('Vente libre')

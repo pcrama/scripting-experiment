@@ -7,6 +7,7 @@ import os
 import config
 from htmlgen import (
     CONCERT_PAGE,
+    cents_to_euro,
     format_bank_id,
     html_document,
     pluriel_naif,
@@ -17,9 +18,6 @@ from htmlgen import (
 from storage import(
     Reservation,
     create_db,
-)
-from pricing import (
-    price_in_euros,
 )
 
 
@@ -95,9 +93,18 @@ if __name__ == '__main__':
                                           [DESSERT_NAME, DESSERT_NAME_PLURAL]))
                      if x]
         if commandes:
+            remaining_due = reservation.remaining_amount_due_in_cents(db_connection)
+            if remaining_due <= 0:
+                due_amount_info = (
+                    "Merci d'avoir déjà réglé l'entiéreté des ", cents_to_euro(reservation.cents_due), " € dûs.  ")
+            else:
+                due_amount_info = (
+                    'Le prix total est de ', cents_to_euro(reservation.cents_due), ' € pour le repas dont ',
+                    cents_to_euro(remaining_due), ' € sont encore dûs.  '
+                )
             commandes = (('p', "Merci de nous avoir informé à l'avance de votre commande.  ",
                           "Nous préparerons vos tickets à l'entrée pour faciliter votre commande.  ",
-                          'Le prix total est de ', price_in_euros(reservation), ' pour le repas.  ',
+                          *due_amount_info,
                           "Nous vous saurions gré de déjà verser cette somme avec la communication ",
                           "structurée ", ("code", format_bank_id(reservation.bank_id)), " sur le compte ",
                           BANK_ACCOUNT, " pour confirmer votre réservation."),

@@ -1,6 +1,6 @@
 import itertools
 
-from pricing import (price_in_euros)
+from htmlgen import (cents_to_euro)
 import config
 
 _CONFIGURATION = config.get_configuration()
@@ -30,10 +30,10 @@ def write_column_header_rows(writer):
          *PLATS,
          *KIDS_PLATS,
          *PLATS,
-         'Total', 'Commentaire', 'Email', 'RGPD', 'Actif', 'Origine',))
+         'Total', 'Dû', 'Commentaire', 'Email', 'RGPD', 'Actif', 'Origine',))
 
 
-def export_reservation(writer, x):
+def export_reservation(writer, connection, x):
     if x.origin:
         email = ''
         gdpr_email = ''
@@ -50,6 +50,11 @@ def export_reservation(writer, x):
         x.outside_main_starter, x.outside_extra_starter,
         x.outside_bolo, x.outside_extra_dish,
         x.outside_dessert,
-        price_in_euros(x),
+        _with_euro_sign(x.cents_due),
+        _with_euro_sign(x.remaining_amount_due_in_cents(connection)),
         x.extra_comment, email, gdpr_email, x.active, x.origin
     ))
+
+
+def _with_euro_sign(cents: int) -> str:
+    return cents_to_euro(cents) + " €"

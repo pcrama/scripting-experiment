@@ -320,6 +320,9 @@ class Reservation(MiniOrm):
             {'name': name.lower(), 'email': email.lower()}
         ).fetchone()
 
+    def remaining_amount_due_in_cents(self, connection):
+        # TODO: not the most efficient but I have small data sets only anyway (less than 100 rows)
+        return self.cents_due - Payment.sum_payments(connection, self.uuid)
 
     @classmethod
     def summary_by_date(cls, connection):
@@ -401,6 +404,13 @@ class Payment(MiniOrm):
             "user": self.user,
             "ip": self.ip,
         }
+
+    @classmethod
+    def sum_payments(cls, connection, uuid):
+        return connection.execute(
+            f'''SELECT SUM(amount_in_cents) FROM {cls.TABLE_NAME} WHERE uuid = :uuid''',
+            {"uuid": uuid}
+        ).fetchone()[0] or 0
 
     def insert_data(self, connection):
         connection.execute(
