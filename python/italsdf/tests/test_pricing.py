@@ -11,7 +11,8 @@ with sys_path_hack.app_in_path():
 
 class PriceInEurosTests(unittest.TestCase):
     def test_examples(self):
-        for cents, euros in ((1, '0.01'),
+        for cents, euros in ((0, '0.00'),
+                             (1, '0.01'),
                              (100, '1.00'),
                              (123, '1.23'),
                              (10120, '101.20'),
