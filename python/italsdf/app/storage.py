@@ -362,46 +362,64 @@ class Reservation(MiniOrm):
 class Payment(MiniOrm):
     TABLE_NAME = 'payments'
     COLUMNS = (
-        ("id", "INTEGER NOT NULL PRIMARY KEY"),
+        ("rowid", "INTEGER NOT NULL PRIMARY KEY"),
         ("timestamp", "REAL"),
         ("amount_in_cents", "INTEGER NOT NULL"),
         ("comment", "TEXT"),
         ("uuid", "TEXT"),
+        ("src_id", "TEXT NOT NULL"),
+        ("other_account", "TEXT"),
+        ("other_name", "TEXT"),
+        ("status", "TEXT NOT NULL"),
         ("user", "TEXT NOT NULL"),
         ("ip", "TEXT NOT NULL"),
     )
     CREATION_STATEMENTS = [
         default_creation_statement(TABLE_NAME, COLUMNS),
         f"CREATE INDEX index_uuid_{TABLE_NAME} ON {TABLE_NAME} (uuid)",
+        f"CREATE UNIQUE INDEX index_src_id_{TABLE_NAME} ON {TABLE_NAME} (src_id)",
     ]
     SORTABLE_COLUMNS = {
+        'other_name': 'LOWER(other_name)',
+        'other_account': 'LOWER(other_account)',
         'user': 'LOWER(user)',
         'comment': 'LOWER(comment)',
         'timestamp': 'timestamp',
         'amount_in_cents': 'amount_in_cents',
+        'src_id': 'src_id',
         'ip': 'ip,'
     }
     FILTERABLE_COLUMNS = {
         'user': MiniOrm.compare_with_like_lower('user'),
         'comment': MiniOrm.compare_with_like_lower('comment'),
+        'other_account': MiniOrm.compare_with_like_lower('other_account'),
+        'other_name': MiniOrm.compare_with_like_lower('other_name'),
     }
 
-    def __init__(self, id, timestamp, amount_in_cents, comment, uuid, user, ip):
-        self.id = id
+    def __init__(self, rowid, timestamp, amount_in_cents, comment, uuid, src_id, other_account, other_name, status, user, ip):
+        self.rowid = rowid
         self.timestamp = timestamp
         self.amount_in_cents = amount_in_cents
         self.comment = comment
         self.uuid = uuid
+        self.src_id = src_id
+        self.other_account = other_account
+        self.other_name = other_name
+        self.status = status
         self.user = user
         self.ip = ip
 
     def to_dict(self):
         return {
-            "id": self.id,
+            "rowid": self.rowid,
             "timestamp": self.timestamp,
             "amount_in_cents": self.amount_in_cents,
             "comment": self.comment,
             "uuid": self.uuid,
+            "src_id": self.src_id,
+            "other_account": self.other_account,
+            "other_name": self.other_name,
+            "status": self.status,
             "user": self.user,
             "ip": self.ip,
         }
@@ -416,7 +434,7 @@ class Payment(MiniOrm):
     def insert_data(self, connection):
         connection.execute(
             f'''INSERT INTO {self.TABLE_NAME} VALUES (
-                 :id, :timestamp, :amount_in_cents, :comment, :uuid, :user, :ip)''',
+                 :rowid, :timestamp, :amount_in_cents, :comment, :uuid, :src_id, :other_account, :other_name, :status, :user, :ip)''',
             self.to_dict())
 
 
