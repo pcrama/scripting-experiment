@@ -16,7 +16,8 @@ class PriceInEurosTests(unittest.TestCase):
                              (100, '1.00'),
                              (123, '1.23'),
                              (10120, '101.20'),
-                             (9009, '90.09')):
+                             (9009, '90.09'),
+                             (-3360, '-33.60')):
             with self.subTest(cents=cents, euros=euros):
                 self.assertEqual(htmlgen.cents_to_euro(cents), euros)
 
