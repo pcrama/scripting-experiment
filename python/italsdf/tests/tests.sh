@@ -144,6 +144,10 @@ function count_csrfs {
     sql_query "SELECT COUNT(*) FROM csrfs;"
 }
 
+function count_payments {
+    sql_query "SELECT COUNT(*) FROM payments;"
+}
+
 function get_user_of_csrf_token {
     sql_query "SELECT user FROM csrfs WHERE token='$1';"
 }
@@ -280,7 +284,8 @@ function simulate_cgi_request
     script_name="$2"
     query_string="$3"
     shift 3
-    echo | (
+    # env "$(python3 -c 'import urllib3; body, header = urllib3.encode_multipart_formdata({"csrf_token": "abcd01234e", "csv_file": ("test.csv", "a;b\n0;1"), "submit": "Importer les extraits de compte"}); print(f"CONTENT_TYPE={header!r} CONTENT_STDIN=\"{body.decode('"'utf8'"')}\"")')"
+    echo "${CONTENT_STDIN:-}" | (
         cd "$app_dir/$(dirname "$script_name")" \
             && env TEMP="$test_dir" \
                    REQUEST_METHOD="$method" \
@@ -338,7 +343,7 @@ function capture_admin_cgi_output
         test_output="$5"
         shift
     fi
-    if ! simulate_cgi_request "$method" "$admin_sub_dir/$script_name" "$query_string" REMOTE_USER="secretaire" REMOTE_ADDR="1.2.3.4" "$@" > "$test_output" ; then
+    if ! simulate_cgi_request "$method" "$admin_sub_dir/$script_name" "$query_string" REMOTE_USER="$admin_user" REMOTE_ADDR="1.2.3.4" "$@" > "$test_output" ; then
         [ -z "$ignore_cgitb" ] && die "$test_name admin CGI execution problem, look in $test_output"
     fi
 
@@ -368,6 +373,21 @@ function assert_html_response
     shift 2
     for pattern in "$@" ; do
         grep -q "$pattern" "$test_output" || die "$test_name \`\`$pattern'' not found in $test_output"
+    done
+}
+
+function assert_not_in_html_response
+{
+    local test_name test_output pattern
+    test_name="$1"
+    test_output="$2"
+    grep -q "Content-Type: text/html; charset=utf-8" "$test_output" || die "$test_name No Content-Type in $test_output"
+    grep -q '<!DOCTYPE HTML><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>' "$test_output" || die "$test_name no HTML preamble boilerplate in $test_output"
+    shift 2
+    for pattern in "$@" ; do
+        if grep -q "$pattern" "$test_output" ; then
+            die "$test_name \`\`$pattern'' should not be in HTML $test_output"
+        fi
     done
 }
 
@@ -483,6 +503,8 @@ function test_05_locally_list_reservations
                          "<li>38 Assiettes de 3 Mignardises</li>" \
                          "<a href=[^ ]*show_reservation[^ ]*$uuid_hex" \
                          "$bank_transaction_number" \
+                         '<li><a href="list_payments.cgi">Gérer les paiements</a></li>' \
+                         '<li><a href="generate_tickets.cgi">Générer les tickets nourriture pour impression</a></li>' \
                          'const CSRF_TOKEN = "' \
                          '<div id="elmish-app"></div><script>const ACTION_DEST = "add_unchecked_reservation.cgi";' \
                          $js_file_patterns
@@ -553,10 +575,25 @@ function test_09_locally_POST_generate_tickets
                          "Vente libre</div><div>Tomate Mozzarella=7, Croquettes au fromage=25, Spaghetti bolognaise=26, Spaghetti aux légumes=56, Spag. bolognaise (enfants)=66, Spag. aux légumes (enfants)=66, Assiette de 3 Mignardises=37</div>"
 }
 
-function test_10_locally_reservation_example
+function test_10_locally_list_payments_before_adding_any_to_db
+{
+    local test_name test_output uuid_hex csrf_token
+    test_name="test_10_locally_list_payments_before_adding_any_to_db"
+    test_output="$(capture_admin_cgi_output "${test_name}" GET list_payments.cgi "")"
+    csrf_token="$(get_csrf_token_of_user "$admin_user")"
+    if [ -z "$csrf_token" ]; then
+       die "$test_name no CSRF token generated for $admin_user"
+    fi
+    assert_html_response "$test_name" "$test_output" \
+                         '<input type="hidden" id="csrf_token" name="csrf_token" value="'"$csrf_token"'">' \
+                         '<input type="file" id="csv_file" name="csv_file">' \
+                         '<th>Réservation</th></tr></table><hr><ul><li><a href="list_reservations.cgi">Liste des réservations</a></li><li><a href="generate_tickets.cgi">'
+}
+
+function test_11_locally_reservation_example
 {
     local test_name test_output
-    test_name="test_10_locally_reservation_example"
+    test_name="test_11_locally_reservation_example"
     test_output="$(capture_cgi_output "$test_name" POST post_reservation.cgi 'name=realperson&email=i%40gmail.com&extraComment=commentaire&places=2&insidemainstarter=1&insideextrastarter=0&insidebolo=1&insideextradish=0&bolokids=1&extradishkids=0&outsidemainstarter=0&outsideextrastarter=1&outsidebolo=0&outsideextradish=0&outsidedessert=3&gdpr_accepts_use=true&date=2023-03-25')"
     grep -q "Status: 302" "$test_output" || die "$test_name No Status: 302 redirect in $test_output"
     if uuid_hex="$(sed -ne '/Location:.*uuid_hex=/ { s///p ; q0 }' -e '$q1' "$test_output")"; then
@@ -570,7 +607,7 @@ function test_10_locally_reservation_example
                              ">Dessert: 5 Assiettes de 3 Mignardises</li>" \
                              "Nous vous saurions gré de déjà verser cette somme avec la communication structurée"
 
-        sql_query 'INSERT INTO payments VALUES (1, 2.3, 350, "partial payment", "'"$uuid_hex"'", "unit test admin user", "1.2.3.4")'
+        sql_query 'INSERT INTO payments VALUES (NULL, 2.3, 350, "partial payment", "'"$uuid_hex"'", "src_id_0", "BE001100", "realperson", "Accepté", "unit test admin user", "1.2.3.4")'
         test_output="$(capture_cgi_output "$test_name" GET show_reservation.cgi "uuid_hex=$uuid_hex")"
         assert_html_response "$test_name" "$test_output" \
                              "Le prix total est de 73.00 € pour le repas dont 69.50 € sont encore dûs" \
@@ -581,7 +618,7 @@ function test_10_locally_reservation_example
                              ">Dessert: 5 Assiettes de 3 Mignardises</li>" \
                              "Nous vous saurions gré de déjà verser cette somme avec la communication structurée"
 
-        sql_query 'INSERT INTO payments VALUES (2, 4.5, 6950, "partial payment", "'"$uuid_hex"'", "unit test admin user", "1.2.3.4")'
+        sql_query 'INSERT INTO payments VALUES (NULL, 86405.5, 6950, "partial payment", "'"$uuid_hex"'", "src_id_1", "BE001100", "realperson", "Accepté", "unit test admin user", "1.2.3.4")'
         test_output="$(capture_cgi_output "$test_name" GET show_reservation.cgi "uuid_hex=$uuid_hex")"
         assert_html_response "$test_name" "$test_output" \
                              "Merci d'avoir déjà réglé l'entièreté des 73.00 € dûs" \
@@ -590,23 +627,40 @@ function test_10_locally_reservation_example
                              ">Plat: 1 Spaghetti bolognaise</li>" \
                              ">Plat enfants: 1 Spag. bolognaise (enfants)</li>" \
                              ">Dessert: 5 Assiettes de 3 Mignardises</li>"
-        grep -q  \
-             "Nous vous saurions gré de déjà verser cette somme avec la communication structurée" \
-             "$test_output" \
-            && die "$test_name this sentence should not be there: 'Nous vous saurions ...'"
+        assert_not_in_html_response "$test_name" "$test_output" "verser cette somme avec la communication structurée"
     else
         die "$test_name unable to extract uuid_hex"
     fi
 }
 
-function test_11_locally_export_csv
+function test_12_locally_export_csv
 {
     local test_name test_output
-    test_name="test_11_locally_export_csv"
+    test_name="test_12_locally_export_csv"
     test_output="$(capture_admin_cgi_output "${test_name}" GET export_csv.cgi "")"
     assert_csv_response "$test_name" "$test_output" \
                         "realperson,2,1,0,1,0,1,1,0,1,0,1,0,0,3,73.00 €,0.00 €,commentaire,i@gmail.com,i@gmail.com,1," \
                         '<name>,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0.00 €,0.00 €,"<this> & </that>.""",,,1,<a test&>'
+}
+
+function test_13_locally_list_2_payments
+{
+    local test_name test_output uuid_hex
+    test_name="test_13_locally_list_2_payments"
+    test_output="$(capture_admin_cgi_output "${test_name}" GET list_payments.cgi "")"
+    uuid_hex="$(sql_query 'select uuid from reservations where name="realperson" limit 1')"
+    if [ -z "$uuid_hex" ]; then
+        die "$test_name Unable to find reservation uuid"
+    fi
+    csrf_token="$(get_csrf_token_of_user "$admin_user")"
+    if [ -z "$csrf_token" ]; then
+       die "$test_name no CSRF token generated for $admin_user"
+    fi
+    assert_html_response "$test_name" "$test_output" \
+                         '<input type="hidden" id="csrf_token" name="csrf_token" value="'"$csrf_token"'">' \
+                         '<input type="file" id="csv_file" name="csv_file">' \
+                         '<tr><td>src_id_0</td><td>01/01/1970</td><td>BE001100</td><td>realperson</td><td>Accepté</td><td>partial payment</td><td>3.50</td><td><a href="https://example.com/show_reservation.cgi?uuid_hex='"$uuid_hex"'">Réservation</a></td></tr>' \
+                         '<tr><td>src_id_1</td><td>02/01/1970</td><td>BE001100</td><td>realperson</td><td>Accepté</td><td>partial payment</td><td>69.50</td><td><a href="https://example.com/show_reservation.cgi?uuid_hex='"$uuid_hex"'">Réservation</a></td></tr>'
 }
 
 # 01: List reservations when DB is still empty, then
@@ -901,8 +955,10 @@ test_06_locally_add_unchecked_reservation_CSRF_failure
 test_07_locally_add_unchecked_reservation
 test_08_locally_GET_generate_tickets
 test_09_locally_POST_generate_tickets
-test_10_locally_reservation_example
-test_11_locally_export_csv
+test_10_locally_list_payments_before_adding_any_to_db
+test_11_locally_reservation_example
+test_12_locally_export_csv
+test_13_locally_list_2_payments
 
 # Temporarily disable command logging for deployment
 set +x

@@ -70,6 +70,7 @@ else
         | tar xf - -C "$staging_dir"
     rm -f "$(dirname "$0")/app/gestion/index.html"
     find "$staging_dir" -type f '(' -name '*.cgi' -o -name '*.py' ')' -print0 | xargs -0 dos2unix
+    find "$staging_dir" -type f -name '*.cgi' -print0 | xargs -0 chmod 744
     app_htaccess="$staging_dir/.htaccess"
     cat <<EOF > "$app_htaccess"
 # Prevent directory listing https://stackoverflow.com/a/2530404:

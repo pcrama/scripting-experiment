@@ -245,7 +245,9 @@ if __name__ == '__main__':
               'const CSRF_TOKEN = "', csrf_token.token, '";'),
              *((('script', 'defer src', js),) for js in JS_FILES),
              ('hr',),
-             (('a', 'href', 'generate_tickets.cgi'), 'Générer les tickets nourriture pour impression'))))
+             ('ul',
+              ('li', (('a', 'href', 'list_payments.cgi'), 'Gérer les paiements')),
+              ('li', (('a', 'href', 'generate_tickets.cgi'), 'Générer les tickets nourriture pour impression'))))))
     except Exception:
         if print_content_type('text/html; charset=utf-8'):
             print()

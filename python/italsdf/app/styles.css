@@ -1,1 +1,5 @@
 /* Empty */
+
+.payment-not-ok {
+    font-color: red;
+}

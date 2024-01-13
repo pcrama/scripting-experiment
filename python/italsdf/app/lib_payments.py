@@ -1,4 +1,7 @@
 import cgi
+import csv
+import io
+import sqlite3
 import time
 from typing import Callable, Optional, Union
 
@@ -56,8 +59,12 @@ BANK_STATEMENT_HEADERS = {
            'Communication': "comment"}}
 
 
+def _normalize_header(s: str)->str:
+    s = s.strip()
+    return s[1:] if s.startswith('\ufeff') else s
+
 def make_payment_builder(header_row: list[str]) -> Callable[[list[str, Optional[Payment]]], Payment]:
-    col_name_to_idx = {col_name: col_idx for col_idx, col_name in enumerate(header_row)}
+    col_name_to_idx = {_normalize_header(col_name): col_idx for col_idx, col_name in enumerate(header_row)}
     columns = {}
     for lang, mapping in BANK_STATEMENT_HEADERS.items():
         try:
@@ -84,3 +91,30 @@ def make_payment_builder(header_row: list[str]) -> Callable[[list[str, Optional[
         )
 
     return payment_builder
+
+
+def import_bank_statements(connection, bank_statements_csv: str, user:str, ip: str) -> list[tuple[Exception, Payment]]:
+    csv_reader = csv.reader(io.StringIO(bank_statements_csv), delimiter=';')
+    builder = make_payment_builder(next(csv_reader))
+    proto = Payment(
+        rowid=None, timestamp=None, amount_in_cents=None, comment=None, uuid=None, src_id=None, other_account=None, other_name=None, status=None, user=user, ip=ip
+    )
+    exceptions = []
+    with connection:
+        for row in csv_reader:
+            pmnt = builder(row, proto)
+            try:
+                pmnt.insert_data(connection)
+            except sqlite3.IntegrityError as exc:
+                # My python versions and their shipped sqlite3 modules differ between my dev system and my deployment system :sad:
+                old_style_unique_constraint_error = exc.args and isinstance(exc.args[0], str) and exc.args[0].startswith('UNIQUE ')
+                new_style_unique_constraint_error = hasattr(exc, 'sqlite_errorname') and exc.sqlite_errorname == 'SQLITE_CONSTRAINT_UNIQUE'
+                if old_style_unique_constraint_error or new_style_unique_constraint_error:
+                    exceptions.append((None, pmnt))
+                else:
+                    exceptions.append((exc, pmnt))
+            except Exception as exc:
+                exceptions.append((exc, pmnt))
+            else:
+                exceptions.append((None, pmnt))
+    return exceptions

@@ -30,6 +30,26 @@ class MiniOrm:
     SORTABLE_COLUMNS = {} # override with column info for `select'
     FILTERABLE_COLUMNS = {} # override with column info for `select'
 
+    def __str__(self):
+        try:
+            parts = ['<', self.TABLE_NAME]
+            for col_name, value in self.to_dict().items():
+                parts.append(f" {col_name}={value!r}")
+            parts.append('>')
+            return "".join(parts)
+        except Exception as e:
+            return super().__str__()
+
+    def __repr__(self):
+        try:
+            parts = [self.__class__.__name__, '(']
+            for col_name, value in self.to_dict().items():
+                parts.append(f"{col_name}={value!r}, ")
+            parts.append(')')
+            return "".join(parts)
+        except Exception as e:
+            return super().__str__()
+
     @classmethod
     def create_in_db(cls, connection):
         with connection:
@@ -387,7 +407,8 @@ class Payment(MiniOrm):
         'timestamp': 'timestamp',
         'amount_in_cents': 'amount_in_cents',
         'src_id': 'src_id',
-        'ip': 'ip,'
+        'ip': 'ip',
+        'status': 'status',
     }
     FILTERABLE_COLUMNS = {
         'user': MiniOrm.compare_with_like_lower('user'),
@@ -437,6 +458,9 @@ class Payment(MiniOrm):
                  :rowid, :timestamp, :amount_in_cents, :comment, :uuid, :src_id, :other_account, :other_name, :status, :user, :ip)''',
             self.to_dict())
 
+    def money_received(self) -> bool:
+        return self.status == "Accepté" and self.amount_in_cents is not None and self.amount_in_cents > 0
+
 
 class Csrf(MiniOrm):
     TABLE_NAME = 'csrfs'
@@ -459,8 +483,8 @@ class Csrf(MiniOrm):
     @classmethod
     def gc(cls, connection):
         connection.execute(
-            f'DELETE FROM {cls.TABLE_NAME} WHERE timestamp <= 0')
-
+            f'DELETE FROM {cls.TABLE_NAME} WHERE timestamp <= :timestamp',
+            {'timestamp': time.time() - 3 * cls.SESSION_IN_SECONDS})
 
     def save(self, connection):
         with connection:
