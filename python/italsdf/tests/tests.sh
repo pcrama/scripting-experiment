@@ -663,6 +663,29 @@ function test_13_locally_list_2_payments
                          '<tr><td>src_id_1</td><td>02/01/1970</td><td>BE001100</td><td>realperson</td><td>Accepté</td><td>partial payment</td><td>69.50</td><td><a href="https://example.com/show_reservation.cgi?uuid_hex='"$uuid_hex"'">Réservation</a></td></tr>'
 }
 
+function test_14_locally_upload_payments
+{
+    local test_name test_output uuid_hex content_type content_stdin row_count
+    test_name="test_14_locally_upload_payments"
+    csrf_token="$(get_csrf_token_of_user "$admin_user")"
+    if [ -z "$csrf_token" ]; then
+       die "$test_name no CSRF token generated for $admin_user"
+    fi
+    fake_csv="Nº de séquence;Date d'exécution;Date valeur;Montant;Devise du compte;Numéro de compte;Type de transaction;Contrepartie;Nom de la contrepartie;Communication;Détails;Statut;Motif du refus\\n2023-00127;28/03/2023;28/03/2023;18;EUR;BE00010001000101;Virement en euros;BE00020002000202;ccccc-ccccccccc;Reprise marchandises (viande hachee) souper italien;VIREMENT EN EUROS DU COMPTE BE00020002000202 BIC GABBBEBB CCCCC-CCCCCCCCC AV DE LA GARE 76 9999 WAGADOUGOU COMMUNICATION : REPRISE MARCHANDISES (VIANDE HACHEE) SOUPER ITALIEN REFERENCE BANQUE : 2303244501612 DATE VALEUR : 28/03/2023;Accepté;\\n"
+    eval "$(python3 -c 'import urllib3; body, header = urllib3.encode_multipart_formdata({"csrf_token": "'"$csrf_token"'", "csv_file": ("test.csv", "'"$fake_csv"'"), "submit": "Importer les extraits de compte"}); print(f"content_type={header!r} content_stdin=\"{body.decode('"'utf8'"')}\"")')"
+    export CONTENT_STDIN="$content_stdin"
+    test_output="$(capture_admin_cgi_output "${test_name}" POST import_payments.cgi "" CONTENT_TYPE="$content_type")"
+    export CONTENT_STDIN=""
+    grep -q "^Status: 302" "$test_output" || die "$test_name No Status: 302 redirect in $test_output"
+    target="gestion/list_payments.cgi"
+    grep -q "^Location: .*$target" "$test_output" || die "$test_name not redirecting to correct target \`\`$target'' in $test_output"
+    if ! row_count="$(count_payments)" ; then
+        die "$test_name Could not count payments"
+    else
+        [ "$row_count" -eq 3 ] || die "$test_name Unexpected row_count=$row_count"
+    fi
+}
+
 # 01: List reservations when DB is still empty, then
 # - Verify output HTML
 # - Verify CSRF is in DB
@@ -959,6 +982,7 @@ test_10_locally_list_payments_before_adding_any_to_db
 test_11_locally_reservation_example
 test_12_locally_export_csv
 test_13_locally_list_2_payments
+test_14_locally_upload_payments
 
 # Temporarily disable command logging for deployment
 set +x
