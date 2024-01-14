@@ -647,7 +647,7 @@ function test_13_locally_list_2_payments
 {
     local test_name test_output uuid_hex
     test_name="test_13_locally_list_2_payments"
-    test_output="$(capture_admin_cgi_output "${test_name}" GET list_payments.cgi "")"
+    test_output="$(capture_admin_cgi_output "${test_name}" GET list_payments.cgi "limit=20&sort_order=src_id")"
     uuid_hex="$(sql_query 'select uuid from reservations where name="realperson" limit 1')"
     if [ -z "$uuid_hex" ]; then
         die "$test_name Unable to find reservation uuid"
@@ -659,8 +659,8 @@ function test_13_locally_list_2_payments
     assert_html_response "$test_name" "$test_output" \
                          '<input type="hidden" id="csrf_token" name="csrf_token" value="'"$csrf_token"'">' \
                          '<input type="file" id="csv_file" name="csv_file">' \
-                         '<tr><td>src_id_0</td><td>01/01/1970</td><td>BE001100</td><td>realperson</td><td>Accepté</td><td>partial payment</td><td>3.50</td><td><a href="https://example.com/show_reservation.cgi?uuid_hex='"$uuid_hex"'">Réservation</a></td></tr>' \
-                         '<tr><td>src_id_1</td><td>02/01/1970</td><td>BE001100</td><td>realperson</td><td>Accepté</td><td>partial payment</td><td>69.50</td><td><a href="https://example.com/show_reservation.cgi?uuid_hex='"$uuid_hex"'">Réservation</a></td></tr>'
+                         '<tr><td>src_id_0</td><td>01/01/1970</td><td>BE001100</td><td>realperson</td><td>Accepté</td><td>partial payment</td><td>3.50</td><td><a href="https://example.com/show_reservation.cgi?uuid_hex='"$uuid_hex"'">realperson i@gmail.com</a></td></tr>' \
+                         '<tr><td>src_id_1</td><td>02/01/1970</td><td>BE001100</td><td>realperson</td><td>Accepté</td><td>partial payment</td><td>69.50</td><td><a href="https://example.com/show_reservation.cgi?uuid_hex='"$uuid_hex"'">realperson i@gmail.com</a></td></tr>'
 }
 
 function test_14_locally_upload_payments

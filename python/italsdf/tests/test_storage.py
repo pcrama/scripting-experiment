@@ -77,6 +77,8 @@ class TestPayments(unittest.TestCase):
                         ]
         for pmnt in payments:
             pmnt.insert_data(cls.CONNECTION)
+        make_reservation(name="name1", email="one@example.com", places=3, outside_dessert=1, inside_bolo=1, inside_main_starter=1, cents_due=12345, bank_id="bank_id_1", uuid=cls.UUID_WITH_TWO_PAYMENTS).insert_data(cls.CONNECTION)
+        make_reservation(name="name2", email="two@example.com", places=2, outside_dessert=1, inside_bolo=2, inside_main_starter=2, cents_due=34512, bank_id="bank_id_2", uuid="beef12346789fedc").insert_data(cls.CONNECTION)
 
     @classmethod
     def tearDownClass(cls):
@@ -100,6 +102,13 @@ class TestPayments(unittest.TestCase):
         ):
             with self.subTest(uuid=reservation.uuid):
                 self.assertEqual(reservation.remaining_amount_due_in_cents(self.CONNECTION), expected)
+
+    def test_join_payments_and_reservations(self):
+        joined = list(storage.Payment.join_reservations(self.CONNECTION))
+        self.assertEqual(len(joined), 13)
+        self.assertEqual(sum((res is not None for _, res in joined)), 3)
+        self.assertEqual(sum((res is not None and res.bank_id == "bank_id_1" for _, res in joined)), 2)
+        self.assertEqual(sum((res is not None and res.bank_id == "bank_id_2" for _, res in joined)), 1)
 
 
 if __name__ == '__main__':

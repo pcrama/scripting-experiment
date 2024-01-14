@@ -129,3 +129,8 @@ div.ticket-heading {
         page-break-after: avoid;
     }
 }
+
+.payment-not-ok {
+    color: red;
+    font-style: italic;
+}

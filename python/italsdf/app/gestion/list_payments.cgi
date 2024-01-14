@@ -76,6 +76,13 @@ def get_first(d, k):
     return d.get(k, [None])[0]
 
 
+def maybe_link_to_reservation(res):
+    if res is None:
+        return "???"
+    else:
+        return (('a', 'href', make_show_reservation_url(res.uuid, script_name=os.path.dirname(os.environ["SCRIPT_NAME"]))), f'{res.name} {res.email}')
+
+
 def sort_direction(col, sort_order):
     col = col.lower()
     if sort_order and sort_order[0].lower() == col:
@@ -159,18 +166,18 @@ if __name__ == '__main__':
              (('table', 'class', 'list'),
               ('tr', *table_header_row),
               *tuple(('tr',
-                      ('td', r.src_id),
-                      ('td', time.strftime('%d/%m/%Y', time.gmtime(r.timestamp))),
-                      ('td', r.other_account),
-                      ('td', r.other_name),
-                      ('td' if r.money_received() else ('td', 'class', 'payment-not-ok'), r.status),
-                      ('td', r.comment),
-                      ('td', cents_to_euro(r.amount_in_cents)),
-                      ('td', "???" if r.uuid is None else (('a', 'href', make_show_reservation_url(r.uuid, script_name=os.path.dirname(os.environ["SCRIPT_NAME"]))), 'Réservation')))
-                     for r in Payment.select(connection,
-                                             order_columns=sort_order,
-                                             limit=limit,
-                                             offset=offset))),
+                      ('td', pmnt.src_id),
+                      ('td', time.strftime('%d/%m/%Y', time.gmtime(pmnt.timestamp))),
+                      ('td', pmnt.other_account),
+                      ('td', pmnt.other_name),
+                      ('td' if pmnt.money_received() else ('td', 'class', 'payment-not-ok'), pmnt.status),
+                      ('td', pmnt.comment),
+                      ('td', cents_to_euro(pmnt.amount_in_cents)),
+                      ('td', maybe_link_to_reservation(res)))
+                     for pmnt, res in Payment.join_reservations(connection,
+                                                                order_columns=sort_order,
+                                                                limit=limit,
+                                                                offset=offset))),
              ('hr',),
              ('ul',
               ('li', (('a', 'href', 'list_reservations.cgi'), 'Liste des réservations')),

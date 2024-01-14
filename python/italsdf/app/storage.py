@@ -461,6 +461,33 @@ class Payment(MiniOrm):
     def money_received(self) -> bool:
         return self.status == "Accepté" and self.amount_in_cents is not None and self.amount_in_cents > 0
 
+    @classmethod
+    def join_reservations(cls, connection, filtering=None, order_columns=None, limit=None, offset=None):
+        # Duplicate of `select', I know :sad:
+        params = dict()
+        query = [f'SELECT {",".join(f"pys.{col[0]}" for col in cls.COLUMNS)}, {",".join(f"res.{col[0]}" for col in Reservation.COLUMNS)} FROM {cls.TABLE_NAME} as pys LEFT OUTER JOIN {Reservation.TABLE_NAME} as res ON pys.uuid = res.uuid']
+        if filtering is not None:
+            clauses, extra_params = cls.where_clause(filtering)
+            query.append(f'WHERE {clauses}')
+            params.update(extra_params)
+        if order_columns is not None:
+            ordering = ','.join((y for y in (
+                cls.column_ordering_clause(x) for x in order_columns)
+                                if y is not None))
+            if ordering:
+                query.append(f'ORDER BY {ordering}')
+        if limit is not None:
+            query.append('LIMIT :limit')
+            params['limit'] = limit
+        if offset is not None:
+            query.append('OFFSET :offset')
+            params['offset'] = offset
+        for row in connection.execute(' '.join(query), params):
+            payment_row = row[:len(cls.COLUMNS)]
+            reservation_row = row[len(cls.COLUMNS):]
+            reservation = None if all(col is None or col == "" for col in reservation_row) else Reservation.from_row(reservation_row)
+            yield cls.from_row(payment_row), reservation
+
 
 class Csrf(MiniOrm):
     TABLE_NAME = 'csrfs'
