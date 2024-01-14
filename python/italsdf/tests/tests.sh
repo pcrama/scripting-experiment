@@ -361,7 +361,9 @@ function assert_html_response
     if [ -z "$no_banner" ]; then
         grep -q '</title><link rel="stylesheet" href="styles.css"></head><body><div id="branding" role="banner"><h1 id="site-title">Société Royale d'\''Harmonie de Braine-l'\''Alleud</h1><img src="https://www.srhbraine.be/wp-content/uploads/2019/10/site-en-tete.jpg" width="940" height="198" alt=""></div>' "$test_output" || die "$test_name no banner in $test_output"
     else
-        grep -q '<h1.*Braine.*Alleud</h1><img src' "$test_output" && die "$test_name banner in $test_output"
+        if grep -q '<h1.*Braine.*Alleud</h1><img src' "$test_output"; then
+            die "$test_name banner in $test_output"
+        fi
     fi
     shift 2
     for pattern in "$@" ; do
