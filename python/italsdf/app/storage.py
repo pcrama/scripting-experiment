@@ -482,12 +482,14 @@ class Csrf(MiniOrm):
 
 
     @classmethod
-    def get(cls, connection, token):
+    def validate_and_update(cls, connection, token, user, ip):
         try:
             data = connection.execute(
                 f'SELECT * from {cls.TABLE_NAME} '
-                'WHERE token = :token AND timestamp > :timestamp',
+                'WHERE token = :token AND user = :user AND ip = :ip AND timestamp > :timestamp',
                 {'token': token,
+                 'user': user,
+                 'ip': ip,
                  'timestamp': time.time() - cls.SESSION_IN_SECONDS}
             ).fetchone()
             result = cls(token=data[0], timestamp=data[1], user=data[2], ip=data[3])

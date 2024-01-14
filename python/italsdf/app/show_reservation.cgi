@@ -1,5 +1,10 @@
 #!/usr/pkg/bin/python3
 # -*- coding: utf-8 -*-
+#
+# Test with
+#
+# uuid_hex=00112233445566778899aabbccddeeff
+# (cd app && env QUERY_STRING=uuid_hex=$uuid_hex REQUEST_METHOD=GET SERVER_NAME=localhost SCRIPT_NAME=show_reservation.cgi python3 show_reservation.cgi)
 import cgi
 import cgitb
 import os

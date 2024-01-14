@@ -41,7 +41,9 @@ def fail_add_unchecked_reservation():
 
 
 if __name__ == '__main__':
-    if os.getenv('REQUEST_METHOD') != 'POST' or os.getenv('REMOTE_USER') is None:
+    remote_user = os.getenv('REMOTE_USER')
+    remote_addr = os.getenv('REMOTE_ADDR')
+    if os.getenv('REQUEST_METHOD') != 'POST' or not remote_user or not remote_addr:
         fail_add_unchecked_reservation()
     CONFIGURATION = config.get_configuration()
 
@@ -61,7 +63,7 @@ if __name__ == '__main__':
             fail_add_unchecked_reservation()
         else:
             try:
-                Csrf.get(db_connection, csrf_token)
+                Csrf.validate_and_update(db_connection, csrf_token, remote_user, remote_addr)
             except KeyError:
                 fail_add_unchecked_reservation()
 

@@ -30,9 +30,8 @@ def fail_generate_tickets():
     redirect_to_event()
 
 
-def get_method(db_connection, configuration):
-    csrf_token = Csrf.get_by_user_and_ip(
-        db_connection, os.getenv('REMOTE_USER'), os.getenv('REMOTE_ADDR'))
+def get_method(db_connection, configuration, user, ip):
+    csrf_token = Csrf.get_by_user_and_ip(db_connection, user, ip)
     (groups,
      total_main_starter,
      total_extra_starter,
@@ -77,7 +76,7 @@ def get_method(db_connection, configuration):
           (('input', 'type', 'submit', 'value', 'Générer les tickets pour impression'),)))))
 
 
-def post_method(db_connection):
+def post_method(db_connection, user, ip):
     def safe_non_negative_int_less_or_equal_than_500(x):
         try:
             x = int(x)
@@ -92,7 +91,7 @@ def post_method(db_connection):
         fail_generate_tickets()
     else:
         try:
-            Csrf.get(db_connection, csrf_token)
+            Csrf.validate_and_update(db_connection, csrf_token, user, ip)
         except KeyError:
             fail_generate_tickets()
 
@@ -128,7 +127,9 @@ def post_method(db_connection):
 
 if __name__ == '__main__':
     try:
-        if os.getenv('REMOTE_USER') is None or os.getenv('REMOTE_ADDR') is None:
+        remote_user = os.getenv('REMOTE_USER')
+        remote_addr = os.getenv('REMOTE_ADDR')
+        if remote_user is None or remote_addr is None:
             fail_generate_tickets()
 
         CONFIGURATION = config.get_configuration()
@@ -138,9 +139,9 @@ if __name__ == '__main__':
         db_connection = create_db(CONFIGURATION)
 
         if os.getenv('REQUEST_METHOD') == 'GET':
-            get_method(db_connection, CONFIGURATION)
+            get_method(db_connection, CONFIGURATION, remote_user, remote_addr)
         elif os.getenv('REQUEST_METHOD') == 'POST':
-            post_method(db_connection)
+            post_method(db_connection, remote_user, remote_addr)
         else:
             fail_generate_tickets()
     except Exception:
