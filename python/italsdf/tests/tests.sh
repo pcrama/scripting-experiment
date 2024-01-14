@@ -582,7 +582,7 @@ function test_10_locally_reservation_example
         sql_query 'INSERT INTO payments VALUES (2, 4.5, 6950, "partial payment", "'"$uuid_hex"'", "unit test admin user", "1.2.3.4")'
         test_output="$(capture_cgi_output "$test_name" GET show_reservation.cgi "uuid_hex=$uuid_hex")"
         assert_html_response "$test_name" "$test_output" \
-                             "Merci d'avoir déjà réglé l'entiéreté des 73.00 € dûs" \
+                             "Merci d'avoir déjà réglé l'entièreté des 73.00 € dûs" \
                              ">1 Tomate Mozzarella</li>" \
                              ">1 Croquettes au fromage</li>" \
                              ">Plat: 1 Spaghetti bolognaise</li>" \

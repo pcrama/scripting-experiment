@@ -96,7 +96,7 @@ if __name__ == '__main__':
             remaining_due = reservation.remaining_amount_due_in_cents(db_connection)
             if remaining_due <= 0:
                 due_amount_info = (
-                    "Merci d'avoir déjà réglé l'entiéreté des ", cents_to_euro(reservation.cents_due), " € dûs.  ")
+                    "Merci d'avoir déjà réglé l'entièreté des ", cents_to_euro(reservation.cents_due), " € dûs.  ")
             else:
                 due_amount_info = (
                     'Le prix total est de ', cents_to_euro(reservation.cents_due), ' € pour le repas dont ',
