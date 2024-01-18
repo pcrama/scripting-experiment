@@ -1,28 +1,26 @@
 # -*- coding: utf-8 -*-
-import cgi
 import sqlite3
-import tempfile
+from typing import Optional
 import unittest
-from unittest.mock import MagicMock, patch
 
 import sys_path_hack
 from conftest import make_reservation
 
-with sys_path_hack.app_in_path():
-    import config
-    import storage
+try:
+    import app.storage as storage
+except ImportError:
+    with sys_path_hack.app_in_path():
+        import storage
 
 
 class TestPayments(unittest.TestCase):
-    TEMP_DIR = None
-    CONNECTION = None
+    CONNECTION: Optional[sqlite3.Connection]
     CONFIGURATION = {}
     UUID_WITH_TWO_PAYMENTS = "c0ffee00beef1234"
 
     @classmethod
     def setUpClass(cls):
-        cls.TEMP_DIR = tempfile.TemporaryDirectory()
-        cls.CONFIGURATION = {"dbdir": cls.TEMP_DIR.name}
+        cls.CONFIGURATION = {"dbdir": ":memory:"}
         cls.CONNECTION = storage.ensure_connection(cls.CONFIGURATION)
         payments = [storage.Payment(
                         rowid=1,
@@ -75,15 +73,16 @@ class TestPayments(unittest.TestCase):
                             )
                             for x in range(10)
                         ]
-        for pmnt in payments:
-            pmnt.insert_data(cls.CONNECTION)
-        make_reservation(name="name1", email="one@example.com", places=3, outside_dessert=1, inside_bolo=1, inside_main_starter=1, cents_due=12345, bank_id="bank_id_1", uuid=cls.UUID_WITH_TWO_PAYMENTS).insert_data(cls.CONNECTION)
-        make_reservation(name="name2", email="two@example.com", places=2, outside_dessert=1, inside_bolo=2, inside_main_starter=2, cents_due=34512, bank_id="bank_id_2", uuid="beef12346789fedc").insert_data(cls.CONNECTION)
+        with cls.CONNECTION:
+            for pmnt in payments:
+                pmnt.insert_data(cls.CONNECTION)
+            make_reservation(name="name1", email="one@example.com", places=3, outside_dessert=1, inside_bolo=1, inside_main_starter=1, cents_due=12345, bank_id="bank_id_1", uuid=cls.UUID_WITH_TWO_PAYMENTS).insert_data(cls.CONNECTION)
+            make_reservation(name="name2", email="two@example.com", places=2, outside_dessert=1, inside_bolo=2, inside_main_starter=2, cents_due=34512, bank_id="bank_id_2", uuid="beef12346789fedc").insert_data(cls.CONNECTION)
 
     @classmethod
     def tearDownClass(cls):
-        cls.CONNECTION.close()
-        cls.TEMP_DIR.cleanup()
+        if cls.CONNECTION:
+            cls.CONNECTION.close()
 
     def test_sum_of_two_payments(self):
         self.assertEqual(storage.Payment.sum_payments(self.CONNECTION, self.UUID_WITH_TWO_PAYMENTS), 7)

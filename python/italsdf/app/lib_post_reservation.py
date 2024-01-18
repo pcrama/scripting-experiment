@@ -2,9 +2,10 @@
 import cgitb
 import os
 import re
-import uuid
 import time
-import urllib
+from typing import Optional
+from urllib.parse import urlunsplit, urljoin, urlencode
+import uuid
 
 from htmlgen import (
     html_document,
@@ -132,7 +133,7 @@ def save_data_sqlite3(name, email, extra_comment, places, date,
                       outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert,
                       inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish,
                       kids_bolo, kids_extra_dish,
-                      gdpr_accepts_use, origin, connection_or_root_dir):
+                      gdpr_accepts_use, origin, connection_or_root_dir) -> Optional[Reservation]:
     connection = ensure_connection(connection_or_root_dir)
     process_id = os.getpid()
     retries = 3
@@ -183,7 +184,6 @@ def generate_bank_id(time_time, number_of_previous_calls, process_id):
             in ((round(time_time * 100.0), 7),
                 (number_of_previous_calls, 10),
                 (process_id, 16))]
-    bits = 0
     n = 0
     for (x, b) in data:
         n = (n << b) + x
@@ -213,14 +213,14 @@ def respond_with_reservation_failed(configuration):
           " si ce problème persiste."),)))
 
 
-def make_show_reservation_url(uuid_hex, server_name=None, script_name=None):
+def make_show_reservation_url(uuid_hex: str, server_name: Optional[str]=None, script_name: Optional[str]=None) -> str:
     server_name = os.environ["SERVER_NAME"] if server_name is None else server_name
     script_name = os.environ["SCRIPT_NAME"] if script_name is None else script_name
-    return urllib.parse.urlunsplit((
+    return urlunsplit((
         'https',
         server_name,
-        urllib.parse.urljoin(script_name, 'show_reservation.cgi'),
-        urllib.parse.urlencode((('uuid_hex', uuid_hex), )),
+        urljoin(script_name, 'show_reservation.cgi'),
+        urlencode((('uuid_hex', uuid_hex), )),
         ''))
 
 
@@ -237,6 +237,8 @@ def respond_with_reservation_confirmation(
             inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish,
             kids_bolo, kids_extra_dish,
             gdpr_accepts_use, origin, connection)
+        if new_row is None:
+            raise ValueError("Unable to save reservation in DB")
         redirection_url = make_show_reservation_url(
             new_row.uuid,
             script_name=(os.environ["SCRIPT_NAME"]

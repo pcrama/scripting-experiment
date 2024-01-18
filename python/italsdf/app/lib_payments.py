@@ -2,12 +2,19 @@ import cgi
 import csv
 import io
 import sqlite3
+import os
 import time
-from typing import Callable, Optional, Union
+from typing import Any, Callable, Iterable, Optional, Union
 
-from storage import Payment
+from storage import Payment, Reservation
+from htmlgen import (
+    cents_to_euro,
+)
+from lib_post_reservation import (
+    make_show_reservation_url
+)
 
-def get_parameters_for_GET() -> (Optional[str], Optional[int], Optional[int]):
+def get_parameters_for_GET() -> tuple[Optional[str], Optional[int], Optional[int]]:
     params = cgi.parse()
     filtering = params.get("filtering")
 
@@ -24,31 +31,6 @@ def get_parameters_for_GET() -> (Optional[str], Optional[int], Optional[int]):
     return (filtering, offset, limit)
 
 
-def to_jsonable_payment(payment: Payment) -> dict[str, Union[int, float, str]]:
-    return {
-        "timestamp": payment.timestamp,
-        "amount_in_cents": payment.amount_in_cents,
-        "comment": payment.comment,
-        "rowid": payment.rowid,
-    }
-
-
-def get_payments_data(
-        connection,
-        max_rows: int,
-        filtering: Optional[str],
-        offset: Optional[int],
-        limit: Optional[int]
-) -> dict[str, Union[list[dict[str, Union[int, str]]], str]]:
-    filtering = (("comment", filtering),) if filtering else None
-    offset = 0 if offset is None else max(offset, 0)
-    limit = max_rows if limit is None else max(0, min(limit, max_rows))
-
-    return [to_jsonable_payment(p)
-            for p
-            in Payment.select(connection, filtering=filtering, limit=limit, offset=offset)]
-
-
 BANK_STATEMENT_HEADERS = {
     "fr": {'N\xba de s\xe9quence': "src_id",
            'Date d\'ex\xe9cution': "timestamp",
@@ -59,14 +41,14 @@ BANK_STATEMENT_HEADERS = {
            'Communication': "comment"}}
 
 
-def _normalize_header(s: str)->str:
+def _normalize_header(s: str) -> str:
     s = s.strip()
     return s[1:] if s.startswith('\ufeff') else s
 
-def make_payment_builder(header_row: list[str]) -> Callable[[list[str, Optional[Payment]]], Payment]:
+def make_payment_builder(header_row: list[str]) -> Callable[[list[str], Optional[Payment]], Payment]:
     col_name_to_idx = {_normalize_header(col_name): col_idx for col_idx, col_name in enumerate(header_row)}
     columns = {}
-    for lang, mapping in BANK_STATEMENT_HEADERS.items():
+    for mapping in BANK_STATEMENT_HEADERS.values():
         try:
             columns = {attr_name: col_name_to_idx[col_name] for col_name, attr_name in mapping.items()}
         except KeyError:
@@ -118,3 +100,21 @@ def import_bank_statements(connection, bank_statements_csv: str, user:str, ip: s
             else:
                 exceptions.append((None, pmnt))
     return exceptions
+
+
+def get_list_payments_row(pmnt: Payment, res: Optional[Reservation]) -> Iterable[tuple[Union[str, Iterable[str]], Any]]:
+    return (('td', pmnt.src_id),
+            ('td', time.strftime('%d/%m/%Y', time.gmtime(pmnt.timestamp))),
+            ('td', pmnt.other_account),
+            ('td', pmnt.other_name),
+            ('td' if pmnt.money_received() else ('td', 'class', 'payment-not-ok'), pmnt.status),
+            ('td', pmnt.comment),
+            ('td', cents_to_euro(pmnt.amount_in_cents)),
+            ('td', maybe_link_to_reservation(res)))
+
+
+def maybe_link_to_reservation(res: Optional[Reservation]) -> Union[str, tuple[Iterable[str], str]]:
+    if res is None:
+        return "???"
+    else:
+        return (('a', 'href', make_show_reservation_url(res.uuid, script_name=os.path.dirname(os.environ["SCRIPT_NAME"]))), f'{res.name} {res.email}')

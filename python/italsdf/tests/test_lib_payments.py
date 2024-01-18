@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
-import cgi
-import sqlite3
-import tempfile
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import sys_path_hack
+import conftest
 
-with sys_path_hack.app_in_path():
-    import config
-    import lib_payments
-    import storage
+try:
+    import app.lib_payments as lib_payments
+    import app.storage as storage
+except ImportError:
+    with sys_path_hack.app_in_path():
+        import lib_payments
+        import storage
 
 
 class GetParametersParsing(unittest.TestCase):
@@ -99,102 +100,6 @@ class MakePaymentBuilder(unittest.TestCase):
                                  'ip': None})
 
 
-class GetPaymentsData(unittest.TestCase):
-    def test_examples(self):
-        SEL_FROM = 'SELECT rowid,timestamp,amount_in_cents,comment,uuid,src_id,other_account,other_name,status,user,ip FROM payments'
-        LIM_OFFS = 'LIMIT :limit OFFSET :offset'
-        for (max_rows, filtering, offset, limit, expected_sql, expected_bindings) in (
-                (10, None, None, None, f"{SEL_FROM} {LIM_OFFS}", {"limit": 10, "offset": 0}),
-                (5, "aBc", None, None, f"{SEL_FROM} WHERE (LOWER(comment) like :filter_comment) {LIM_OFFS}", {'filter_comment': '%abc%', "limit": 5, "offset": 0}),
-                (5, "aBc", -3, 27, f"{SEL_FROM} WHERE (LOWER(comment) like :filter_comment) {LIM_OFFS}", {'filter_comment': '%abc%', "limit": 5, "offset": 0}),
-                (5, "%aBc", 3, 2, f"{SEL_FROM} WHERE (LOWER(comment) like :filter_comment) {LIM_OFFS}", {'filter_comment': '%abc', "limit": 2, "offset": 3}),
-                (5, "", 3, 2, f"{SEL_FROM} {LIM_OFFS}", {"limit": 2, "offset": 3}),):
-            mock_connection = MagicMock(spec=['execute'])
-            mock_connection.execute = mock_execute = MagicMock(return_value=[])
-            self.assertEqual(lib_payments.get_payments_data(mock_connection, max_rows, filtering, offset=offset, limit=limit), [])
-            mock_execute.assert_called_once_with(expected_sql, expected_bindings)
-    def test_integration(self):
-        # Given
-        payments = [storage.Payment(
-                        rowid=None,
-                        timestamp=2.5,
-                        amount_in_cents=3,
-                        comment="unit test comment",
-                        uuid="c0ffee00beef1234",
-                        src_id="2023-1000",
-                        other_account="BE0101",
-                        other_name="Ms Abc",
-                        status="Accepté",
-                        user="unit-test-user",
-                        ip="1.2.3.4"),
-                    storage.Payment(
-                        rowid=2,
-                        timestamp=5.0,
-                        amount_in_cents=4,
-                        comment="other unit test comment",
-                        uuid="beef12346789fedc",
-                        src_id="2023-1001",
-                        other_account="BE0101",
-                        other_name="Ms Abc",
-                        status="Accepté",
-                        user="unit-test-user",
-                        ip="2.1.4.3")] + [
-                            storage.Payment(
-                                rowid=x + (53 if x % 3 == 0 else 28),
-                                timestamp = (104.5 if x % 2 == 0 else 99) - x,
-                                amount_in_cents=x * (1 + x % 4),
-                                comment=f"Auto comment {x}" if x % 2 == 0 else None,
-                                uuid=f"0102{x:08x}3040" if x % 3 > 1 else None,
-                                src_id=f"2023-9{x}0{x}",
-                                other_account="BE{x:02d}33",
-                                other_name="Ms Abc {x % 7}",
-                                status="Accepté",
-                                user="other-test-user" if x % 7 == 0 else "unit-test-user",
-                                ip=f"1.{x}.3.{x}",
-                            )
-                            for x in range(10)
-                        ]
-        with tempfile.TemporaryDirectory() as dbdir:
-            configuration = {"dbdir": dbdir}
-            connection = storage.ensure_connection(configuration)
-            for pmnt in payments:
-                pmnt.insert_data(connection)
-
-            for params, expected in (
-                    ((1, None, None, None),
-                     [{'amount_in_cents': 3, 'comment': 'unit test comment', 'rowid': 1, 'timestamp': 2.5}]),
-                    ((2, None, None, None),
-                     [{'amount_in_cents': 3, 'comment': 'unit test comment', 'rowid': 1, 'timestamp': 2.5},
-                      {'amount_in_cents': 4, 'comment': 'other unit test comment', 'rowid': 2, 'timestamp': 5.0}]),
-                    ((3, None, None, None),
-                     [{'amount_in_cents': 3, 'comment': 'unit test comment', 'rowid': 1, 'timestamp': 2.5},
-                      {'amount_in_cents': 4, 'comment': 'other unit test comment', 'rowid': 2, 'timestamp': 5.0},
-                      {'amount_in_cents': 2, 'comment': None, 'rowid': 29, 'timestamp': 98.0}]),
-                    ((0, "unit", None, None),
-                     []),
-                    ((3, "unit", None, None),
-                     [{'amount_in_cents': 3, 'comment': 'unit test comment', 'rowid': 1, 'timestamp': 2.5},
-                      {'amount_in_cents': 4, 'comment': 'other unit test comment', 'rowid': 2, 'timestamp': 5.0}]),
-                    ((3, "other", None, None),
-                     [{'amount_in_cents': 4, 'comment': 'other unit test comment', 'rowid': 2, 'timestamp': 5.0}]),
-                    ((3, "unit%", None, None),
-                     [{'amount_in_cents': 3, 'comment': 'unit test comment', 'rowid': 1, 'timestamp': 2.5}]),
-                    ((3, "unit", 1, None),
-                     [{'amount_in_cents': 4, 'comment': 'other unit test comment', 'rowid': 2, 'timestamp': 5.0}]),
-                    ((5, None, 3, 10),
-                     [{'amount_in_cents': 6, 'comment': 'Auto comment 2', 'rowid': 30, 'timestamp': 102.5},
-                      {'amount_in_cents': 4, 'comment': 'Auto comment 4', 'rowid': 32, 'timestamp': 100.5},
-                      {'amount_in_cents': 10, 'comment': None, 'rowid': 33, 'timestamp': 94.0},
-                      {'amount_in_cents': 28, 'comment': None, 'rowid': 35, 'timestamp': 92.0},
-                      {'amount_in_cents': 8, 'comment': 'Auto comment 8', 'rowid': 36, 'timestamp': 96.5}]),
-            ):
-                with self.subTest(max_rows=params[0], filtering=params[1], offset=params[2], limit=params[3]):
-                    # When
-                    result = lib_payments.get_payments_data(connection, *params)
-                    # Then
-                    self.assertEqual(result, expected)
-
-
 class ImportBankStatements(unittest.TestCase):
     bank_statements_csv = [
         "Nº de séquence;Date d'exécution;Date valeur;Montant;Devise du compte;Numéro de compte;Type de transaction;Contrepartie;Nom de la contrepartie;Communication;Détails;Statut;Motif du refus",
@@ -221,45 +126,66 @@ class ImportBankStatements(unittest.TestCase):
     ]
 
     def test_non_overlapping_uploads(self):
-        with tempfile.TemporaryDirectory() as dbdir:
-            configuration = {"dbdir": dbdir}
-            connection = storage.ensure_connection(configuration)
-            first_batch = self.bank_statements_csv[:len(self.bank_statements_csv) // 2]
-            assert len(first_batch) > 1, "Pre-condition not met: not enough test data for 1st batch"
-            second_batch = [self.bank_statements_csv[0]] + self.bank_statements_csv[len(first_batch):]
-            assert len(second_batch) > 1, "Pre-condition not met: not enough test data for 2nd batch"
-            lib_payments.import_bank_statements(connection,
-                                                "\n".join(first_batch),
-                                                "user-test",
-                                                "1.2.3.4")
-            self.assertEqual(storage.Payment.length(connection), len(first_batch) - 1)
+        configuration = {"dbdir": ":memory:"}
+        connection = storage.ensure_connection(configuration)
+        first_batch = self.bank_statements_csv[:len(self.bank_statements_csv) // 2]
+        assert len(first_batch) > 1, "Pre-condition not met: not enough test data for 1st batch"
+        second_batch = [self.bank_statements_csv[0]] + self.bank_statements_csv[len(first_batch):]
+        assert len(second_batch) > 1, "Pre-condition not met: not enough test data for 2nd batch"
+        lib_payments.import_bank_statements(connection,
+                                            "\n".join(first_batch),
+                                            "user-test",
+                                            "1.2.3.4")
+        self.assertEqual(storage.Payment.length(connection), len(first_batch) - 1)
 
-            lib_payments.import_bank_statements(connection,
-                                                "\n".join(second_batch),
-                                                "other-user-test",
-                                                "5.6.7.8")
-            self.assertEqual(storage.Payment.length(connection), len(self.bank_statements_csv) - 1)
+        lib_payments.import_bank_statements(connection,
+                                            "\n".join(second_batch),
+                                            "other-user-test",
+                                            "5.6.7.8")
+        self.assertEqual(storage.Payment.length(connection), len(self.bank_statements_csv) - 1)
 
     def test_overlapping_uploads(self):
-        with tempfile.TemporaryDirectory() as dbdir:
-            configuration = {"dbdir": dbdir}
-            connection = storage.ensure_connection(configuration)
-            first_batch = self.bank_statements_csv[:6]
-            assert len(first_batch) > 1, "Pre-condition not met: not enough test data for 1st batch"
-            second_batch = [self.bank_statements_csv[0]] + self.bank_statements_csv[4:]
-            assert len(second_batch) > 1, "Pre-condition not met: not enough test data for 2nd batch"
-            lib_payments.import_bank_statements(connection,
-                                                "\n".join(first_batch),
-                                                "user-test",
-                                                "1.2.3.4")
-            self.assertEqual(storage.Payment.length(connection), len(first_batch) - 1)
+        configuration = {"dbdir": ":memory:"}
+        connection = storage.ensure_connection(configuration)
+        first_batch = self.bank_statements_csv[:6]
+        assert len(first_batch) > 1, "Pre-condition not met: not enough test data for 1st batch"
+        second_batch = [self.bank_statements_csv[0]] + self.bank_statements_csv[4:]
+        assert len(second_batch) > 1, "Pre-condition not met: not enough test data for 2nd batch"
+        lib_payments.import_bank_statements(connection,
+                                            "\n".join(first_batch),
+                                            "user-test",
+                                            "1.2.3.4")
+        self.assertEqual(storage.Payment.length(connection), len(first_batch) - 1)
 
-            lib_payments.import_bank_statements(connection,
-                                                "\n".join(second_batch),
-                                                "other-user-test",
-                                                "5.6.7.8")
-            self.assertEqual(storage.Payment.length(connection), len(self.bank_statements_csv) - 1)
+        lib_payments.import_bank_statements(connection,
+                                            "\n".join(second_batch),
+                                            "other-user-test",
+                                            "5.6.7.8")
+        self.assertEqual(storage.Payment.length(connection), len(self.bank_statements_csv) - 1)
 
+
+class GetListPaymentsRow(unittest.TestCase):
+    def test_payment_possible_bankid_but_no_reservation_match(self):
+        configuration = {"dbdir": ":memory:"}
+        connection = storage.ensure_connection(configuration)
+        with connection:
+            conftest.make_reservation(places=1).insert_data(connection)
+        src_id = "1"
+        for uuid in ('+++671/4235/58049+++', '671423558049'):
+            with self.subTest(uuid=uuid):
+                src_id += "0"
+                with connection:
+                    payment = conftest.make_payment(src_id=src_id, comment=uuid).insert_data(connection)
+                html_row = lib_payments.get_list_payments_row(payment, None)
+
+                assert html_row == (('td', src_id),
+                                    ('td', '17/01/2024'),
+                                    ('td', 'BE0101'),
+                                    ('td', 'Ms Abc'),
+                                    ('td', 'Accepté'),
+                                    ('td', uuid),
+                                    ('td', '30.00'),
+                                    ('td', '???'))
 
 
 if __name__ == '__main__':

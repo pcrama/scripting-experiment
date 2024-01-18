@@ -7,18 +7,15 @@
 
 import cgi
 import cgitb
-import glob
 import itertools
 import os
 import sys
-import time
 import urllib.parse
 
 # hack to get at my utilities:
 sys.path.append('..')
 import config
 from htmlgen import (
-    cents_to_euro,
     html_document,
     format_bank_id,
     pluriel_naif,
@@ -31,9 +28,7 @@ from storage import (
     Payment,
     create_db,
 )
-from lib_post_reservation import (
-    make_show_reservation_url
-)
+from lib_payments import get_list_payments_row
 
 def update_sort_order(new_col_name, sort_order):
     if sort_order:
@@ -74,13 +69,6 @@ def make_navigation_a_elt(sort_order, limit, offset, text):
 
 def get_first(d, k):
     return d.get(k, [None])[0]
-
-
-def maybe_link_to_reservation(res):
-    if res is None:
-        return "???"
-    else:
-        return (('a', 'href', make_show_reservation_url(res.uuid, script_name=os.path.dirname(os.environ["SCRIPT_NAME"]))), f'{res.name} {res.email}')
 
 
 def sort_direction(col, sort_order):
@@ -165,15 +153,7 @@ if __name__ == '__main__':
              (('ul', 'class', 'navbar'), *pagination_links) if pagination_links else '',
              (('table', 'class', 'list'),
               ('tr', *table_header_row),
-              *tuple(('tr',
-                      ('td', pmnt.src_id),
-                      ('td', time.strftime('%d/%m/%Y', time.gmtime(pmnt.timestamp))),
-                      ('td', pmnt.other_account),
-                      ('td', pmnt.other_name),
-                      ('td' if pmnt.money_received() else ('td', 'class', 'payment-not-ok'), pmnt.status),
-                      ('td', pmnt.comment),
-                      ('td', cents_to_euro(pmnt.amount_in_cents)),
-                      ('td', maybe_link_to_reservation(res)))
+              *tuple(('tr', *get_list_payments_row(pmnt, res))
                      for pmnt, res in Payment.join_reservations(connection,
                                                                 order_columns=sort_order,
                                                                 limit=limit,

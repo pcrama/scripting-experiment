@@ -1,7 +1,7 @@
 import sys_path_hack
 
 with sys_path_hack.app_in_path():
-    import storage
+    from storage import Reservation, Payment
 
 
 def make_reservation(**overrides):
@@ -30,4 +30,21 @@ def make_reservation(**overrides):
         active=True,
         origin='unit tests')
     defaults.update(**overrides)
-    return storage.Reservation(**defaults)
+    return Reservation(**defaults)
+
+
+def make_payment(**overrides):
+    defaults = dict(
+        rowid=None,
+        timestamp=1705525636,
+        amount_in_cents=3000,
+        comment="unit test comment",
+        uuid="c0ffee00beef1234",
+        src_id="2023-1000",
+        other_account="BE0101",
+        other_name="Ms Abc",
+        status="Accepté",
+        user="unit-test-user",
+        ip="1.2.3.4")
+    defaults.update(**overrides)
+    return Payment(**defaults)

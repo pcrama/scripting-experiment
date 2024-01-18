@@ -2,11 +2,13 @@
 import os
 import sqlite3
 import time
+from typing import Any, Iterable, Union
 import uuid
 
-def create_db(configuration):
+def create_db(configuration: dict[str, Any]) -> sqlite3.Connection:
     root_dir = configuration['dbdir']
-    connection = sqlite3.connect(os.path.join(root_dir, 'db.db'))
+    connection = sqlite3.connect(
+        root_dir if root_dir == ':memory:' else os.path.join(root_dir, 'db.db'))
     for table in (Csrf, Reservation, Payment):
         try:
             connection.execute(f'SELECT COUNT(*) FROM {table.TABLE_NAME}')
@@ -15,20 +17,22 @@ def create_db(configuration):
     return connection
 
 
-def ensure_connection(connection_or_root_dir):
+def ensure_connection(connection_or_root_dir: Union[sqlite3.Connection, dict[str, Any]]) -> sqlite3.Connection:
     return (connection_or_root_dir
-            if hasattr(connection_or_root_dir, 'execute') else
+            if isinstance(connection_or_root_dir, sqlite3.Connection) else
             create_db(connection_or_root_dir))
 
 
-def default_creation_statement(table_name: str, columns: list[tuple[str, str]]):
+def default_creation_statement(table_name: str, columns: list[tuple[str, str]]) -> str:
     return f'''CREATE TABLE {table_name} ({", ".join(" ".join(col) for col in columns)})'''
 
 
 
 class MiniOrm:
-    SORTABLE_COLUMNS = {} # override with column info for `select'
-    FILTERABLE_COLUMNS = {} # override with column info for `select'
+    TABLE_NAME: str
+    CREATION_STATEMENTS: Iterable[str]
+    SORTABLE_COLUMNS: dict[str, str] = {} # override with column info for `select'
+    FILTERABLE_COLUMNS: dict[str, str] = {} # override with column info for `select'
 
     def __str__(self):
         try:
@@ -37,7 +41,7 @@ class MiniOrm:
                 parts.append(f" {col_name}={value!r}")
             parts.append('>')
             return "".join(parts)
-        except Exception as e:
+        except Exception:
             return super().__str__()
 
     def __repr__(self):
@@ -47,8 +51,8 @@ class MiniOrm:
                 parts.append(f"{col_name}={value!r}, ")
             parts.append(')')
             return "".join(parts)
-        except Exception as e:
-            return super().__str__()
+        except Exception:
+            return super().__repr__()
 
     @classmethod
     def create_in_db(cls, connection):
@@ -279,7 +283,7 @@ class Reservation(MiniOrm):
             'origin': self.origin}
 
 
-    def insert_data(self, connection):
+    def insert_data(self, connection) -> "Reservation":
         connection.execute(
             f'''INSERT INTO {self.TABLE_NAME} VALUES (
                  :name, :email, :extra_comment, :places, :date, :outside_extra_starter, :outside_main_starter,
@@ -288,6 +292,7 @@ class Reservation(MiniOrm):
                  :kids_bolo, :kids_extra_dish,
                  :gdpr_accepts_use, :cents_due, :bank_id, :uuid, :time, :active, :origin)''',
             self.to_dict())
+        return self
 
 
     @classmethod
@@ -452,11 +457,12 @@ class Payment(MiniOrm):
             {"uuid": uuid}
         ).fetchone()[0] or 0
 
-    def insert_data(self, connection):
+    def insert_data(self, connection) -> "Payment":
         connection.execute(
             f'''INSERT INTO {self.TABLE_NAME} VALUES (
                  :rowid, :timestamp, :amount_in_cents, :comment, :uuid, :src_id, :other_account, :other_name, :status, :user, :ip)''',
             self.to_dict())
+        return self
 
     def money_received(self) -> bool:
         return self.status == "Accepté" and self.amount_in_cents is not None and self.amount_in_cents > 0
