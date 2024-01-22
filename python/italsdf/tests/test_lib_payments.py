@@ -2,13 +2,13 @@
 import unittest
 from unittest.mock import patch
 
-import sys_path_hack
 import conftest
 
 try:
     import app.lib_payments as lib_payments
     import app.storage as storage
 except ImportError:
+    import sys_path_hack
     with sys_path_hack.app_in_path():
         import lib_payments
         import storage
@@ -176,16 +176,87 @@ class GetListPaymentsRow(unittest.TestCase):
                 src_id += "0"
                 with connection:
                     payment = conftest.make_payment(src_id=src_id, comment=uuid).insert_data(connection)
-                html_row = lib_payments.get_list_payments_row(payment, None)
+                html_row = lib_payments.get_list_payments_row(connection, payment, None, 'example.com', 'italsdf2024/gestion/list_payments.cgi', 'csrf_token_value')
 
-                assert html_row == (('td', src_id),
+                self.assertEqual(html_row, (('td', src_id),
+                                            ('td', '17/01/2024'),
+                                            ('td', 'BE0101'),
+                                            ('td', 'Ms Abc'),
+                                            ('td', 'Accepté'),
+                                            ('td', uuid),
+                                            ('td', '30.00'),
+                                            ('td', '???')))
+
+    def test_payment_not_ok_for_a_reservation(self):
+        configuration = {"dbdir": ":memory:"}
+        connection = storage.ensure_connection(configuration)
+        with connection:
+            payment = conftest.make_payment(amount_in_cents=-34).insert_data(connection)
+        html_row = lib_payments.get_list_payments_row(connection, payment, None, 'example.com', 'gestion/list_payments.cgi', 'csrf_token_value')
+
+        self.assertEqual(html_row, (('td', '2023-1000'),
+                                    ('td', '17/01/2024'),
+                                    ('td', 'BE0101'),
+                                    ('td', 'Ms Abc'),
+                                    (('td', 'class', 'payment-not-ok'), 'Accepté'),
+                                    ('td', 'unit test comment'),
+                                    ('td', '-0.34'),
+                                    ('td', '???')))
+
+    def test_payment_already_linked_to_reservation(self):
+        configuration = {"dbdir": ":memory:"}
+        connection = storage.ensure_connection(configuration)
+        with connection:
+            reservation = conftest.make_reservation(places=1).insert_data(connection)
+            payment = conftest.make_payment(uuid=reservation.uuid).insert_data(connection)
+        html_row = lib_payments.get_list_payments_row(connection, payment, reservation, 'example.com', 'italsdf2024/gestion/list_payments.cgi', 'csrf_token_value')
+
+        self.assertEqual(html_row, (('td', '2023-1000'),
                                     ('td', '17/01/2024'),
                                     ('td', 'BE0101'),
                                     ('td', 'Ms Abc'),
                                     ('td', 'Accepté'),
-                                    ('td', uuid),
+                                    ('td', 'unit test comment'),
                                     ('td', '30.00'),
-                                    ('td', '???'))
+                                    ('td',
+                                     (('a',
+                                       'href',
+                                       'https://example.com/italsdf2024/show_reservation.cgi?uuid_hex=deadbeef'),
+                                      'testing test@example.com'))))
+
+    def test_payment_possible_bankid_and_reservation_match(self):
+        configuration = {"dbdir": ":memory:"}
+        connection = storage.ensure_connection(configuration)
+        with connection:
+            conftest.make_reservation(places=2, bank_id='123123123123', name='Mr B', uuid='otheruuid').insert_data(connection)
+            conftest.make_reservation(places=1, bank_id='671423558049').insert_data(connection)
+        src_id = "1"
+        for uuid in ('+++671/4235/58049+++', '671423558049'):
+            with self.subTest(uuid=uuid):
+                src_id += "0"
+                with connection:
+                    payment = conftest.make_payment(src_id=src_id, comment=uuid).insert_data(connection)
+                html_row = lib_payments.get_list_payments_row(connection, payment, None, 'example.com', 'italsdf2024/gestion/list_payments.cgi', 'csrf_token_value')
+
+                self.assertEqual(
+                    html_row, (('td', src_id),
+                               ('td', '17/01/2024'),
+                               ('td', 'BE0101'),
+                               ('td', 'Ms Abc'),
+                               ('td', 'Accepté'),
+                               ('td', uuid),
+                               ('td', '30.00'),
+                               ('td',
+                                (('form', 'method', 'POST',
+                                  'action', 'italsdf2024/gestion/link_payment_and_reservation.cgi'),
+                                 (('input', 'type', 'hidden', 'name', 'csrf_token', 'value', 'csrf_token_value'),),
+                                 (('input', 'type', 'hidden', 'name', 'src_id', 'value', src_id),),
+                                 (('select', 'name', 'reservation_uuid'),
+                                  (('option', 'selected', 'selected', 'value', 'deadbeef'),
+                                   '+++671/4235/58049+++', ' ', 'testing', ' ', 'test@example.com'),
+                                  (('option', 'value', 'otheruuid'),
+                                   '+++123/1231/23123+++', ' ', 'Mr B', ' ', 'test@example.com')),
+                                 (('input', 'type', 'submit', 'value', 'Confirmer'),)))))
 
 
 if __name__ == '__main__':

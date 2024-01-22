@@ -1,10 +1,12 @@
-import sys_path_hack
+try:
+    from app.storage import Payment, Reservation
+except ImportError:
+    import sys_path_hack
+    with sys_path_hack.app_in_path():
+        from storage import Payment, Reservation
 
-with sys_path_hack.app_in_path():
-    from storage import Reservation, Payment
 
-
-def make_reservation(**overrides):
+def make_reservation(**overrides) -> Reservation:
     defaults = dict(
         name='testing',
         email='test@example.com',
@@ -33,7 +35,7 @@ def make_reservation(**overrides):
     return Reservation(**defaults)
 
 
-def make_payment(**overrides):
+def make_payment(**overrides) -> Payment:
     defaults = dict(
         rowid=None,
         timestamp=1705525636,

@@ -157,6 +157,11 @@ function get_csrf_token_of_user {
     sql_query "SELECT token FROM csrfs WHERE user='$1' ORDER BY timestamp DESC LIMIT 1;"
 }
 
+function get_bank_id_from_reservation_uuid {
+    sql_query "SELECT bank_id FROM reservations WHERE uuid='$1';" \
+        | sed -e 's;\(...\)\(....\)\(.....\);+++\1/\2/\3+++;'
+}
+
 function do_diff {
     local reference
     reference="$golden/$(basename "$1")"
@@ -491,7 +496,7 @@ function test_05_locally_list_reservations
     fi
     # Check that the output contains a link to the payment info and the transaction number
     uuid_hex="$(sql_query 'select uuid from reservations limit 1')"
-    bank_transaction_number="$(sql_query "select bank_id from reservations where uuid='$uuid_hex'" | sed -e 's;\(...\)\(....\)\(.....\);+++\1/\2/\3+++;')"
+    bank_transaction_number="$(get_bank_id_from_reservation_uuid "$uuid_hex")"
     assert_html_response "$test_name" "$test_output" \
                          "https://example.com/gestion/list_reservations\\.cgi" \
                          "<li>12 Tomates Mozzarella</li>" \
@@ -645,7 +650,7 @@ function test_12_locally_export_csv
 
 function test_13_locally_list_2_payments
 {
-    local test_name test_output uuid_hex
+    local test_name test_output uuid_hex csrf_token
     test_name="test_13_locally_list_2_payments"
     test_output="$(capture_admin_cgi_output "${test_name}" GET list_payments.cgi "limit=20&sort_order=src_id")"
     uuid_hex="$(sql_query 'select uuid from reservations where name="realperson" limit 1')"
@@ -665,13 +670,21 @@ function test_13_locally_list_2_payments
 
 function test_14_locally_upload_payments
 {
-    local test_name test_output uuid_hex content_type content_stdin row_count
+    local test_name test_output uuid_hex content_type content_stdin row_count bank_transaction_number csrf_token
     test_name="test_14_locally_upload_payments"
     csrf_token="$(get_csrf_token_of_user "$admin_user")"
     if [ -z "$csrf_token" ]; then
        die "$test_name no CSRF token generated for $admin_user"
     fi
-    fake_csv="Nº de séquence;Date d'exécution;Date valeur;Montant;Devise du compte;Numéro de compte;Type de transaction;Contrepartie;Nom de la contrepartie;Communication;Détails;Statut;Motif du refus\\n2023-00127;28/03/2023;28/03/2023;18;EUR;BE00010001000101;Virement en euros;BE00020002000202;ccccc-ccccccccc;Reprise marchandises (viande hachee) souper italien;VIREMENT EN EUROS DU COMPTE BE00020002000202 BIC GABBBEBB CCCCC-CCCCCCCCC AV DE LA GARE 76 9999 WAGADOUGOU COMMUNICATION : REPRISE MARCHANDISES (VIANDE HACHEE) SOUPER ITALIEN REFERENCE BANQUE : 2303244501612 DATE VALEUR : 28/03/2023;Accepté;\\n"
+    uuid_hex="$(sql_query 'select uuid from reservations where name="test" limit 1')"
+    if [ -z "$uuid_hex" ]; then
+        die "$test_name Unable to find reservation uuid"
+    fi
+    bank_transaction_number="$(get_bank_id_from_reservation_uuid "$uuid_hex")"
+    if [ -z "$bank_transaction_number" ]; then
+        die "$test_name Unable to find bank transaction number"
+    fi
+    fake_csv="Nº de séquence;Date d'exécution;Date valeur;Montant;Devise du compte;Numéro de compte;Type de transaction;Contrepartie;Nom de la contrepartie;Communication;Détails;Statut;Motif du refus\\n2023-00127;28/03/2023;28/03/2023;18;EUR;BE00010001000101;Virement en euros;BE00020002000202;ccccc-ccccccccc;reprise marchandise;VIREMENT EN EUROS DU COMPTE BE00020002000202 BIC GABBBEBB CCCCC-CCCCCCCCC AV DE LA GARE 76 9999 WAGADOUGOU COMMUNICATION : REPRISE MARCHANDISE REFERENCE BANQUE : 2303244501612 DATE VALEUR : 28/03/2023;Accepté;\\n2023-00119;25/03/2023;24/03/2023;27;EUR;BE00010001000101;Virement instantané en euros;BE100010001010;SSSSSS GGGGGGGG;${bank_transaction_number};VIREMENT INSTANTANE EN EUROS BE10 0010 0010 10 BIC GABBBEBBXXX SSSSSS GGGGGGGG RUE MARIGNON 43/5 8888 BANDARLOG COMMUNICATION : xxx EXECUTE LE 24/03 REFERENCE BANQUE : 2303244502842 DATE VALEUR : 24/03/2023;Accepté;\\n"
     eval "$(python3 -c 'import urllib3; body, header = urllib3.encode_multipart_formdata({"csrf_token": "'"$csrf_token"'", "csv_file": ("test.csv", "'"$fake_csv"'"), "submit": "Importer les extraits de compte"}); print(f"content_type={header!r} content_stdin=\"{body.decode('"'utf8'"')}\"")')"
     export CONTENT_STDIN="$content_stdin"
     test_output="$(capture_admin_cgi_output "${test_name}" POST import_payments.cgi "" CONTENT_TYPE="$content_type")"
@@ -682,8 +695,38 @@ function test_14_locally_upload_payments
     if ! row_count="$(count_payments)" ; then
         die "$test_name Could not count payments"
     else
-        [ "$row_count" -eq 3 ] || die "$test_name Unexpected row_count=$row_count"
+        [ "$row_count" -eq 4 ] || die "$test_name Unexpected row_count=$row_count"
     fi
+}
+
+function test_15_locally_list_4_payments
+{
+    local test_name test_output uuid_hex_p1_and_p2 uuid_hex_p4 csrf_token
+    test_name="test_15_locally_list_4_payments"
+    test_output="$(capture_admin_cgi_output "${test_name}" GET list_payments.cgi "limit=20")"
+    uuid_hex_p1_and_p2="$(sql_query 'select uuid from reservations where name="realperson" limit 1')"
+    if [ -z "$uuid_hex_p1_and_p2" ]; then
+        die "$test_name Unable to find reservation uuid"
+    fi
+    uuid_hex_p4="$(sql_query 'select uuid from reservations where name="test" limit 1')"
+    if [ -z "$uuid_hex_p4" ]; then
+        die "$test_name Unable to find reservation uuid"
+    fi
+    # bank_transaction_number="$(get_bank_id_from_reservation_uuid "$uuid_hex_p4")"
+    # if [ -z "$bank_transaction_number" ]; then
+    #     die "$test_name Unable to find bank transaction number"
+    # fi
+    csrf_token="$(get_csrf_token_of_user "$admin_user")"
+    if [ -z "$csrf_token" ]; then
+       die "$test_name no CSRF token generated for $admin_user"
+    fi
+    assert_html_response "$test_name" "$test_output" \
+                         '<input type="hidden" id="csrf_token" name="csrf_token" value="'"$csrf_token"'">' \
+                         '<input type="file" id="csv_file" name="csv_file">' \
+                         '<tr><td>src_id_1</td><td>02/01/1970</td><td>BE001100</td><td>realperson</td><td>Accepté</td><td>partial payment</td><td>69.50</td><td><a href="https://example.com/show_reservation.cgi?uuid_hex='"$uuid_hex_p1_and_p2"'">realperson i@gmail.com</a></td></tr><tr><td>src_id_0</td>' \
+                         '<tr><td>src_id_0</td><td>01/01/1970</td><td>BE001100</td><td>realperson</td><td>Accepté</td><td>partial payment</td><td>3.50</td><td><a href="https://example.com/show_reservation.cgi?uuid_hex='"$uuid_hex_p1_and_p2"'">realperson i@gmail.com</a></td></tr><tr><td>2023-00127</td>' \
+                         '<tr><td>2023-00127</td><td>28/03/2023</td><td>BE00020002000202</td><td>ccccc-ccccccccc</td><td>Accepté</td><td>reprise marchandise</td><td>18.00</td><td>???</td></tr><tr><td>2023-00119</td>' \
+                         "<tr><td>2023-00119</td><td>25/03/2023</td><td>BE100010001010</td><td>SSSSSS GGGGGGGG</td><td>Accepté</td><td>[0-9+/]*</td><td>27.00</td><td><form method=\"POST\" action=\"gestion/link_payment_and_reservation.cgi\"><input type=\"hidden\" name=\"csrf_token\" value=\"$csrf_token\"><input type=\"hidden\" name=\"src_id\" value=\"2023-00119\"><select name=\"reservation_uuid\"><option selected=\"selected\" value=\"$uuid_hex_p4\">[0-9+/]* test i@example.com</option><option value"
 }
 
 # 01: List reservations when DB is still empty, then
@@ -983,6 +1026,7 @@ test_11_locally_reservation_example
 test_12_locally_export_csv
 test_13_locally_list_2_payments
 test_14_locally_upload_payments
+test_15_locally_list_4_payments
 
 # Temporarily disable command logging for deployment
 set +x

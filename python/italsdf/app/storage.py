@@ -2,7 +2,7 @@
 import os
 import sqlite3
 import time
-from typing import Any, Iterable, Union
+from typing import Any, Callable, Iterable, Union
 import uuid
 
 def create_db(configuration: dict[str, Any]) -> sqlite3.Connection:
@@ -23,7 +23,7 @@ def ensure_connection(connection_or_root_dir: Union[sqlite3.Connection, dict[str
             create_db(connection_or_root_dir))
 
 
-def default_creation_statement(table_name: str, columns: list[tuple[str, str]]) -> str:
+def default_creation_statement(table_name: str, columns: Iterable[tuple[str, str]]) -> str:
     return f'''CREATE TABLE {table_name} ({", ".join(" ".join(col) for col in columns)})'''
 
 
@@ -73,12 +73,12 @@ class MiniOrm:
 
 
     @staticmethod
-    def maybe_add_wildcards(x):
+    def maybe_add_wildcards(x: str) -> str:
         return x if '%' in x else f'%{x}%'
 
 
     @staticmethod
-    def compare_with_like_lower(x):
+    def compare_with_like_lower(x: str) -> tuple[str, str, Callable[[str], str]]:
         return (f'LOWER({x})',
                 'like',
                 lambda val: MiniOrm.maybe_add_wildcards(val.lower()))
@@ -345,7 +345,7 @@ class Reservation(MiniOrm):
             {'name': name.lower(), 'email': email.lower()}
         ).fetchone()
 
-    def remaining_amount_due_in_cents(self, connection):
+    def remaining_amount_due_in_cents(self, connection: Union[sqlite3.Cursor, sqlite3.Connection]):
         # TODO: not the most efficient but I have small data sets only anyway (less than 100 rows)
         return self.cents_due - Payment.sum_payments(connection, self.uuid)
 
@@ -355,6 +355,22 @@ class Reservation(MiniOrm):
             f"""SELECT date, SUM(places) FROM {cls.TABLE_NAME}
                 WHERE active != 0 GROUP BY date ORDER BY date""")
 
+    @classmethod
+    def find_by_bank_id(cls, connection: Union[sqlite3.Cursor, sqlite3.Connection], bank_id: str) -> Union["Reservation", None]:
+        row = connection.execute(
+            f"""SELECT {','.join(col[0] for col in cls.COLUMNS)} FROM {cls.TABLE_NAME}
+                WHERE bank_id = :bank_id""",
+            {"bank_id": bank_id}).fetchone()
+        return Reservation(*row) if row else None
+
+    @classmethod
+    def list_reservations_for_linking_with_payments(cls, connection, exclude_uuid: str) -> Iterable["Reservation"]:
+        return [
+            Reservation(*row) for row in connection.execute(
+            f"""SELECT {','.join(col[0] for col in cls.COLUMNS)} FROM {cls.TABLE_NAME}
+                WHERE active != 0 AND uuid != :uuid
+                ORDER BY name""",
+            {'uuid': exclude_uuid}).fetchall()]
 
     SORTABLE_COLUMNS = {'name': 'LOWER(name)',
                         'email': 'LOWER(email)',
@@ -449,6 +465,22 @@ class Payment(MiniOrm):
             "user": self.user,
             "ip": self.ip,
         }
+
+    @classmethod
+    def find_by_src_id(cls, connection: Union[sqlite3.Cursor, sqlite3.Connection], src_id: str) -> Union["Payment", None]:
+        row = connection.execute(
+            f"""SELECT {','.join(col[0] for col in cls.COLUMNS)} FROM {cls.TABLE_NAME}
+                WHERE src_id = :src_id""",
+            {"src_id": src_id}).fetchone()
+        return Payment(*row) if row else None
+
+    def update(self, connection: Union[sqlite3.Cursor, sqlite3.Connection]) -> "Payment":
+        connection.execute(
+            f"""UPDATE {self.TABLE_NAME}
+                SET {','.join(col[0] + "=:" + col[0] for col in self.COLUMNS if col[0] != 'rowid')}
+                WHERE rowid = :rowid""",
+            self.to_dict())
+        return self
 
     @classmethod
     def sum_payments(cls, connection, uuid):

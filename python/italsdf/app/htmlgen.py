@@ -15,7 +15,7 @@ def print_content_type(content_type):
     return True
 
 
-def format_bank_id(x):
+def format_bank_id(x: str) -> str:
     bank_id = ''.join(c for c in x if c.isdigit())
     if len(bank_id) != 12:
         return x
@@ -31,7 +31,7 @@ def pluriel_naif(nombre, nom_et_pluriel):
         else f'{nombre} {nom_et_pluriel[1]}'
 
 
-def cents_to_euro(cents):
+def cents_to_euro(cents: int) -> str:
     sign = '-' if cents < 0 else ''
     cents = abs(cents)
     return f'{sign}{cents // 100}.{cents % 100:02}'

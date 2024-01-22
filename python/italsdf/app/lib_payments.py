@@ -6,9 +6,10 @@ import os
 import time
 from typing import Any, Callable, Iterable, Optional, Union
 
-from storage import Payment, Reservation
+from storage import Csrf, Payment, Reservation
 from htmlgen import (
     cents_to_euro,
+    format_bank_id,
 )
 from lib_post_reservation import (
     make_show_reservation_url
@@ -102,7 +103,13 @@ def import_bank_statements(connection, bank_statements_csv: str, user:str, ip: s
     return exceptions
 
 
-def get_list_payments_row(pmnt: Payment, res: Optional[Reservation]) -> Iterable[tuple[Union[str, Iterable[str]], Any]]:
+def get_list_payments_row(
+        connection: Union[sqlite3.Cursor, sqlite3.Connection],
+        pmnt: Payment,
+        res: Optional[Reservation],
+        server_name: str,
+        script_name: str,
+        csrf_token: str) -> Iterable[tuple[Union[str, Iterable[str]], Any]]:
     return (('td', pmnt.src_id),
             ('td', time.strftime('%d/%m/%Y', time.gmtime(pmnt.timestamp))),
             ('td', pmnt.other_account),
@@ -110,11 +117,46 @@ def get_list_payments_row(pmnt: Payment, res: Optional[Reservation]) -> Iterable
             ('td' if pmnt.money_received() else ('td', 'class', 'payment-not-ok'), pmnt.status),
             ('td', pmnt.comment),
             ('td', cents_to_euro(pmnt.amount_in_cents)),
-            ('td', maybe_link_to_reservation(res)))
+            ('td', maybe_link_to_reservation(connection, pmnt, res, server_name, script_name, csrf_token)))
 
 
-def maybe_link_to_reservation(res: Optional[Reservation]) -> Union[str, tuple[Iterable[str], str]]:
-    if res is None:
-        return "???"
-    else:
-        return (('a', 'href', make_show_reservation_url(res.uuid, script_name=os.path.dirname(os.environ["SCRIPT_NAME"]))), f'{res.name} {res.email}')
+def maybe_link_to_reservation(
+        connection: Union[sqlite3.Cursor, sqlite3.Connection],
+        pmnt: Payment,
+        res: Optional[Reservation],
+        server_name: str,
+        script_name: str,
+        csrf_token: str) -> Union[str, Iterable[Any]]:
+    # drop "gestion/" from .../gestion/script.cgi
+    (script_dir, script_basename) = os.path.split(script_name)
+    script_super_dir = os.path.dirname(script_dir)
+    if res is not None:
+        return (('a',
+                 'href',
+                 make_show_reservation_url(
+                     res.uuid, server_name=server_name, script_name=os.path.join(script_super_dir, script_basename))),
+                f'{res.name} {res.email}')
+
+    dont_know = "???"
+    bank_id = pmnt.comment.strip().replace("+", "").replace("/", "")
+    if len(bank_id) != 12 or not all(ch.isdigit() for ch in bank_id):
+        return dont_know
+
+    matching_reservation = Reservation.find_by_bank_id(connection, bank_id)
+    if matching_reservation is None:
+        return dont_know
+
+    return (('form', 'method', 'POST', 'action', os.path.join(script_dir, 'link_payment_and_reservation.cgi')),
+            (('input', 'type', 'hidden', 'name', 'csrf_token', 'value', csrf_token),),
+            (('input', 'type', 'hidden', 'name', 'src_id', 'value', pmnt.src_id),),
+            (('select', 'name', 'reservation_uuid'),
+             _maybe_link__make_option(matching_reservation, bank_id),
+             *(_maybe_link__make_option(res) for res in Reservation.list_reservations_for_linking_with_payments(connection, matching_reservation.uuid))),
+            (('input', 'type', 'submit', 'value', 'Confirmer'),))
+
+
+def _maybe_link__make_option(res: Reservation, bank_id: Union[str, None]=None) -> Iterable[Any]:
+    return (('option', 'value', res.uuid), format_bank_id(res.bank_id), ' ', res.name, ' ', res.email
+            ) if bank_id is None else (
+                ('option', 'selected', 'selected', 'value', res.uuid),
+                format_bank_id(bank_id), ' ', res.name, ' ', res.email)
