@@ -4,7 +4,7 @@ from typing import Optional
 import unittest
 
 import sys_path_hack
-from conftest import make_reservation
+from conftest import make_payment, make_reservation
 
 try:
     import app.storage as storage
@@ -108,6 +108,22 @@ class TestPayments(unittest.TestCase):
         self.assertEqual(sum((res is not None for _, res in joined)), 3)
         self.assertEqual(sum((res is not None and res.bank_id == "bank_id_1" for _, res in joined)), 2)
         self.assertEqual(sum((res is not None and res.bank_id == "bank_id_2" for _, res in joined)), 1)
+
+
+class TestPayments_max_timestamp(unittest.TestCase):
+    def test_max_timestamp_empty_db(self):
+        configuration = {"dbdir": ":memory:"}
+        with storage.ensure_connection(configuration) as connection:
+            self.assertEqual(storage.Payment.max_timestamp(connection), storage.Payment.EMPTY_DB_TIMESTAMP)
+
+    def test_max_timestamp_one_payment(self):
+        configuration = {"dbdir": ":memory:"}
+        connection = storage.ensure_connection(configuration)
+        with connection:
+            make_payment(timestamp=3.14).insert_data(connection)
+
+        self.assertEqual(storage.Payment.max_timestamp(connection), 3.14)
+
 
 
 if __name__ == '__main__':

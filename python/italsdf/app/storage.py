@@ -474,13 +474,13 @@ class Payment(MiniOrm):
             {"src_id": src_id}).fetchone()
         return Payment(*row) if row else None
 
-    def update(self, connection: Union[sqlite3.Cursor, sqlite3.Connection]) -> "Payment":
-        connection.execute(
-            f"""UPDATE {self.TABLE_NAME}
-                SET {','.join(col[0] + "=:" + col[0] for col in self.COLUMNS if col[0] != 'rowid')}
-                WHERE rowid = :rowid""",
-            self.to_dict())
-        return self
+    EMPTY_DB_TIMESTAMP = 1706215670.0 # Arbitrary
+
+    @classmethod
+    def max_timestamp(cls, connection: Union[sqlite3.Cursor, sqlite3.Connection]) -> float:
+        return connection.execute(
+            f"""SELECT MAX(timestamp) FROM {cls.TABLE_NAME}"""
+            ).fetchone()[0] or cls.EMPTY_DB_TIMESTAMP
 
     @classmethod
     def sum_payments(cls, connection, uuid):

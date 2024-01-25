@@ -8,10 +8,11 @@
 import cgi
 import cgitb
 import os
+import time
+from urllib.parse import ParseResult, urlunparse, urlencode
 
 import config
 from htmlgen import (
-    CONCERT_PAGE,
     cents_to_euro,
     format_bank_id,
     html_document,
@@ -20,7 +21,9 @@ from htmlgen import (
     redirect_to_event,
     respond_html,
 )
+from lib_post_reservation import make_show_reservation_url
 from storage import(
+    Payment,
     Reservation,
     create_db,
 )
@@ -37,7 +40,9 @@ def commande(categorie, nombre1, nom1, nombre2=0, nom2=[]):
         return (categorie, (('ul', ), *((('li',), x) for x in commandes)))
 
 if __name__ == '__main__':
-    if os.getenv('REQUEST_METHOD') != 'GET':
+    SCRIPT_NAME = os.getenv('SCRIPT_NAME')
+    SERVER_NAME = os.getenv('SERVER_NAME')
+    if os.getenv('REQUEST_METHOD') != 'GET' or not SCRIPT_NAME or not SERVER_NAME:
         redirect_to_event()
     CONFIGURATION = config.get_configuration()
 
@@ -99,16 +104,21 @@ if __name__ == '__main__':
                      if x]
         if commandes:
             remaining_due = reservation.remaining_amount_due_in_cents(db_connection)
+            last_payment_update_timestamp = time.localtime(Payment.max_timestamp(db_connection))
+            last_payment_update = time.strftime(
+                "La dernière mise à jour de la liste des paiements reçus dans le système a eu lieu le %d/%m/%Y à %H:%M.")
             if remaining_due <= 0:
                 due_amount_info = (
-                    "Merci d'avoir déjà réglé l'entièreté des ", cents_to_euro(reservation.cents_due), " € dûs.  ")
+                    "Merci d'avoir déjà réglé l'entièreté des ", cents_to_euro(reservation.cents_due), " € dûs.  ",
+                    last_payment_update)
             else:
                 due_amount_info = (
                     'Le prix total est de ', cents_to_euro(reservation.cents_due), ' € pour le repas dont ',
                     cents_to_euro(remaining_due), ' € sont encore dûs.  ',
                     "Nous vous saurions gré de déjà verser cette somme avec la communication ",
                     "structurée ", ("code", format_bank_id(reservation.bank_id)), " sur le compte ",
-                    BANK_ACCOUNT, " pour confirmer votre réservation."
+                    BANK_ACCOUNT, " pour confirmer votre réservation.  ",
+                    last_payment_update,
                 )
             commandes = (('p', "Merci de nous avoir informé à l'avance de votre commande.  ",
                           "Nous préparerons vos tickets à l'entrée pour faciliter votre commande.  ",
@@ -117,16 +127,20 @@ if __name__ == '__main__':
         else:
             commandes = (('p', "La commande des repas se fera à l'entrée: nous préférons le paiement mobile "
                           "mais accepterons aussi le paiement en liquide."),)
+        qr_server_template = ParseResult(scheme='https', netloc='api.qrserver.com', path='/v1/create-qr-code/', params='', query='', fragment='')
         respond_html(html_document(
             'Réservation effectuée',
             (('p', 'Votre réservation au nom de ', reservation.name,
-              ' pour ', pluriel_naif(reservation.places, 'place'), ' a été enregistrée.'),
+              ' pour ', pluriel_naif(reservation.places, 'place'), " a été enregistrée.  Vous pouvez garder cette page dans vos favoris ou l'imprimer comme preuve de réservation."),
              *commandes,
              ('p',
               (('a', 'href', f"mailto:{CONFIGURATION['info_email']}"), 'Contactez-nous'),
               ' si vous avez encore des questions.'),
              ('p', 'Un tout grand merci pour votre présence le ', reservation.date,
-              ': le soutien de nos auditeurs nous est indispensable!'))))
+              ': le soutien de nos auditeurs nous est indispensable!'),
+             ('hr',),
+             ('p',
+              (('img', 'src', urlunparse(qr_server_template._replace(query=urlencode((('qzone', 1), ('data', make_show_reservation_url(uuid_hex, script_name=SCRIPT_NAME, server_name=SERVER_NAME))))))), )))))
     except Exception:
         # cgitb needs the content-type header
         if print_content_type('text/html; charset=utf-8'):
