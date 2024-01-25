@@ -185,14 +185,42 @@ class GetListPaymentsRow(unittest.TestCase):
                                             ('td', 'Accepté'),
                                             ('td', uuid),
                                             ('td', '30.00'),
-                                            ('td', '???')))
+                                            ('td', (('form', 'method', 'POST',
+                                                     'action', 'italsdf2024/gestion/link_payment_and_reservation.cgi'),
+                                                    (('input', 'type', 'hidden', 'name', 'csrf_token', 'value', 'csrf_token_value'),),
+                                                    (('input', 'type', 'hidden', 'name', 'src_id', 'value', src_id),),
+                                                    (('select', 'name', 'reservation_uuid'),
+                                                     (('option', 'value', ''), '--- Choisir la réservation correspondante ---'),
+                                                     (('option', 'value', 'deadbeef'), '12349876', ' ', 'testing test@example.com')),
+                                                    (('input', 'type', 'submit', 'value', 'Confirmer'),)))))
+
+    def test_payment_possible_bankid_but_no_reservations_yet(self):
+        configuration = {"dbdir": ":memory:"}
+        connection = storage.ensure_connection(configuration)
+        src_id = "1"
+        for uuid in ('+++671/4235/58049+++', '671423558049'):
+            with self.subTest(uuid=uuid):
+                src_id += "0"
+                with connection:
+                    payment = conftest.make_payment(src_id=src_id, comment=uuid).insert_data(connection)
+                html_row = lib_payments.get_list_payments_row(connection, payment, None, 'example.com', 'italsdf2024/gestion/list_payments.cgi', 'csrf_token_value')
+
+                self.assertEqual(html_row, (('td', src_id),
+                                            ('td', '17/01/2024'),
+                                            ('td', 'BE0101'),
+                                            ('td', 'Ms Abc'),
+                                            ('td', 'Accepté'),
+                                            ('td', uuid),
+                                            ('td', '30.00'),
+                                            ('td', "#N/A")))
 
     def test_payment_not_ok_for_a_reservation(self):
         configuration = {"dbdir": ":memory:"}
         connection = storage.ensure_connection(configuration)
         with connection:
             payment = conftest.make_payment(amount_in_cents=-34).insert_data(connection)
-        html_row = lib_payments.get_list_payments_row(connection, payment, None, 'example.com', 'gestion/list_payments.cgi', 'csrf_token_value')
+            conftest.make_reservation(places=2, email=None, bank_id='123123123123', name='Mr B', uuid='otheruuid').insert_data(connection)
+        html_row = lib_payments.get_list_payments_row(connection, payment, None, 'example.com', '/gestion/list_payments.cgi', 'csrf_token_value')
 
         self.assertEqual(html_row, (('td', '2023-1000'),
                                     ('td', '17/01/2024'),
@@ -200,29 +228,43 @@ class GetListPaymentsRow(unittest.TestCase):
                                     ('td', 'Ms Abc'),
                                     (('td', 'class', 'payment-not-ok'), 'Accepté'),
                                     ('td', 'unit test comment'),
-                                    ('td', '-0.34'),
-                                    ('td', '???')))
+                                    (('td', 'class', 'payment-not-ok'), '-0.34'),
+                                    ('td', (('form', 'method', 'POST',
+                                             'action', '/gestion/link_payment_and_reservation.cgi'),
+                                            (('input', 'type', 'hidden', 'name', 'csrf_token', 'value', 'csrf_token_value'),),
+                                            (('input', 'type', 'hidden', 'name', 'src_id', 'value', '2023-1000'),),
+                                            (('select', 'name', 'reservation_uuid'),
+                                             (('option', 'value', ''), '--- Choisir la réservation correspondante ---'),
+                                             (('option', 'value', 'otheruuid'), '+++123/1231/23123+++', ' ', 'Mr B')),
+                                            (('input', 'type', 'submit', 'value', 'Confirmer'),)))))
 
     def test_payment_already_linked_to_reservation(self):
         configuration = {"dbdir": ":memory:"}
         connection = storage.ensure_connection(configuration)
-        with connection:
-            reservation = conftest.make_reservation(places=1).insert_data(connection)
-            payment = conftest.make_payment(uuid=reservation.uuid).insert_data(connection)
-        html_row = lib_payments.get_list_payments_row(connection, payment, reservation, 'example.com', 'italsdf2024/gestion/list_payments.cgi', 'csrf_token_value')
 
-        self.assertEqual(html_row, (('td', '2023-1000'),
-                                    ('td', '17/01/2024'),
-                                    ('td', 'BE0101'),
-                                    ('td', 'Ms Abc'),
-                                    ('td', 'Accepté'),
-                                    ('td', 'unit test comment'),
-                                    ('td', '30.00'),
-                                    ('td',
-                                     (('a',
-                                       'href',
-                                       'https://example.com/italsdf2024/show_reservation.cgi?uuid_hex=deadbeef'),
-                                      'testing test@example.com'))))
+        uuid_hex="abcdef"
+        src_id="2023-100"
+        for email, expected_text in (("", 'testing'), (" ", "testing"), (None, "testing"), ("a@b.c", "testing a@b.c")):
+            uuid_hex += "0"
+            src_id += "1"
+            with self.subTest(email=email):
+                with connection:
+                    reservation = conftest.make_reservation(email=email, places=1, bank_id=uuid_hex, uuid=uuid_hex).insert_data(connection)
+                    payment = conftest.make_payment(uuid=reservation.uuid, src_id=src_id).insert_data(connection)
+                html_row = lib_payments.get_list_payments_row(connection, payment, reservation, 'example.com', 'italsdf2024/gestion/list_payments.cgi', 'csrf_token_value')
+
+                self.assertEqual(html_row, (('td', src_id),
+                                            ('td', '17/01/2024'),
+                                            ('td', 'BE0101'),
+                                            ('td', 'Ms Abc'),
+                                            ('td', 'Accepté'),
+                                            ('td', 'unit test comment'),
+                                            ('td', '30.00'),
+                                            ('td',
+                                             (('a',
+                                               'href',
+                                               f'https://example.com/italsdf2024/show_reservation.cgi?uuid_hex={uuid_hex}'),
+                                              expected_text))))
 
     def test_payment_possible_bankid_and_reservation_match(self):
         configuration = {"dbdir": ":memory:"}
@@ -252,10 +294,10 @@ class GetListPaymentsRow(unittest.TestCase):
                                  (('input', 'type', 'hidden', 'name', 'csrf_token', 'value', 'csrf_token_value'),),
                                  (('input', 'type', 'hidden', 'name', 'src_id', 'value', src_id),),
                                  (('select', 'name', 'reservation_uuid'),
-                                  (('option', 'selected', 'selected', 'value', 'deadbeef'),
-                                   '+++671/4235/58049+++', ' ', 'testing', ' ', 'test@example.com'),
+                                  (('option', 'value', 'deadbeef', 'selected', 'selected'),
+                                   '+++671/4235/58049+++', ' ', 'testing test@example.com'),
                                   (('option', 'value', 'otheruuid'),
-                                   '+++123/1231/23123+++', ' ', 'Mr B', ' ', 'test@example.com')),
+                                   '+++123/1231/23123+++', ' ', 'Mr B test@example.com')),
                                  (('input', 'type', 'submit', 'value', 'Confirmer'),)))))
 
 

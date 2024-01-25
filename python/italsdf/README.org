@@ -20,8 +20,10 @@ Use the ~deploy.sh~ script like this:
   to a specific user/group that does not correspond to the user/group of the
   system where development happens.  These parameters set the user/group in
   the destination.
-- ~prefix_folder/destination_folder~ :: where to deploy (relative to the
-  SSH host, not necessarily the path typed in your browser)
+- ~prefix_folder/deploy_folder~ :: where to deploy (relative to the SSH host,
+  not necessarily the path typed in your browser). ~prefix_folder~ is used to
+  navigate on the SSH host, ~deploy_folder~ is used to navigate even deeper,
+  but will also be part of the URLs of the web application.
 - ~admin_user~ and ~admin_pw~ :: the administrative interface should be
   protected by authentication.  If the parameters are given, HTTP basic
   authentication is setup in that folder.

@@ -21,9 +21,6 @@ from storage import (
     Payment,
     create_db,
 )
-from lib_payments import (
-    import_bank_statements,
-)
 
 
 def fail_link_payment_and_reservation():
@@ -47,18 +44,18 @@ def post_method(db_connection, server_name, script_name, user, ip):
         fail_link_payment_and_reservation()
     else:
         try:
-            csrf = Csrf.validate_and_update(db_connection, csrf_token, user, ip)
+            Csrf.validate_and_update(db_connection, csrf_token, user, ip)
         except KeyError:
             fail_link_payment_and_reservation()
 
     reservation_uuid = form.getfirst('reservation_uuid')
     if not reservation_uuid:
-        respond_error('Formulaire incomplètes', (('p', "Il n'y avait pas de ", ("code", "reservation_uuid"), " dans le formulaire."), ), list_payments)
+        respond_error('Formulaire incomplet', (('p', "Il n'y avait pas de ", ("code", "reservation_uuid"), " dans le formulaire."), ), list_payments)
         return
 
     src_id = form.getfirst('src_id')
     if not src_id:
-        respond_error('Formulaire incomplètes', (('p', "Il n'y avait pas de ", ("code", "src_id"), " dans le formulaire."), ), list_payments)
+        respond_error('Formulaire incomplet', (('p', "Il n'y avait pas de ", ("code", "src_id"), " dans le formulaire."), ), list_payments)
         return
 
     try:

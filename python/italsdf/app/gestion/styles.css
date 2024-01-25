@@ -51,6 +51,14 @@ table.list tr:nth-child(odd) {
     background-color: #ddd;
 }
 
+table.list tr:nth-child(odd):hover {
+    background-color: #aee;
+}
+
+table.list tr:nth-child(even):hover {
+    background-color: #eea;
+}
+
 table.list td {
     padding-left: 0.1em;
     padding-right: 0.1em;

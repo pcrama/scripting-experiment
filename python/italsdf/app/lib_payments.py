@@ -116,8 +116,15 @@ def get_list_payments_row(
             ('td', pmnt.other_name),
             ('td' if pmnt.money_received() else ('td', 'class', 'payment-not-ok'), pmnt.status),
             ('td', pmnt.comment),
-            ('td', cents_to_euro(pmnt.amount_in_cents)),
+            ('td' if pmnt.money_received() else ('td', 'class', 'payment-not-ok'), cents_to_euro(pmnt.amount_in_cents)),
             ('td', maybe_link_to_reservation(connection, pmnt, res, server_name, script_name, csrf_token)))
+
+
+def _concat_name_and_mail(res: Reservation) -> str:
+    if res.email is None or not res.email.strip():
+        return res.name
+    else:
+        return res.name + ' ' + res.email
 
 
 def maybe_link_to_reservation(
@@ -135,16 +142,15 @@ def maybe_link_to_reservation(
                  'href',
                  make_show_reservation_url(
                      res.uuid, server_name=server_name, script_name=os.path.join(script_super_dir, script_basename))),
-                f'{res.name} {res.email}')
+                _concat_name_and_mail(res))
 
-    dont_know = "???"
     bank_id = pmnt.comment.strip().replace("+", "").replace("/", "")
     if len(bank_id) != 12 or not all(ch.isdigit() for ch in bank_id):
-        return dont_know
+        return _maybe_link__make_form_when_no_reservation_matches_well(connection, pmnt, csrf_token, script_dir)
 
     matching_reservation = Reservation.find_by_bank_id(connection, bank_id)
     if matching_reservation is None:
-        return dont_know
+        return _maybe_link__make_form_when_no_reservation_matches_well(connection, pmnt, csrf_token, script_dir)
 
     return (('form', 'method', 'POST', 'action', os.path.join(script_dir, 'link_payment_and_reservation.cgi')),
             (('input', 'type', 'hidden', 'name', 'csrf_token', 'value', csrf_token),),
@@ -156,7 +162,18 @@ def maybe_link_to_reservation(
 
 
 def _maybe_link__make_option(res: Reservation, bank_id: Union[str, None]=None) -> Iterable[Any]:
-    return (('option', 'value', res.uuid), format_bank_id(res.bank_id), ' ', res.name, ' ', res.email
-            ) if bank_id is None else (
-                ('option', 'selected', 'selected', 'value', res.uuid),
-                format_bank_id(bank_id), ' ', res.name, ' ', res.email)
+    return (('option', 'value', res.uuid, *(() if bank_id is None else ('selected', 'selected'))), format_bank_id(res.bank_id), ' ', _concat_name_and_mail(res))
+
+
+def _maybe_link__make_form_when_no_reservation_matches_well(connection, pmnt: Payment, csrf_token: str, script_dir: str) -> Union[str, Iterable[Any]]:
+    options = [_maybe_link__make_option(res) for res in Reservation.list_reservations_for_linking_with_payments(connection, '')]
+    if options:
+        return (('form', 'method', 'POST', 'action', os.path.join(script_dir, 'link_payment_and_reservation.cgi')),
+                (('input', 'type', 'hidden', 'name', 'csrf_token', 'value', csrf_token),),
+                (('input', 'type', 'hidden', 'name', 'src_id', 'value', pmnt.src_id),),
+                (('select', 'name', 'reservation_uuid'),
+                 (('option', 'value', ''), '--- Choisir la réservation correspondante ---'),
+                 *options),
+                (('input', 'type', 'submit', 'value', 'Confirmer'),))
+    else:
+        return "#N/A"
