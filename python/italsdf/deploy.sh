@@ -12,19 +12,20 @@ group="$3"
 base_url="$4"
 prefix_folder="$5"
 deploy_folder="$6"
-admin_user="$7"
-admin_pw="$8"
+virtualenv_folder="$7"
+admin_user="$8"
+admin_pw="$9"
 
-if [ -z "$destination" -o -z "$user" -o -z "$group" -o -z "$base_url" -o -z "$prefix_folder" -o -z "$deploy_folder" ] ;
+if [ -z "$destination" -o -z "$user" -o -z "$group" -o -z "$base_url" -o -z "$prefix_folder" -o -z "$deploy_folder" -o -z "$virtualenv_folder" ] ;
 then
-    echo -n "Missing parameters: $0 '$destination' '$user' '$group' '$base_url' '$prefix_folder' '$deploy_folder'"
+    echo -n "Missing parameters: $0 '$destination' '$user' '$group' '$base_url' '$prefix_folder' '$deploy_folder' '$virtualenv_folder'"
     if [ -n "$admin_user" -o -n "$admin_pw" ];
     then
         echo " '$admin_user' '$admin_pw'"
     else
         echo
     fi
-    echo "Usage: $(basename "$0") <ssh-host> <user> <group> <https://base_url> <prefix_folder> <deploy_folder> [<admin-user> <admin-pw>]"
+    echo "Usage: $(basename "$0") <ssh-host> <user> <group> <https://base_url> <prefix_folder> <deploy_folder> <virtualenv_folder> [<admin-user> <admin-pw>]"
     exit 1
 else
     folder="$prefix_folder/$deploy_folder"
@@ -44,6 +45,7 @@ else
         setup_password=""
         setup_access=""
     fi
+    setup_venv="; [ '$virtualenv_folder' -eq 'no' ] || (python -m venv '${virtualenv_folder%/}'; '${virtualenv_folder%/}/bin/pip' install qrcode)"
     staging_dir="$(mktemp --directory)"
     (cd "$(dirname "$0")/app/gestion" \
          && emacs --batch \
@@ -71,6 +73,7 @@ else
     rm -f "$(dirname "$0")/app/gestion/index.html"
     find "$staging_dir" -type f '(' -name '*.cgi' -o -name '*.py' ')' -print0 | xargs -0 dos2unix
     find "$staging_dir" -type f -name '*.cgi' -print0 | xargs -0 chmod 744
+    find "$staging_dir" -type f -name '*.cgi' -print0 | xargs -0 -n 1 sed -i -e '1s,.*,#!'"${virtualenv_folder%/}"'/bin/python3,'
     app_htaccess="$staging_dir/.htaccess"
     cat <<EOF > "$app_htaccess"
 # Prevent directory listing https://stackoverflow.com/a/2530404:
@@ -85,6 +88,6 @@ Options -Indexes
 EOF
     dos2unix "$app_htaccess"
     tar czf - --"owner=$user" --"group=$group" -C "$staging_dir" . \
-        | ssh "$destination" "mkdir -p '$folder'; rm -f '$folder'/*.js; tar xvzf - -C '$folder' $setup_password $setup_access"
+        | ssh "$destination" "mkdir -p '$folder'; rm -f '$folder'/*.js; tar xvzf - -C '$folder' $setup_password $setup_access $setup_venv"
     rm -r "$staging_dir" || echo "Unable to clean up staging_dir='$staging_dir'"
 fi

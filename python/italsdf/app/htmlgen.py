@@ -40,7 +40,9 @@ def cents_to_euro(cents: int) -> str:
 def html_gen(data):
     def is_tuple(x):
         return type(x) is tuple
-    if is_tuple(data):
+    if is_tuple(data) and len(data) == 2 and data[0] == 'raw':
+        yield data[1]
+    elif is_tuple(data):
         tag_name = None
         empty_elt = len(data) == 1
         for elt in data:

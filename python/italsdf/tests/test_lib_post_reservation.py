@@ -178,6 +178,16 @@ class ValidateDate(unittest.TestCase):
             self.assertTrue(date in message)
 
 
+    def test_generate_payment_QR_code_content(self):
+        self.assertEqual(
+            lib_post_reservation.generate_payment_QR_code_content(
+                12045, # cents, i.e. 120.45€
+                "483513812577",
+                {"organizer_name": "Music and Food", "organizer_bic": "GABBBEBB", "bank_account": "BE89 3751 0478 0085"}),
+            "BCD\n001\n1\nSCT\nGABBBEBB\nMusic and Food\nBE89375104780085\nEUR120.45\n483513812577\n483513812577",
+        )
+
+
 if __name__ == '__main__':
     unittest.main()
 

@@ -3,11 +3,12 @@ import cgitb
 import os
 import re
 import time
-from typing import Optional
+from typing import Any, Optional
 from urllib.parse import urlunsplit, urljoin, urlencode
 import uuid
 
 from htmlgen import (
+    cents_to_euro,
     html_document,
     redirect,
     respond_html,
@@ -257,3 +258,13 @@ def respond_with_reservations_closed():
         (('p',
           "Nous n'acceptons plus de réservations mais il reste encore des places.  Présentez-vous ",
           "simplement à l'entrée et vous serez les bienvenus."),)))
+
+
+def generate_payment_QR_code_content(remaining_due: int, bank_id: str, config: dict[str, Any]) -> str:
+    name = config.get("organizer_name", "Name")
+    bic = config.get("organizer_bic", "BIC")
+    iban = "".join(ch for ch in config.get("bank_account", "BExxxx") if ch in "BE" or ch.isdigit())
+    amount = cents_to_euro(remaining_due)
+    remit = bank_id # apparently both are needed to get the three banks I tested to include the information
+    inf = bank_id # additional info
+    return ("BCD\n001\n1\nSCT\n" + bic + "\n" + name + "\n" + iban + "\n" + "EUR" + amount + "\n" + remit + "\n" + inf)

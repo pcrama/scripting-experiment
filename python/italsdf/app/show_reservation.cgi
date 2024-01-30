@@ -9,7 +9,10 @@ import cgi
 import cgitb
 import os
 import time
+from typing import Any
 from urllib.parse import ParseResult, urlunparse, urlencode
+import qrcode
+from qrcode.image.svg import SvgPathFillImage
 
 import config
 from htmlgen import (
@@ -21,7 +24,7 @@ from htmlgen import (
     redirect_to_event,
     respond_html,
 )
-from lib_post_reservation import make_show_reservation_url
+from lib_post_reservation import generate_payment_QR_code_content, make_show_reservation_url
 from storage import(
     Payment,
     Reservation,
@@ -38,6 +41,7 @@ def commande(categorie, nombre1, nom1, nombre2=0, nom2=[]):
         return (f'{categorie}: {commandes[0]}',)
     else:
         return (categorie, (('ul', ), *((('li',), x) for x in commandes)))
+
 
 if __name__ == '__main__':
     SCRIPT_NAME = os.getenv('SCRIPT_NAME')
@@ -63,6 +67,7 @@ if __name__ == '__main__':
     KIDS_EXTRA_DISH_NAME = CONFIGURATION["kids_extra_dish_name"]
     KIDS_EXTRA_DISH_NAME_PLURAL = CONFIGURATION["kids_extra_dish_name_plural"]
     BANK_ACCOUNT = CONFIGURATION["bank_account"]
+    ORGANIZER_NAME = CONFIGURATION["organizer_name"]
 
     try:
         # Get form data
@@ -117,7 +122,12 @@ if __name__ == '__main__':
                     cents_to_euro(remaining_due), ' € sont encore dûs.  ',
                     "Nous vous saurions gré de déjà verser cette somme avec la communication ",
                     "structurée ", ("code", format_bank_id(reservation.bank_id)), " sur le compte ",
-                    BANK_ACCOUNT, " pour confirmer votre réservation.  ",
+                    BANK_ACCOUNT, " (bénéficiaire '", ORGANIZER_NAME, "') pour confirmer votre réservation, p.ex. en scannant ce code QR: ",
+                    ('br',),
+                    ('raw', qrcode.make(generate_payment_QR_code_content(remaining_due, reservation.bank_id, CONFIGURATION),
+                                        image_factory=SvgPathFillImage
+                                        ).to_string().decode('utf8')),
+                    ('br',),
                     last_payment_update,
                 )
             commandes = (('p', "Merci de nous avoir informé à l'avance de votre commande.  ",
@@ -140,7 +150,10 @@ if __name__ == '__main__':
               ': le soutien de nos auditeurs nous est indispensable!'),
              ('hr',),
              ('p',
-              (('img', 'src', urlunparse(qr_server_template._replace(query=urlencode((('qzone', 1), ('data', make_show_reservation_url(uuid_hex, script_name=SCRIPT_NAME, server_name=SERVER_NAME))))))), )))))
+              "Scannez ce code QR pour suivre l'état actuel de votre réservation:",
+              ("br",),
+              ('raw', qrcode.make(make_show_reservation_url(uuid_hex, script_name=SCRIPT_NAME, server_name=SERVER_NAME),
+                                  image_factory=SvgPathFillImage).to_string().decode('utf8'))))))
     except Exception:
         # cgitb needs the content-type header
         if print_content_type('text/html; charset=utf-8'):

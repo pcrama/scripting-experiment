@@ -289,7 +289,6 @@ function simulate_cgi_request
     script_name="$2"
     query_string="$3"
     shift 3
-    # env "$(python3 -c 'import urllib3; body, header = urllib3.encode_multipart_formdata({"csrf_token": "abcd01234e", "csv_file": ("test.csv", "a;b\n0;1"), "submit": "Importer les extraits de compte"}); print(f"CONTENT_TYPE={header!r} CONTENT_STDIN=\"{body.decode('"'utf8'"')}\"")')"
     echo "${CONTENT_STDIN:-}" | (
         cd "$app_dir/$(dirname "$script_name")" \
             && env TEMP="$test_dir" \
@@ -670,7 +669,7 @@ function test_13_locally_list_2_payments
 
 function test_14_locally_upload_payments
 {
-    local test_name test_output uuid_hex content_type content_stdin row_count bank_transaction_number csrf_token
+    local test_name test_output uuid_hex content_boundary row_count bank_transaction_number csrf_token
     test_name="test_14_locally_upload_payments"
     csrf_token="$(get_csrf_token_of_user "$admin_user")"
     if [ -z "$csrf_token" ]; then
@@ -684,10 +683,27 @@ function test_14_locally_upload_payments
     if [ -z "$bank_transaction_number" ]; then
         die "$test_name Unable to find bank transaction number"
     fi
-    fake_csv="Nº de séquence;Date d'exécution;Date valeur;Montant;Devise du compte;Numéro de compte;Type de transaction;Contrepartie;Nom de la contrepartie;Communication;Détails;Statut;Motif du refus\\n2023-00127;28/03/2023;28/03/2023;18;EUR;BE00010001000101;Virement en euros;BE00020002000202;ccccc-ccccccccc;reprise marchandise;VIREMENT EN EUROS DU COMPTE BE00020002000202 BIC GABBBEBB CCCCC-CCCCCCCCC AV DE LA GARE 76 9999 WAGADOUGOU COMMUNICATION : REPRISE MARCHANDISE REFERENCE BANQUE : 2303244501612 DATE VALEUR : 28/03/2023;Accepté;\\n2023-00119;25/03/2023;24/03/2023;27;EUR;BE00010001000101;Virement instantané en euros;BE100010001010;SSSSSS GGGGGGGG;${bank_transaction_number};VIREMENT INSTANTANE EN EUROS BE10 0010 0010 10 BIC GABBBEBBXXX SSSSSS GGGGGGGG RUE MARIGNON 43/5 8888 BANDARLOG COMMUNICATION : xxx EXECUTE LE 24/03 REFERENCE BANQUE : 2303244502842 DATE VALEUR : 24/03/2023;Accepté;\\n"
-    eval "$(python3 -c 'import urllib3; body, header = urllib3.encode_multipart_formdata({"csrf_token": "'"$csrf_token"'", "csv_file": ("test.csv", "'"$fake_csv"'"), "submit": "Importer les extraits de compte"}); print(f"content_type={header!r} content_stdin=\"{body.decode('"'utf8'"')}\"")')"
-    export CONTENT_STDIN="$content_stdin"
-    test_output="$(capture_admin_cgi_output "${test_name}" POST import_payments.cgi "" CONTENT_TYPE="$content_type")"
+    content_boundary='95173680fbda20e37a8df066f0d77cc4'
+    export CONTENT_STDIN="--${content_boundary}
+Content-Disposition: form-data; name=\"csrf_token\"
+
+$csrf_token
+--${content_boundary}
+Content-Disposition: form-data; name=\"csv_file\"; filename=\"test.csv\"
+Content-Type: text/csv
+
+Nº de séquence;Date d'exécution;Date valeur;Montant;Devise du compte;Numéro de compte;Type de transaction;Contrepartie;Nom de la contrepartie;Communication;Détails;Statut;Motif du refus
+2023-00127;28/03/2023;28/03/2023;18;EUR;BE00010001000101;Virement en euros;BE00020002000202;ccccc-ccccccccc;reprise marchandise;VIREMENT EN EUROS DU COMPTE BE00020002000202 BIC GABBBEBB CCCCC-CCCCCCCCC AV DE LA GARE 76 9999 WAGADOUGOU COMMUNICATION : REPRISE MARCHANDISE REFERENCE BANQUE : 2303244501612 DATE VALEUR : 28/03/2023;Accepté;
+2023-00119;25/03/2023;24/03/2023;27;EUR;BE00010001000101;Virement instantané en euros;BE100010001010;SSSSSS GGGGGGGG;${bank_transaction_number};VIREMENT INSTANTANE EN EUROS BE10 0010 0010 10 BIC GABBBEBBXXX SSSSSS GGGGGGGG RUE MARIGNON 43/5 8888 BANDARLOG COMMUNICATION : xxx EXECUTE LE 24/03 REFERENCE BANQUE : 2303244502842 DATE VALEUR : 24/03/2023;Accepté;
+
+
+--${content_boundary}
+Content-Disposition: form-data; name=\"submit\"
+
+Importer les extraits de compte
+--${content_boundary}--
+"
+    test_output="$(capture_admin_cgi_output "${test_name}" POST import_payments.cgi "" CONTENT_TYPE="multipart/form-data; boundary=$content_boundary")"
     export CONTENT_STDIN=""
     grep -q "^Status: 302" "$test_output" || die "$test_name No Status: 302 redirect in $test_output"
     target="gestion/list_payments.cgi"

@@ -13,7 +13,9 @@ def get_configuration():
     CONFIGURATION_DEFAULTS = {
         'logdir': os.getenv('TEMP', SCRIPT_DIR),
         'dbdir': os.getenv('TEMP', SCRIPT_DIR),
-        'bank_account': 'BE-numero-de-compte',
+        "organizer_name": "Organizer name",
+        "organizer_bic": "GABBBEBB",
+        'bank_account': "BE00 0000 0000 0000",
         'cgitb_display': 1,
         'info_email': 'nobody@example.com',
         'disabled': False,
