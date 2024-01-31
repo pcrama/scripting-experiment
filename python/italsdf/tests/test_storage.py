@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import sqlite3
+import time
 from typing import Optional
 import unittest
 
@@ -124,6 +125,26 @@ class TestPayments_max_timestamp(unittest.TestCase):
 
         self.assertEqual(storage.Payment.max_timestamp(connection), 3.14)
 
+    def test_update_bank_id(self):
+        configuration = {"dbdir": ":memory:"}
+        connection = storage.ensure_connection(configuration)
+        with connection:
+            payment = make_payment(timestamp=3.14).insert_data(connection)
+
+        before_save = time.time()
+        with connection:
+            payment.update_uuid(connection, "new_uuid", "the-new-user", "192.0.0.1")
+        after_save = time.time()
+
+        reloaded = storage.Payment.find_by_src_id(connection, payment.src_id)
+
+        self.assertEqual(reloaded.uuid, "new_uuid")
+        self.assertEqual(reloaded.user, "the-new-user")
+        self.assertEqual(reloaded.ip, "192.0.0.1")
+        self.assertEqual(reloaded.comment, payment.comment)
+        self.assertEqual(reloaded.amount_in_cents, payment.amount_in_cents)
+        self.assertLessEqual(before_save, reloaded.timestamp)
+        self.assertLessEqual(reloaded.timestamp, after_save)
 
 
 if __name__ == '__main__':

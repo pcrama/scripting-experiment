@@ -490,10 +490,28 @@ class Payment(MiniOrm):
         ).fetchone()[0] or 0
 
     def insert_data(self, connection) -> "Payment":
-        connection.execute(
+        self.rowid = connection.execute(
             f'''INSERT INTO {self.TABLE_NAME} VALUES (
-                 :rowid, :timestamp, :amount_in_cents, :comment, :uuid, :src_id, :other_account, :other_name, :status, :user, :ip)''',
-            self.to_dict())
+                 :rowid, :timestamp, :amount_in_cents, :comment, :uuid, :src_id, :other_account, :other_name, :status, :user, :ip)
+                RETURNING rowid''',
+            self.to_dict()).fetchone()[0]
+        return self
+
+    def update_uuid(self, connection, uuid: Union[str, None], user: str, ip: str) -> "Payment":
+        if not user or not ip:
+            raise ValueError(f"{user=} and {ip=} are mandatory")
+        self.uuid = uuid
+        self.user = user
+        self.ip = ip
+        self.timestamp = time.time()
+        connection.execute(
+            f'''UPDATE {self.TABLE_NAME} SET uuid = :uuid,  user = :user,  ip = :ip,  timestamp = :timestamp
+                WHERE rowid = :rowid''',
+            {"uuid": self.uuid,
+             "user": self.user,
+             "ip": self.ip,
+             "timestamp": self.timestamp,
+             "rowid": self.rowid})
         return self
 
     def money_received(self) -> bool:
@@ -581,7 +599,7 @@ class Csrf(MiniOrm):
                  'ip': ip,
                  'timestamp': time.time() - cls.SESSION_IN_SECONDS}
             ).fetchone()
-            result = cls(token=data[0], timestamp=data[1], user=data[2], ip=data[3])
+            result = cls(token=data[0], timestamp=time.time(), user=data[2], ip=data[3])
             result.save(connection)
             return result
         except Exception:
@@ -599,7 +617,7 @@ class Csrf(MiniOrm):
                 {'user': user,
                  'ip': ip}
             ).fetchone()
-            result = cls(token=data[0], timestamp=data[1], user=data[2], ip=data[3])
+            result = cls(token=data[0], timestamp=time.time(), user=data[2], ip=data[3])
         except Exception:
             result = cls(user=user, ip=ip)
         result.save(connection)

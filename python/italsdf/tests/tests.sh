@@ -295,7 +295,7 @@ function simulate_cgi_request
                    REQUEST_METHOD="$method" \
                    QUERY_STRING="$query_string" \
                    SERVER_NAME=example.com \
-                   SCRIPT_NAME="$script_name" \
+                   SCRIPT_NAME="/$script_name" \
                    "$@" \
                    python3 "$(basename "$script_name")"
     )
@@ -728,10 +728,6 @@ function test_15_locally_list_4_payments
     if [ -z "$uuid_hex_p4" ]; then
         die "$test_name Unable to find reservation uuid"
     fi
-    # bank_transaction_number="$(get_bank_id_from_reservation_uuid "$uuid_hex_p4")"
-    # if [ -z "$bank_transaction_number" ]; then
-    #     die "$test_name Unable to find bank transaction number"
-    # fi
     csrf_token="$(get_csrf_token_of_user "$admin_user")"
     if [ -z "$csrf_token" ]; then
        die "$test_name no CSRF token generated for $admin_user"
@@ -741,8 +737,45 @@ function test_15_locally_list_4_payments
                          '<input type="file" id="csv_file" name="csv_file">' \
                          '<tr><td>src_id_1</td><td>02/01/1970</td><td>BE001100</td><td>realperson</td><td>Accepté</td><td>partial payment</td><td>69.50</td><td><a href="https://example.com/show_reservation.cgi?uuid_hex='"$uuid_hex_p1_and_p2"'">realperson i@gmail.com</a></td></tr><tr><td>src_id_0</td>' \
                          '<tr><td>src_id_0</td><td>01/01/1970</td><td>BE001100</td><td>realperson</td><td>Accepté</td><td>partial payment</td><td>3.50</td><td><a href="https://example.com/show_reservation.cgi?uuid_hex='"$uuid_hex_p1_and_p2"'">realperson i@gmail.com</a></td></tr><tr><td>2023-00127</td>' \
-                         "<tr><td>2023-00127</td><td>28/03/2023</td><td>BE00020002000202</td><td>ccccc-ccccccccc</td><td>Accepté</td><td>reprise marchandise</td><td>18.00</td><td><form method=\"POST\" action=\"gestion/link_payment_and_reservation.cgi\"><input type=\"hidden\" name=\"csrf_token\" value=\"$csrf_token\"><input type=\"hidden\" name=\"src_id\" value=\"2023-00127\"><select name=\"reservation_uuid\"><option value=\"\">--- Choisir la réservation correspondante ---</option>.*</select>.*</form></td></tr><tr><td>2023-00119</td>" \
-                         "<tr><td>2023-00119</td><td>25/03/2023</td><td>BE100010001010</td><td>SSSSSS GGGGGGGG</td><td>Accepté</td><td>[0-9+/]*</td><td>27.00</td><td><form method=\"POST\" action=\"gestion/link_payment_and_reservation.cgi\"><input type=\"hidden\" name=\"csrf_token\" value=\"$csrf_token\"><input type=\"hidden\" name=\"src_id\" value=\"2023-00119\"><select name=\"reservation_uuid\"><option value=\"$uuid_hex_p4\" selected=\"selected\">[0-9+/]* test i@example.com</option><option value"
+                         "<tr><td>2023-00127</td><td>28/03/2023</td><td>BE00020002000202</td><td>ccccc-ccccccccc</td><td>Accepté</td><td>reprise marchandise</td><td>18.00</td><td><form method=\"POST\" action=\"/gestion/link_payment_and_reservation.cgi\"><input type=\"hidden\" name=\"csrf_token\" value=\"$csrf_token\"><input type=\"hidden\" name=\"src_id\" value=\"2023-00127\"><select name=\"reservation_uuid\"><option value=\"\">--- Choisir la réservation correspondante ---</option>.*</select>.*</form></td></tr><tr><td>2023-00119</td>" \
+                         "<tr><td>2023-00119</td><td>25/03/2023</td><td>BE100010001010</td><td>SSSSSS GGGGGGGG</td><td>Accepté</td><td>[0-9+/]*</td><td>27.00</td><td><form method=\"POST\" action=\"/gestion/link_payment_and_reservation.cgi\"><input type=\"hidden\" name=\"csrf_token\" value=\"$csrf_token\"><input type=\"hidden\" name=\"src_id\" value=\"2023-00119\"><select name=\"reservation_uuid\"><option value=\"$uuid_hex_p4\" selected=\"selected\">[0-9+/]* test i@example.com</option><option value"
+}
+
+function test_16_link_payment_and_reservation
+{
+    local test_name test_output uuid_hex_p4 csrf_token content_boundary payment_uuid src_id
+    test_name="test_16_link_payment_and_reservation"
+    src_id="2023-00119"
+    uuid_hex_p4="$(sql_query 'select uuid from reservations where name="test" limit 1')"
+    if [ -z "$uuid_hex_p4" ]; then
+        die "$test_name Unable to find reservation uuid"
+    fi
+    csrf_token="$(get_csrf_token_of_user "$admin_user")"
+    if [ -z "$csrf_token" ]; then
+       die "$test_name no CSRF token generated for $admin_user"
+    fi
+    content_boundary='95173680fbda20e37a8df066f0d77cc4'
+    export CONTENT_STDIN="--${content_boundary}
+Content-Disposition: form-data; name=\"csrf_token\"
+
+$csrf_token
+--${content_boundary}
+Content-Disposition: form-data; name=\"reservation_uuid\"
+
+$uuid_hex_p4
+--${content_boundary}
+Content-Disposition: form-data; name=\"src_id\"
+
+$src_id
+--${content_boundary}--
+"
+    test_output="$(capture_admin_cgi_output "${test_name}" POST link_payment_and_reservation.cgi '' CONTENT_TYPE="multipart/form-data; boundary=$content_boundary")"
+    export CONTENT_STDIN=""
+    grep -q "^Status: 302" "$test_output" || die "$test_name No Status: 302 redirect in $test_output"
+    target="/gestion/list_payments.cgi"
+    grep -q "^Location: .*$target" "$test_output" || die "$test_name not redirecting to correct target \`\`$target'' in $test_output"
+    payment_uuid="$(sql_query 'select uuid from payments where src_id="'"$src_id"'" limit 1')"
+    [ "$payment_uuid" == "$uuid_hex_p4" ] || die "$test_name payment.uuid='$payment_uuid' not linked with reservation '$uuid_hex_p4'"
 }
 
 # 01: List reservations when DB is still empty, then
@@ -1043,6 +1076,7 @@ test_12_locally_export_csv
 test_13_locally_list_2_payments
 test_14_locally_upload_payments
 test_15_locally_list_4_payments
+test_16_link_payment_and_reservation
 
 # Temporarily disable command logging for deployment
 set +x

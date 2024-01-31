@@ -10,6 +10,10 @@ from storage import Csrf, Payment, Reservation
 from htmlgen import (
     cents_to_euro,
     format_bank_id,
+    html_document,
+    redirect,
+    redirect_to_event,
+    respond_html,
 )
 from lib_post_reservation import (
     make_show_reservation_url
@@ -177,3 +181,68 @@ def _maybe_link__make_form_when_no_reservation_matches_well(connection, pmnt: Pa
                 (('input', 'type', 'submit', 'value', 'Confirmer'),))
     else:
         return "#N/A"
+
+
+def fail_link_payment_and_reservation():
+    redirect_to_event()
+
+
+def respond_link_payment_and_reservation_error(error_title, error_html, list_payments):
+    respond_html(html_document(
+        error_title,
+        error_html + (('br', ),
+                      ('p', (('a', 'href', list_payments),
+                             'Retour à la liste des paiements')))))
+
+def link_payment_and_reservation(db_connection, server_name: str, script_name: str, user: str, ip: str) -> None:
+    list_payments = f"https://{server_name}{os.path.join(os.path.dirname(script_name), 'list_payments.cgi')}"
+    # Get form data
+    form = cgi.FieldStorage()
+    csrf_token = form.getfirst('csrf_token')
+    if csrf_token is None:
+        fail_link_payment_and_reservation()
+        return None
+    else:
+        try:
+            Csrf.validate_and_update(db_connection, csrf_token, user, ip)
+        except KeyError:
+            fail_link_payment_and_reservation()
+            return None
+
+    reservation_uuid = form.getfirst('reservation_uuid')
+    if not reservation_uuid:
+        respond_link_payment_and_reservation_error('Formulaire incomplet', (('p', "Il n'y avait pas de ", ("code", "reservation_uuid"), " dans le formulaire."), ), list_payments)
+        return
+
+    src_id = form.getfirst('src_id')
+    if not src_id:
+        respond_link_payment_and_reservation_error('Formulaire incomplet', (('p', "Il n'y avait pas de ", ("code", "src_id"), " dans le formulaire."), ), list_payments)
+        return
+
+    try:
+        payment = Payment.find_by_src_id(db_connection, src_id)
+    except Exception as exc:
+        respond_link_payment_and_reservation_error(
+            "Erreur de recherche",
+            (("p", "Le paiement '", str(src_id), "' n'a pas été retrouvé: ", repr(exc)),),
+            list_payments)
+        return
+
+    if payment is None:
+        respond_link_payment_and_reservation_error(
+            "Paiement inconnu",
+            (('p', "Le paiement '", str(src_id), "' n'a pas été retrouvé."),),
+            list_payments)
+        return
+
+    try:
+        with db_connection:
+            payment.update_uuid(db_connection, reservation_uuid, user, ip)
+    except Exception as exc:
+        respond_link_payment_and_reservation_error(
+            "Erreur d'écriture",
+            (("p", "Le paiement '", str(src_id), "' n'a pas pu être mis à jour: ", repr(exc)),),
+            list_payments)
+        return
+
+    redirect(list_payments)
