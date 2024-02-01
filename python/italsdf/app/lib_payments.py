@@ -142,11 +142,17 @@ def maybe_link_to_reservation(
     (script_dir, script_basename) = os.path.split(script_name)
     script_super_dir = os.path.dirname(script_dir)
     if res is not None:
-        return (('a',
-                 'href',
-                 make_show_reservation_url(
-                     res.uuid, server_name=server_name, script_name=os.path.join(script_super_dir, script_basename))),
-                _concat_name_and_mail(res))
+        return (('form', 'method', 'POST', 'action', os.path.join(script_dir, 'link_payment_and_reservation.cgi')),
+                 (('a',
+                   'href',
+                   make_show_reservation_url(
+                       res.uuid, server_name=server_name, script_name=os.path.join(script_super_dir, script_basename))),
+                  _concat_name_and_mail(res)),
+                 ' ',
+                 (('input', 'type', 'hidden', 'name', 'csrf_token', 'value', csrf_token),),
+                 (('input', 'type', 'hidden', 'name', 'src_id', 'value', pmnt.src_id),),
+                 (('input', 'type', 'hidden', 'name', 'reservation_uuid', 'value', ''),),
+                 (('input', 'type', 'submit', 'value', 'X'),))
 
     bank_id = pmnt.comment.strip().replace("+", "").replace("/", "")
     if len(bank_id) != 12 or not all(ch.isdigit() for ch in bank_id):
@@ -162,7 +168,7 @@ def maybe_link_to_reservation(
             (('select', 'name', 'reservation_uuid'),
              _maybe_link__make_option(matching_reservation, bank_id),
              *(_maybe_link__make_option(res) for res in Reservation.list_reservations_for_linking_with_payments(connection, matching_reservation.uuid))),
-            (('input', 'type', 'submit', 'value', 'Confirmer'),))
+            (('input', 'type', 'submit', 'value', 'OK'),))
 
 
 def _maybe_link__make_option(res: Reservation, bank_id: Union[str, None]=None) -> Iterable[Any]:
@@ -178,7 +184,7 @@ def _maybe_link__make_form_when_no_reservation_matches_well(connection, pmnt: Pa
                 (('select', 'name', 'reservation_uuid'),
                  (('option', 'value', ''), '--- Choisir la réservation correspondante ---'),
                  *options),
-                (('input', 'type', 'submit', 'value', 'Confirmer'),))
+                (('input', 'type', 'submit', 'value', 'OK'),))
     else:
         return "#N/A"
 
@@ -209,10 +215,7 @@ def link_payment_and_reservation(db_connection, server_name: str, script_name: s
             fail_link_payment_and_reservation()
             return None
 
-    reservation_uuid = form.getfirst('reservation_uuid')
-    if not reservation_uuid:
-        respond_link_payment_and_reservation_error('Formulaire incomplet', (('p', "Il n'y avait pas de ", ("code", "reservation_uuid"), " dans le formulaire."), ), list_payments)
-        return
+    reservation_uuid = form.getfirst('reservation_uuid', '')
 
     src_id = form.getfirst('src_id')
     if not src_id:

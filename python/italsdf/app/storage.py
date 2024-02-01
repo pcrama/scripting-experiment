@@ -507,7 +507,7 @@ class Payment(MiniOrm):
         connection.execute(
             f'''UPDATE {self.TABLE_NAME} SET uuid = :uuid,  user = :user,  ip = :ip,  timestamp = :timestamp
                 WHERE rowid = :rowid''',
-            {"uuid": self.uuid,
+            {"uuid": self.uuid if self.uuid else None,
              "user": self.user,
              "ip": self.ip,
              "timestamp": self.timestamp,

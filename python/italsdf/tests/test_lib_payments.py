@@ -192,7 +192,7 @@ class GetListPaymentsRow(unittest.TestCase):
                                                     (('select', 'name', 'reservation_uuid'),
                                                      (('option', 'value', ''), '--- Choisir la réservation correspondante ---'),
                                                      (('option', 'value', 'deadbeef'), '12349876', ' ', 'testing test@example.com')),
-                                                    (('input', 'type', 'submit', 'value', 'Confirmer'),)))))
+                                                    (('input', 'type', 'submit', 'value', 'OK'),)))))
 
     def test_payment_possible_bankid_but_no_reservations_yet(self):
         configuration = {"dbdir": ":memory:"}
@@ -236,7 +236,7 @@ class GetListPaymentsRow(unittest.TestCase):
                                             (('select', 'name', 'reservation_uuid'),
                                              (('option', 'value', ''), '--- Choisir la réservation correspondante ---'),
                                              (('option', 'value', 'otheruuid'), '+++123/1231/23123+++', ' ', 'Mr B')),
-                                            (('input', 'type', 'submit', 'value', 'Confirmer'),)))))
+                                            (('input', 'type', 'submit', 'value', 'OK'),)))))
 
     def test_payment_already_linked_to_reservation(self):
         configuration = {"dbdir": ":memory:"}
@@ -261,10 +261,17 @@ class GetListPaymentsRow(unittest.TestCase):
                                             ('td', 'unit test comment'),
                                             ('td', '30.00'),
                                             ('td',
-                                             (('a',
-                                               'href',
-                                               f'https://example.com/italsdf2024/show_reservation.cgi?uuid_hex={uuid_hex}'),
-                                              expected_text))))
+                                             (('form', 'method', 'POST', 'action', 'italsdf2024/gestion/link_payment_and_reservation.cgi'),
+                                              (('a',
+                                                'href',
+                                                f'https://example.com/italsdf2024/show_reservation.cgi?uuid_hex={uuid_hex}'),
+                                               expected_text),
+                                              ' ',
+                                              (('input', 'type', 'hidden', 'name', 'csrf_token', 'value', 'csrf_token_value'),),
+                                              (('input', 'type', 'hidden', 'name', 'src_id', 'value', src_id),),
+                                              (('input', 'type', 'hidden', 'name', 'reservation_uuid', 'value', ''),),
+                                              (('input', 'type', 'submit', 'value', 'X'),)))))
+
 
     def test_payment_possible_bankid_and_reservation_match(self):
         configuration = {"dbdir": ":memory:"}
@@ -298,7 +305,7 @@ class GetListPaymentsRow(unittest.TestCase):
                                    '+++671/4235/58049+++', ' ', 'testing test@example.com'),
                                   (('option', 'value', 'otheruuid'),
                                    '+++123/1231/23123+++', ' ', 'Mr B test@example.com')),
-                                 (('input', 'type', 'submit', 'value', 'Confirmer'),)))))
+                                 (('input', 'type', 'submit', 'value', 'OK'),)))))
 
 
 if __name__ == '__main__':

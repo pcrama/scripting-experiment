@@ -125,7 +125,7 @@ class TestPayments_max_timestamp(unittest.TestCase):
 
         self.assertEqual(storage.Payment.max_timestamp(connection), 3.14)
 
-    def test_update_bank_id(self):
+    def test_set_bank_id(self):
         configuration = {"dbdir": ":memory:"}
         connection = storage.ensure_connection(configuration)
         with connection:
@@ -145,6 +145,32 @@ class TestPayments_max_timestamp(unittest.TestCase):
         self.assertEqual(reloaded.amount_in_cents, payment.amount_in_cents)
         self.assertLessEqual(before_save, reloaded.timestamp)
         self.assertLessEqual(reloaded.timestamp, after_save)
+
+    def test_clear_bank_id(self):
+        configuration = {"dbdir": ":memory:"}
+        connection = storage.ensure_connection(configuration)
+        for idx, blank_uuid in enumerate(("", None)):
+            with self.subTest(blank_uuid=blank_uuid):
+                src_id = f"the-src-id-{idx}"
+                with connection:
+                    payment = make_payment(
+                        src_id=src_id, timestamp=3.14, uuid="some-uuid-that-is-not-blank"
+                    ).insert_data(connection)
+
+                before_save = time.time()
+                with connection:
+                    payment.update_uuid(connection, blank_uuid, "the-new-user", "192.0.0.1")
+                after_save = time.time()
+
+                reloaded = storage.Payment.find_by_src_id(connection, payment.src_id)
+
+                self.assertIs(reloaded.uuid, None)
+                self.assertEqual(reloaded.user, "the-new-user")
+                self.assertEqual(reloaded.ip, "192.0.0.1")
+                self.assertEqual(reloaded.comment, payment.comment)
+                self.assertEqual(reloaded.amount_in_cents, payment.amount_in_cents)
+                self.assertLessEqual(before_save, reloaded.timestamp)
+                self.assertLessEqual(reloaded.timestamp, after_save)
 
 
 if __name__ == '__main__':

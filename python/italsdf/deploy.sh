@@ -45,7 +45,6 @@ else
         setup_password=""
         setup_access=""
     fi
-    setup_venv="; [ '$virtualenv_folder' -eq 'no' ] || (python -m venv '${virtualenv_folder%/}'; '${virtualenv_folder%/}/bin/pip' install qrcode)"
     staging_dir="$(mktemp --directory)"
     (cd "$(dirname "$0")/app/gestion" \
          && emacs --batch \
@@ -72,8 +71,13 @@ else
         | tar xf - -C "$staging_dir"
     rm -f "$(dirname "$0")/app/gestion/index.html"
     find "$staging_dir" -type f '(' -name '*.cgi' -o -name '*.py' ')' -print0 | xargs -0 dos2unix
+    if [ "$virtualenv_folder" = "no" ] ; then
+        setup_venv=""
+    else
+        find "$staging_dir" -type f -name '*.cgi' -print0 | xargs -0 -n 1 sed -i -e '1s,.*,#!'"${virtualenv_folder%/}"'/bin/python3,'
+        setup_venv="; python -m venv '${virtualenv_folder%/}'; '${virtualenv_folder%/}/bin/pip' install qrcode"
+    fi
     find "$staging_dir" -type f -name '*.cgi' -print0 | xargs -0 chmod 744
-    find "$staging_dir" -type f -name '*.cgi' -print0 | xargs -0 -n 1 sed -i -e '1s,.*,#!'"${virtualenv_folder%/}"'/bin/python3,'
     app_htaccess="$staging_dir/.htaccess"
     cat <<EOF > "$app_htaccess"
 # Prevent directory listing https://stackoverflow.com/a/2530404:
