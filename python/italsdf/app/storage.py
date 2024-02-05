@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
+import itertools
 import os
 import sqlite3
 import time
-from typing import Any, Callable, Iterable, Union
+from typing import Any, Callable, Iterable, Iterator, Optional, TypeVar, Union
 import uuid
+
 
 def create_db(configuration: dict[str, Any]) -> sqlite3.Connection:
     root_dir = configuration['dbdir']
@@ -12,7 +14,7 @@ def create_db(configuration: dict[str, Any]) -> sqlite3.Connection:
     for table in (Csrf, Reservation, Payment):
         try:
             connection.execute(f'SELECT COUNT(*) FROM {table.TABLE_NAME}')
-        except Exception as e:
+        except Exception:
             table.create_in_db(connection)
     return connection
 
@@ -31,8 +33,9 @@ def default_creation_statement(table_name: str, columns: Iterable[tuple[str, str
 class MiniOrm:
     TABLE_NAME: str
     CREATION_STATEMENTS: Iterable[str]
+    COLUMNS: list[tuple[str, str]]
     SORTABLE_COLUMNS: dict[str, str] = {} # override with column info for `select'
-    FILTERABLE_COLUMNS: dict[str, str] = {} # override with column info for `select'
+    FILTERABLE_COLUMNS: dict[str, Union[bool, tuple[str, str, Callable[[Any], Any]]]] = {} # override with column info for `select'
 
     def __str__(self):
         try:
@@ -53,6 +56,12 @@ class MiniOrm:
             return "".join(parts)
         except Exception:
             return super().__repr__()
+
+    def assoc_iterable(self) -> Iterator[tuple[str, Any]]:
+        return zip((col[0] for col in self.COLUMNS), (getattr(self, col[0]) for col in self.COLUMNS))
+
+    def to_dict(self) -> dict[str, Any]:
+        return {k: v for k, v in self.assoc_iterable()}
 
     @classmethod
     def create_in_db(cls, connection):
@@ -112,12 +121,24 @@ class MiniOrm:
         for row in connection.execute(' '.join(query), params):
             yield cls.from_row(row)
 
+    T = TypeVar("T", bound="MiniOrm")
+
+    @classmethod
+    def parse_from_row(cls: type[T], row: list[Any]) -> tuple[Union[T, None], list[Any]]:
+        nb_cols = len(cls.COLUMNS)
+        if len(row) >= nb_cols:
+            return cls(*row[:nb_cols]), row[nb_cols:]
+        return (None, row)
+
+    def make_into_row(self) -> list[Any]:
+        return []
+
     @classmethod
     def from_row(cls, row):
-        assert len(row) == len(cls.COLUMNS)
-        return cls(**{column_name: elt for ((column_name, _type), elt)
-                      in zip(cls.COLUMNS, row)})
-
+        obj, tail = cls.parse_from_row(row)
+        if obj and not tail:
+            return obj
+        raise RuntimeError(f"Can't turn {row} into a {cls.__name__}")
 
     @classmethod
     def column_ordering_clause(cls, col):
@@ -164,7 +185,136 @@ class MiniOrm:
             return ('(' + ' AND '.join(clauses) + ')', params)
         else:
             return ([], {})
+        
 
+class KidMealCount:
+    FIELD_NAMES = ['main_dish', 'extra_dish', 'third_dish', 'main_dessert', 'extra_dessert']
+    def __init__(self, main_dish, extra_dish, third_dish, main_dessert, extra_dessert):
+        self.main_dish = main_dish
+        self.extra_dish = extra_dish
+        self.third_dish = third_dish
+        self.main_dessert = main_dessert
+        self.extra_dessert = extra_dessert
+
+    @classmethod
+    def parse_from_row(cls, row):
+        nb_fields = 5
+        try:
+            return cls(*row[:nb_fields]), row[nb_fields:]
+        except Exception:
+            return None, row
+
+    def validate(self):
+        errors = [
+            f"{field_name} should be an int in the range 0 to 50, not {value!r}"
+            for field_name, value in self.assoc_iterable()
+            if not isinstance(value, int) or value < 0 or value > 50
+        ]
+
+        if errors:
+            return errors
+
+        dishes = self.count_dishes()
+        desserts = self.count_desserts()
+        if dishes != desserts:
+            return [f"{dishes=} <> {desserts=}"]
+
+        return []
+
+    def count_dishes(self):
+        return self.main_dish + self.extra_dish + self.third_dish
+
+    def count_desserts(self):
+        return self.main_dessert + self.extra_dessert
+
+    def assoc_iterable(self):
+        return zip(self.FIELD_NAMES, 
+                   (self.main_dish, self.extra_dish, self.third_dish,
+                    self.main_dessert, self.extra_dessert))
+    
+    def to_dict(self):
+        return {k: v for k, v in self.assoc_iterable()}
+
+    def make_into_row(self):
+        return [
+            self.main_dish,
+            self.extra_dish,
+            self.third_dish,
+            self.main_dessert,
+            self.extra_dessert,
+        ]
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.main_dish!r}, {self.extra_dish!r}, {self.third_dish!r}, {self.main_dessert!r}, {self.extra_dessert!r})"
+
+
+class FullMealCount:
+    FIELD_NAMES = ['main_starter', 'extra_starter'] + KidMealCount.FIELD_NAMES
+    def __init__(self, main_starter, extra_starter, main_dish, extra_dish, third_dish, main_dessert, extra_dessert):
+        self.main_starter = main_starter
+        self.extra_starter = extra_starter
+        self.main_dish = main_dish
+        self.extra_dish = extra_dish
+        self.third_dish = third_dish
+        self.main_dessert = main_dessert
+        self.extra_dessert = extra_dessert
+
+    @classmethod
+    def parse_from_row(cls, row):
+        nb_fields = 7
+        try:
+            return cls(*row[:nb_fields]), row[nb_fields:]
+        except Exception:
+            return None, row
+
+    def make_into_row(self):
+        return [self.main_starter, self.extra_starter, self.main_dish, self.extra_dish, self.third_dish, self.main_dessert, self.extra_dessert]
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.main_starter!r}, {self.extra_starter!r}, {self.main_dish!r}, {self.extra_dish!r}, {self.third_dish!r}, {self.main_dessert!r}, {self.extra_dessert!r})"
+
+    def validate(self):
+        return [
+            f"{field_name} should be an int in the range 0 to 50, not {value!r}"
+            for field_name, value in self.assoc_iterable()
+            if not isinstance(value, int) or value < 0 or value > 50
+        ]
+
+    def count_starters(self):
+        return self.main_starter + self.extra_starter
+
+    def count_dishes(self):
+        return self.main_dish + self.extra_dish + self.third_dish
+
+    def count_desserts(self):
+        return self.main_dessert + self.extra_dessert
+
+    def assoc_iterable(self):
+        return zip(self.FIELD_NAMES, 
+                   (self.main_starter, self.extra_starter,
+                    self.main_dish, self.extra_dish, self.third_dish,
+                    self.main_dessert, self.extra_dessert))
+    
+    def to_dict(self):
+        return {k: v for k, v in self.assoc_iterable()}
+
+
+class MenuCount(FullMealCount):
+    def validate(self):
+        errors = super().validate()
+        if errors:
+            return errors
+
+        starters = self.count_starters()
+        dishes = self.count_dishes()
+        desserts = self.count_desserts()
+        if starters != dishes:
+            return [f"{starters=} <> {dishes=}"]
+        if dishes != desserts:
+            return [f"{dishes=} <> {desserts=}"]
+
+        return []
+        
 
 class Reservation(MiniOrm):
     TABLE_NAME = 'reservations'
@@ -174,19 +324,12 @@ class Reservation(MiniOrm):
         ("extra_comment", "TEXT"),
         ("places", "INTEGER CHECK(places > 0)"),
         ("date", "TEXT NOT NULL"),
-        ("outside_extra_starter", "INTEGER"),
-        ("outside_main_starter", "INTEGER"),
-        ("outside_bolo", "INTEGER"),
-        ("outside_extra_dish", "INTEGER"),
-        ("outside_dessert", "INTEGER"),
-        ("inside_extra_starter", "INTEGER CHECK(inside_extra_starter + inside_main_starter = inside_bolo + inside_extra_dish)"),
-        ("inside_main_starter", "INTEGER"),
-        ("inside_bolo", "INTEGER"),
-        ("inside_extra_dish", "INTEGER"),
-        ("kids_bolo", "INTEGER"),
-        ("kids_extra_dish", "INTEGER"),
+        *((f"outside_{k}", "INTEGER") for k in FullMealCount.FIELD_NAMES),
+        *((f"inside_{k}", "INTEGER") for k in MenuCount.FIELD_NAMES),
+        *((f"kids_{k}", "INTEGER") for k in KidMealCount.FIELD_NAMES),
+        # ("inside_extra_starter", "INTEGER CHECK(inside_extra_starter + inside_main_starter = inside_main_dish + inside_extra_dish)"),
         ("gdpr_accepts_use", "INTEGER"),
-        ("cents_due", "INTEGER"),
+        ("cents_due", "INTEGER CHECK(cents_due >= 0)"),
         ("bank_id", "TEXT NOT NULL"),
         ("uuid", "TEXT NOT NULL"),
         ("time", "REAL"),
@@ -204,17 +347,9 @@ class Reservation(MiniOrm):
                  extra_comment,
                  places,
                  date,
-                 outside_extra_starter,
-                 outside_main_starter,
-                 outside_bolo,
-                 outside_extra_dish,
-                 outside_dessert,
-                 inside_extra_starter,
-                 inside_main_starter,
-                 inside_bolo,
-                 inside_extra_dish,
-                 kids_bolo,
-                 kids_extra_dish,
+                 outside: FullMealCount,
+                 inside: MenuCount,
+                 kids: KidMealCount,
                  gdpr_accepts_use,
                  cents_due,
                  bank_id,
@@ -229,17 +364,9 @@ class Reservation(MiniOrm):
         self.extra_comment = extra_comment
         self.places = places
         self.date = date
-        self.outside_extra_starter = outside_extra_starter
-        self.outside_main_starter = outside_main_starter
-        self.outside_bolo = outside_bolo
-        self.outside_extra_dish = outside_extra_dish
-        self.outside_dessert = outside_dessert
-        self.inside_extra_starter = inside_extra_starter
-        self.inside_main_starter = inside_main_starter
-        self.inside_bolo = inside_bolo
-        self.inside_extra_dish = inside_extra_dish
-        self.kids_bolo = kids_bolo
-        self.kids_extra_dish = kids_extra_dish
+        self.outside = outside
+        self.inside = inside
+        self.kids = kids
         self.gdpr_accepts_use = gdpr_accepts_use
         self.cents_due = cents_due
         self.bank_id = bank_id
@@ -248,55 +375,84 @@ class Reservation(MiniOrm):
         self.active = active
         self.origin = origin
 
-    @property
-    def inside_dessert(self):
-        return self.inside_bolo + self.inside_extra_dish
 
-    @property
-    def kids_dessert(self):
-        return self.kids_bolo + self.kids_extra_dish
+    @classmethod
+    def parse_from_row(cls, row):
+        prefix_len = 5
+        suffix_len = 7
+        if len(row) < prefix_len + suffix_len:
+            return None, row
 
+        try:
+            prefix = row[:prefix_len]
+            outside, tail = FullMealCount.parse_from_row(row[prefix_len:])
+            if not outside:
+                return None, row
+            inside, tail = MenuCount.parse_from_row(tail)
+            if not inside:
+                return None, row
+            kids, tail = KidMealCount.parse_from_row(tail)
+            if not kids:
+                return None, row
+            if len(tail) < suffix_len:
+                return None, row
+            return cls(*prefix, outside, inside, kids, *tail[:suffix_len]), tail[suffix_len:]
+        except Exception:
+            return (None, row)
+
+
+    def make_into_row(self):
+        return [self.name,
+                self.email,
+                self.extra_comment,
+                self.places,
+                self.date,
+                *self.outside.make_into_row(),
+                *self.inside.make_into_row(),
+                *self.kids.make_into_row(),
+                self.gdpr_accepts_use,
+                self.cents_due,
+                self.bank_id,
+                self.uuid,
+                self.timestamp,
+                self.active,
+                self.origin]
+
+
+    def assoc_iterable(self):
+        return itertools.chain(
+            (('name', self.name),
+             ('email', self.email),
+             ('extra_comment', self.extra_comment),
+             ('places', self.places),
+             ('date', self.date)),
+            ((f"outside_{col}", val) for col, val in self.outside.assoc_iterable()),
+            ((f"inside_{col}", val) for col, val in self.inside.assoc_iterable()),
+            ((f"kids_{col}", val) for col, val in self.kids.assoc_iterable()),
+            (('gdpr_accepts_use', self.gdpr_accepts_use),
+             ('cents_due', self.cents_due),
+             ('bank_id', self.bank_id),
+             ('uuid', self.uuid),
+             ('timestamp', self.timestamp),
+             ('active', self.active),
+             ('origin', self.origin)))
+            
     def to_dict(self):
-        return {
-            'name': self.name,
-            'email': self.email,
-            'extra_comment': self.extra_comment,
-            'places': self.places,
-            'date': self.date,
-            'outside_extra_starter': self.outside_extra_starter,
-            'outside_main_starter': self.outside_main_starter,
-            'outside_bolo': self.outside_bolo,
-            'outside_extra_dish': self.outside_extra_dish,
-            'outside_dessert': self.outside_dessert,
-            'inside_extra_starter': self.inside_extra_starter,
-            'inside_main_starter': self.inside_main_starter,
-            'inside_bolo': self.inside_bolo,
-            'inside_extra_dish': self.inside_extra_dish,
-            'kids_bolo': self.kids_bolo,
-            'kids_extra_dish': self.kids_extra_dish,
-            'gdpr_accepts_use': self.gdpr_accepts_use,
-            'cents_due': self.cents_due,
-            'bank_id': self.bank_id,
-            'uuid': self.uuid,
-            'time': self.timestamp,
-            'active': self.active,
-            'origin': self.origin}
-
+        return {k: v for k, v in self.assoc_iterable()}
 
     def insert_data(self, connection) -> "Reservation":
         connection.execute(
             f'''INSERT INTO {self.TABLE_NAME} VALUES (
-                 :name, :email, :extra_comment, :places, :date, :outside_extra_starter, :outside_main_starter,
-                 :outside_bolo, :outside_extra_dish, :outside_dessert, :inside_extra_starter,
-                 :inside_main_starter, :inside_bolo, :inside_extra_dish,
-                 :kids_bolo, :kids_extra_dish,
-                 :gdpr_accepts_use, :cents_due, :bank_id, :uuid, :time, :active, :origin)''',
+                    {",".join(":" + name for name, _ in self.assoc_iterable())}
+                )''',
             self.to_dict())
         return self
 
+    def validate(self):
+        return self.inside.validate() + self.outside.validate() + self.kids.validate()
 
     @classmethod
-    def count_places(cls, connection, name=None, email=None):
+    def count_places(cls, connection, name: Optional[str]=None, email: Optional[str]=None) -> tuple[int, int]:
         conditions = []
         params = {}
         for (p, n) in ((name, 'name'), (email, 'email')):
@@ -313,17 +469,7 @@ class Reservation(MiniOrm):
 
 
     @classmethod
-    def count_starters(cls, connection, name, email):
-        return connection.execute(
-            f'''SELECT COUNT(*), SUM(outside_extra_starter + outside_main_starter + inside_extra_starter + inside_main_starter)
-                FROM {cls.TABLE_NAME}
-                WHERE active != 0 AND (LOWER(name) = :name OR LOWER(email) = :email)''',
-            {'name': name.lower(), 'email': email.lower()}
-        ).fetchone()
-
-
-    @classmethod
-    def count_menu_data(cls, connection, date=None):
+    def count_menu_data(cls, connection, date: Optional[str]=None) -> tuple[int, int, int, int, int, int, int, int, int, int, int]:
         if date is None:
             date_condition = ''
             bindings = {}
@@ -331,19 +477,26 @@ class Reservation(MiniOrm):
             date_condition = ' AND date = :date'
             bindings = {'date': date}
         return connection.execute(
-            f'''SELECT COUNT(*), SUM(outside_main_starter + inside_main_starter), SUM(outside_extra_starter + inside_extra_starter), SUM(outside_bolo + inside_bolo), SUM(outside_extra_dish + inside_extra_dish), SUM(kids_bolo), SUM(kids_extra_dish), SUM(outside_dessert + inside_bolo + inside_extra_dish + kids_bolo + kids_extra_dish) FROM {cls.TABLE_NAME}
+            f'''SELECT COUNT(*), SUM(outside_main_starter + inside_main_starter), SUM(outside_extra_starter + inside_extra_starter), SUM(outside_main_dish + inside_main_dish), SUM(outside_extra_dish + inside_extra_dish), SUM(outside_third_dish + inside_third_dish), SUM(kids_main_dish), SUM(kids_extra_dish), SUM(kids_third_dish), SUM(outside_main_dessert + inside_main_dessert + kids_main_dessert), SUM(outside_extra_dessert + inside_extra_dessert + kids_extra_dessert) FROM {cls.TABLE_NAME}
                 WHERE active != 0{date_condition}''',
             bindings
         ).fetchone()
 
-
     @classmethod
-    def count_desserts(cls, connection, name, email):
+    def count_some_desserts(cls, connection, name: str, email: str, dessert_type: str) -> tuple[int, int]:
         return connection.execute(
-            f'''SELECT COUNT(*), SUM(outside_dessert + inside_bolo + inside_extra_dish + kids_bolo + kids_extra_dish) FROM {cls.TABLE_NAME}
+            f'''SELECT COUNT(*), SUM(outside_{dessert_type}_dessert + inside_{dessert_type}_dessert + kids_{dessert_type}_dessert) FROM {cls.TABLE_NAME}
                 WHERE active != 0 AND (LOWER(name) = :name OR LOWER(email) = :email)''',
             {'name': name.lower(), 'email': email.lower()}
         ).fetchone()
+
+    @classmethod
+    def count_main_desserts(cls, connection, name: str, email: str) -> tuple[int, int]:
+        return cls.count_some_desserts(connection, name, email, 'main')
+
+    @classmethod
+    def count_extra_desserts(cls, connection, name: str, email: str) -> tuple[int, int]:
+        return cls.count_some_desserts(connection, name, email, 'extra')
 
     def remaining_amount_due_in_cents(self, connection: Union[sqlite3.Cursor, sqlite3.Connection]):
         # TODO: not the most efficient but I have small data sets only anyway (less than 100 rows)
@@ -361,12 +514,12 @@ class Reservation(MiniOrm):
             f"""SELECT {','.join(col[0] for col in cls.COLUMNS)} FROM {cls.TABLE_NAME}
                 WHERE bank_id = :bank_id""",
             {"bank_id": bank_id}).fetchone()
-        return Reservation(*row) if row else None
+        return Reservation.from_row(row) if row else None
 
     @classmethod
     def list_reservations_for_linking_with_payments(cls, connection, exclude_uuid: str) -> Iterable["Reservation"]:
         return [
-            Reservation(*row) for row in connection.execute(
+            Reservation.from_row(row) for row in connection.execute(
             f"""SELECT {','.join(col[0] for col in cls.COLUMNS)} FROM {cls.TABLE_NAME}
                 WHERE active != 0 AND uuid != :uuid
                 ORDER BY name""",
@@ -380,11 +533,14 @@ class Reservation(MiniOrm):
                         'places': 'places',
                         'extra_starter': '(outside_extra_starter + inside_extra_starter)',
                         'main_starter': '(outside_main_starter + inside_main_starter)',
-                        'bolo': '(outside_bolo + inside_bolo)',
-                        'kids_bolo': 'kids_bolo',
+                        'main_dish': '(outside_main_dish + inside_main_dish)',
+                        'kids_main_dish': 'kids_main_dish',
                         'extra_dish': '(outside_extra_dish + inside_extra_dish)',
                         'kids_extra_dish': 'kids_extra_dish',
-                        'dessert': '(outside_dessert + inside_bolo + inside_extra_dish + kids_bolo + kids_extra_dish)',
+                        'third_dish': '(outside_third_dish + inside_third_dish)',
+                        'kids_third_dish': 'kids_third_dish',
+                        'main_dessert': '(outside_main_dessert + inside_main_dessert + kids_main_dessert)',
+                        'extra_dessert': '(outside_extra_dessert + inside_extra_dessert + kids_extra_dessert)',
                         'origin': 'LOWER(origin)',
                         'active': 'active'}
 
@@ -396,13 +552,13 @@ class Reservation(MiniOrm):
                           'bank_id': True,
                           'uuid': True,
                           'active': MiniOrm.compare_as_bool('active'),
-                          'origin': ('LOWER(origin)', '=', str.lower),
+                          # 'origin': ('LOWER(origin)', '=', str.lower),
                           'gdpr_accepts_use': MiniOrm.compare_as_bool('gdpr_accepts_use')}
 
 
 class Payment(MiniOrm):
     TABLE_NAME = 'payments'
-    COLUMNS = (
+    COLUMNS = [
         ("rowid", "INTEGER NOT NULL PRIMARY KEY"),
         ("timestamp", "REAL"),
         ("amount_in_cents", "INTEGER NOT NULL"),
@@ -414,7 +570,7 @@ class Payment(MiniOrm):
         ("status", "TEXT NOT NULL"),
         ("user", "TEXT NOT NULL"),
         ("ip", "TEXT NOT NULL"),
-    )
+    ]
     CREATION_STATEMENTS = [
         default_creation_statement(TABLE_NAME, COLUMNS),
         f"CREATE INDEX index_uuid_{TABLE_NAME} ON {TABLE_NAME} (uuid)",
@@ -451,21 +607,6 @@ class Payment(MiniOrm):
         self.user = user
         self.ip = ip
 
-    def to_dict(self):
-        return {
-            "rowid": self.rowid,
-            "timestamp": self.timestamp,
-            "amount_in_cents": self.amount_in_cents,
-            "comment": self.comment,
-            "uuid": self.uuid,
-            "src_id": self.src_id,
-            "other_account": self.other_account,
-            "other_name": self.other_name,
-            "status": self.status,
-            "user": self.user,
-            "ip": self.ip,
-        }
-
     @classmethod
     def find_by_src_id(cls, connection: Union[sqlite3.Cursor, sqlite3.Connection], src_id: str) -> Union["Payment", None]:
         row = connection.execute(
@@ -490,11 +631,13 @@ class Payment(MiniOrm):
         ).fetchone()[0] or 0
 
     def insert_data(self, connection) -> "Payment":
-        self.rowid = connection.execute(
+        cursor = connection.cursor()
+        cursor.execute(
             f'''INSERT INTO {self.TABLE_NAME} VALUES (
                  :rowid, :timestamp, :amount_in_cents, :comment, :uuid, :src_id, :other_account, :other_name, :status, :user, :ip)
-                RETURNING rowid''',
-            self.to_dict()).fetchone()[0]
+             ''',
+            self.to_dict())
+        self.rowid = cursor.lastrowid
         return self
 
     def update_uuid(self, connection, uuid: Union[str, None], user: str, ip: str) -> "Payment":
@@ -539,21 +682,27 @@ class Payment(MiniOrm):
             query.append('OFFSET :offset')
             params['offset'] = offset
         for row in connection.execute(' '.join(query), params):
-            payment_row = row[:len(cls.COLUMNS)]
-            reservation_row = row[len(cls.COLUMNS):]
-            reservation = None if all(col is None or col == "" for col in reservation_row) else Reservation.from_row(reservation_row)
-            yield cls.from_row(payment_row), reservation
+            payment, reservation_row = cls.parse_from_row(row)
+            if not payment:
+                raise RuntimeError("Unable to create Payment from DB data")
+            if all(col is None or col == "" for col in reservation_row):
+                reservation = None
+            else:
+                reservation, tail = Reservation.parse_from_row(reservation_row)
+                if not reservation or tail:
+                    raise RuntimeError(f"Unable to create Reservation from DB data joined to Payment({payment.src_id})")
+            yield payment, reservation
 
 
 class Csrf(MiniOrm):
     TABLE_NAME = 'csrfs'
     SESSION_IN_SECONDS = 7200
-    COLUMNS = (
+    COLUMNS = [
         ("token", "TEXT NOT NULL PRIMARY KEY"),
         ("timestamp", "REAL"),
         ("user", "TEXT NOT NULL"),
         ("ip", "TEXT NOT NULL"),
-    )
+    ]
     CREATION_STATEMENTS = [default_creation_statement(TABLE_NAME, COLUMNS)]
 
     def __init__(self, token=None, timestamp=None, user=None, ip=None):

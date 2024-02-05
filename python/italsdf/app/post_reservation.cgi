@@ -3,11 +3,10 @@
 #
 # Test with
 #
-# echo | (cd app && script_name=post_reservation.cgi && env REQUEST_METHOD=POST 'QUERY_STRING=name=test&email=i%40example.com&extraComment=commentaire&places=1&insidemainstarter=2&insideextrastarter=1&insidebolo=0&insideextradish=3&bolokids=1&extradishkids=3&outsidemainstarter=9&outsideextrastarter=5&outsidebolo=6&outsideextradish=7&outsidedessert=8&gdpr_accepts_use=true&date=2099-01-01' SERVER_NAME=example.com SCRIPT_NAME=$script_name python3 $script_name)
+# echo | (cd app && script_name=post_reservation.cgi && env REQUEST_METHOD=POST 'QUERY_STRING=name=test&email=i%40example.com&extraComment=commentaire&places=1&insidemainstarter=2&insideextrastarter=1&insidemaindish=0&insideextradish=3&kidsmaindish=1&kidsextradish=3&outsidemainstarter=9&outsideextrastarter=5&outsidemaindish=6&outsideextradish=7&outsidedessert=8&gdpr_accepts_use=true&date=2099-01-01' SERVER_NAME=example.com SCRIPT_NAME=$script_name python3 $script_name)
 import cgi
 import cgitb
 import os
-import re
 import sys
 
 import config
@@ -22,57 +21,10 @@ from storage import(
 )
 from lib_post_reservation import(
     ValidationException,
-    normalize_data,
     respond_with_reservation_confirmation,
-    respond_with_reservation_failed,
     respond_with_reservations_closed,
-    save_data_sqlite3,
     validate_data,
 )
-
-'''
-Input:
-- name
-- email
-- date
-- ou_outsidemainstarter
-- ou_outsideextrastarter
-- ou_outsidebolo
-- ou_outsideextradish
-- ou_outsidedessert
-- in_insidemainstarter
-- in_insideextrastarter
-- in_insidebolo
-- in_insideextradish
-- kd_kidsbolo
-- kd_kidsextradish
-- gdpr_accepts_use
-- uuid
-- time
-- active
-- origin
-
-Save:
-- name
-- email
-- date
-- outside_main_starter
-- outside_extra_starter
-- outside_bolo
-- outside_extra_dish
-- outside_dessert
-- inside_main_starter
-- inside_extra_starter
-- inside_bolo
-- inside_extra_dish
-- kids_bolo
-- kids_extra_dish
-- gdpr_accepts_use
-- uuid
-- time
-- active
-- origin
-'''
 
 
 def respond_with_validation_error(form, e, configuration):
@@ -113,26 +65,34 @@ if __name__ == '__main__':
         date = form.getfirst('date', default='')
         outside_main_starter = form.getfirst('outsidemainstarter', default=0)
         outside_extra_starter = form.getfirst('outsideextrastarter', default=0)
-        outside_bolo = form.getfirst('outsidebolo', default=0)
+        outside_main_dish = form.getfirst('outsidemaindish', default=0)
         outside_extra_dish = form.getfirst('outsideextradish', default=0)
-        outside_dessert = form.getfirst('outsidedessert', default=0)
+        outside_third_dish = form.getfirst('outsidethirddish', default=0)
+        outside_main_dessert = form.getfirst('outsidemaindessert', default=0)
+        outside_extra_dessert = form.getfirst('outsideextradessert', default=0)
         inside_main_starter = form.getfirst('insidemainstarter', default=0)
         inside_extra_starter = form.getfirst('insideextrastarter', default=0)
-        inside_bolo = form.getfirst('insidebolo', default=0)
+        inside_main_dish = form.getfirst('insidemaindish', default=0)
         inside_extra_dish = form.getfirst('insideextradish', default=0)
-        kids_bolo = form.getfirst('bolokids', default=0)
-        kids_extra_dish = form.getfirst('extradishkids', default=0)
+        inside_third_dish = form.getfirst('insidethirddish', default=0)
+        inside_main_dessert = form.getfirst('insidemaindessert', default=0)
+        inside_extra_dessert = form.getfirst('insideextradessert', default=0)
+        kids_main_dish = form.getfirst('kidsmaindish', default=0)
+        kids_extra_dish = form.getfirst('kidsextradish', default=0)
+        kids_third_dish = form.getfirst('kidsthirddish', default=0)
+        kids_main_dessert = form.getfirst('kidsmaindessert', default=0)
+        kids_extra_dessert = form.getfirst('kidsextradessert', default=0)
         gdpr_accepts_use = form.getfirst('gdpr_accepts_use', default=False)
         try:
             (name, email, extra_comment, places, date,
-             outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert,
-             inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish,
-             kids_bolo, kids_extra_dish,
+             outside_main_starter, outside_extra_starter, outside_main_dish, outside_extra_dish, outside_third_dish, outside_main_dessert, outside_extra_dessert,
+             inside_main_starter, inside_extra_starter, inside_main_dish, inside_extra_dish, inside_third_dish, inside_main_dessert, inside_extra_dessert,
+             kids_main_dish, kids_extra_dish, kids_third_dish, kids_main_dessert, kids_extra_dessert,
              gdpr_accepts_use) = validate_data(
                  name, email, extra_comment, places, date,
-                 outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert,
-                 inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish,
-                 kids_bolo, kids_extra_dish,
+             outside_main_starter, outside_extra_starter, outside_main_dish, outside_extra_dish, outside_third_dish, outside_main_dessert, outside_extra_dessert,
+             inside_main_starter, inside_extra_starter, inside_main_dish, inside_extra_dish, inside_third_dish, inside_main_dessert, inside_extra_dessert,
+             kids_main_dish, kids_extra_dish, kids_third_dish, kids_main_dessert, kids_extra_dessert,
                  gdpr_accepts_use, db_connection)
         except ValidationException as e:
             respond_with_validation_error(form, e, CONFIGURATION)
@@ -145,15 +105,23 @@ if __name__ == '__main__':
                 date,
                 outside_main_starter,
                 outside_extra_starter,
-                outside_bolo,
+                outside_main_dish,
                 outside_extra_dish,
-                outside_dessert,
+                outside_third_dish,
+                outside_main_dessert,
+                outside_extra_dessert,
                 inside_main_starter,
                 inside_extra_starter,
-                inside_bolo,
+                inside_main_dish,
                 inside_extra_dish,
-                kids_bolo,
+                inside_third_dish,
+                inside_main_dessert,
+                inside_extra_dessert,
+                kids_main_dish,
                 kids_extra_dish,
+                kids_third_dish,
+                kids_main_dessert,
+                kids_extra_dessert,
                 gdpr_accepts_use,
                 db_connection,
                 CONFIGURATION)

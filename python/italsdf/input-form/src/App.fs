@@ -4,85 +4,85 @@ open Elmish
 open Elmish.React
 open Feliz
 
-type Plate = | InsideMainStarter | InsideExtraStarter | InsideBolo | InsideExtraDish | BoloKids | ExtraDishKids | OutsideMainStarter | OutsideExtraStarter | OutsideBolo | OutsideExtraDish | OutsideDessert
+type Plate = | InsideMainStarter | InsideExtraStarter | InsideMainDish | InsideExtraDish | KidsMainDish | KidsExtraDish | OutsideMainStarter | OutsideExtraStarter | OutsideMainDish | OutsideExtraDish | OutsideDessert
 
-let AllPlates = [InsideMainStarter; InsideExtraStarter; InsideBolo; InsideExtraDish; BoloKids; ExtraDishKids; OutsideMainStarter; OutsideExtraStarter; OutsideBolo; OutsideExtraDish; OutsideDessert]
+let AllPlates = [InsideMainStarter; InsideExtraStarter; InsideMainDish; InsideExtraDish; KidsMainDish; KidsExtraDish; OutsideMainStarter; OutsideExtraStarter; OutsideMainDish; OutsideExtraDish; OutsideDessert]
 
 type Tickets<'t> =
     {
         // Ordered inside a menu
         insideMainStarter : 't
         insideExtraStarter : 't
-        insideBolo : 't
+        insideMainDish : 't
         insideExtraDish : 't
         // Ordered indepently of a menu
         outsideMainStarter : 't
         outsideExtraStarter : 't
-        outsideBolo : 't
+        outsideMainDish : 't
         outsideExtraDish : 't
         outsideDessert : 't
         // Kids menus
-        boloKids : 't
-        extraDishKids : 't
+        kidsMainDish : 't
+        kidsExtraDish : 't
     }
     with member this.Get = function
                 | InsideMainStarter -> this.insideMainStarter
                 | InsideExtraStarter -> this.insideExtraStarter
-                | InsideBolo -> this.insideBolo
+                | InsideMainDish -> this.insideMainDish
                 | InsideExtraDish -> this.insideExtraDish
-                | BoloKids -> this.boloKids
-                | ExtraDishKids -> this.extraDishKids
+                | KidsMainDish -> this.kidsMainDish
+                | KidsExtraDish -> this.kidsExtraDish
                 | OutsideMainStarter -> this.outsideMainStarter
                 | OutsideExtraStarter -> this.outsideExtraStarter
-                | OutsideBolo -> this.outsideBolo
+                | OutsideMainDish -> this.outsideMainDish
                 | OutsideExtraDish -> this.outsideExtraDish
                 | OutsideDessert -> this.outsideDessert
 
 let PrixEntreeCents = 750
-let PrixBoloCents = 1500
-let PrixExtraDishCents = PrixBoloCents
+let PrixMainDishCents = 1500
+let PrixExtraDishCents = PrixMainDishCents
 let PrixDessertCents = 750
-let PrixMenuBolo = PrixEntreeCents + PrixBoloCents + PrixDessertCents - 300
+let PrixMenuMainDish = PrixEntreeCents + PrixMainDishCents + PrixDessertCents - 300
 let PrixMenuExtraDish = PrixEntreeCents + PrixExtraDishCents + PrixDessertCents - 300
 let PrixMenuKids = 1600
 
 let MainStarterName = "Tomate Mozzarella"
 let ExtraStarterName = "Croquettes au fromage"
-let BoloName = "Spaghetti bolognaise"
+let MainDishName = "Spaghetti bolognaise"
 let ExtraDishName = "Spaghetti aux légumes"
 let DessertName = "Assiette de 3 mignardises"
 let KidsSuffix = " (enfants)"
 let TicketsNames = {
     insideMainStarter = MainStarterName
     insideExtraStarter = ExtraStarterName
-    insideBolo = BoloName
+    insideMainDish = MainDishName
     insideExtraDish = ExtraDishName
     outsideMainStarter = MainStarterName
     outsideExtraStarter = ExtraStarterName
-    outsideBolo = BoloName
+    outsideMainDish = MainDishName
     outsideExtraDish = ExtraDishName
     outsideDessert = DessertName
-    boloKids = BoloName + KidsSuffix
-    extraDishKids = ExtraDishName + KidsSuffix
+    kidsMainDish = MainDishName + KidsSuffix
+    kidsExtraDish = ExtraDishName + KidsSuffix
 }
 
 let MainStarterNamePlural = "Tomates Mozzarella"
 let ExtraStarterNamePlural = "Croquettes au fromage"
-let BoloNamePlural = "Spaghettis bolognaise"
+let MainDishNamePlural = "Spaghettis bolognaise"
 let ExtraDishNamePlural = "Spaghettis aux légumes"
 let DessertNamePlural = "Assiettes de 3 mignardises"
 let TicketsNamesPlural = {
     insideMainStarter = MainStarterNamePlural
     insideExtraStarter = ExtraStarterNamePlural
-    insideBolo = BoloNamePlural
+    insideMainDish = MainDishNamePlural
     insideExtraDish = ExtraDishNamePlural
     outsideMainStarter = MainStarterNamePlural
     outsideExtraStarter = ExtraStarterNamePlural
-    outsideBolo = BoloNamePlural
+    outsideMainDish = MainDishNamePlural
     outsideExtraDish = ExtraDishNamePlural
     outsideDessert = DessertNamePlural
-    boloKids = BoloNamePlural + KidsSuffix
-    extraDishKids = ExtraDishNamePlural + KidsSuffix
+    kidsMainDish = MainDishNamePlural + KidsSuffix
+    kidsExtraDish = ExtraDishNamePlural + KidsSuffix
 }
 
 type State = {
@@ -114,15 +114,15 @@ let updateTickets (tickets : Tickets<'a>) (plate: Plate) (newValue: 'a): Tickets
     match plate with
     | InsideMainStarter -> { tickets with insideMainStarter = newValue }
     | InsideExtraStarter -> { tickets with insideExtraStarter = newValue }
-    | InsideBolo -> { tickets with insideBolo = newValue }
+    | InsideMainDish -> { tickets with insideMainDish = newValue }
     | InsideExtraDish -> { tickets with insideExtraDish = newValue }
     | OutsideMainStarter -> { tickets with outsideMainStarter = newValue }
     | OutsideExtraStarter -> { tickets with outsideExtraStarter = newValue }
-    | OutsideBolo -> { tickets with outsideBolo = newValue }
+    | OutsideMainDish -> { tickets with outsideMainDish = newValue }
     | OutsideExtraDish -> { tickets with outsideExtraDish = newValue }
     | OutsideDessert -> { tickets with outsideDessert = newValue }
-    | BoloKids -> { tickets with boloKids = newValue }
-    | ExtraDishKids -> { tickets with extraDishKids = newValue }
+    | KidsMainDish -> { tickets with kidsMainDish = newValue }
+    | KidsExtraDish -> { tickets with kidsExtraDish = newValue }
 
 let updateNoValidate (msg: Msg) (state: State): State =
     match msg with
@@ -209,24 +209,24 @@ let validatePlatePair
 let validateTickets (t: Tickets<int>) (target: int option) (kidsTarget: int option): Tickets<string list> =
     let (insideMainStarter, insideExtraStarter) = validatePlatePair t InsideMainStarter InsideExtraStarter target
     let (outsideMainStarter, outsideExtraStarter) = validatePlatePair t OutsideMainStarter OutsideExtraStarter None
-    let (insideBolo, insideExtraDish) = validatePlatePair t InsideBolo InsideExtraDish target
-    let (outsideBolo, outsideExtraDish) = validatePlatePair t OutsideBolo OutsideExtraDish None
-    let (boloKids, extraDishKids) = validatePlatePair t BoloKids ExtraDishKids kidsTarget
+    let (insideMainDish, insideExtraDish) = validatePlatePair t InsideMainDish InsideExtraDish target
+    let (outsideMainDish, outsideExtraDish) = validatePlatePair t OutsideMainDish OutsideExtraDish None
+    let (kidsMainDish, kidsExtraDish) = validatePlatePair t KidsMainDish KidsExtraDish kidsTarget
     let outsideDessert = validateInclusiveBelow t
                                                 OutsideDessert
                                                 FormMaxInt
                                                 (validatePositive t OutsideDessert [])
     { insideMainStarter = insideMainStarter
       insideExtraStarter = insideExtraStarter
-      insideBolo = insideBolo
+      insideMainDish = insideMainDish
       insideExtraDish = insideExtraDish
       outsideMainStarter = outsideMainStarter
       outsideExtraStarter = outsideExtraStarter
-      outsideBolo = outsideBolo
+      outsideMainDish = outsideMainDish
       outsideExtraDish = outsideExtraDish
       outsideDessert = outsideDessert
-      boloKids = boloKids
-      extraDishKids = extraDishKids }
+      kidsMainDish = kidsMainDish
+      kidsExtraDish = kidsExtraDish }
 
 let csrfToken: string option =
     match Fable.Core.JS.eval "try { CSRF_TOKEN } catch { '' }" with
@@ -267,17 +267,17 @@ let validateState (state: State): State =
 
 let totalPriceInCents (state: State): int option =
     match state with
-    | { ticketsErrors = { insideMainStarter = []; insideExtraStarter = []; insideBolo = []; insideExtraDish = []; boloKids = []; extraDishKids = []; outsideMainStarter = []; outsideExtraStarter = []; outsideBolo = []; outsideExtraDish = []; outsideDessert = []}
+    | { ticketsErrors = { insideMainStarter = []; insideExtraStarter = []; insideMainDish = []; insideExtraDish = []; kidsMainDish = []; kidsExtraDish = []; outsideMainStarter = []; outsideExtraStarter = []; outsideMainDish = []; outsideExtraDish = []; outsideDessert = []}
         menusErrors = []
         kidsMenusErrors = []
         tickets = tickets } ->
-            tickets.insideBolo * PrixMenuBolo +
+            tickets.insideMainDish * PrixMenuMainDish +
             tickets.insideExtraDish * PrixMenuExtraDish +
             (tickets.outsideMainStarter + tickets.outsideExtraStarter) * PrixEntreeCents +
-            tickets.outsideBolo * PrixBoloCents +
+            tickets.outsideMainDish * PrixMainDishCents +
             tickets.outsideExtraDish * PrixExtraDishCents +
             tickets.outsideDessert * PrixDessertCents +
-            (tickets.boloKids + tickets.extraDishKids) * PrixMenuKids
+            (tickets.kidsMainDish + tickets.kidsExtraDish) * PrixMenuKids
             |> Some
     | _ -> None
 
@@ -394,7 +394,7 @@ let menuHeader (count: int) formatString (dispatch: int -> unit) =
 let renderInsideMenu (state: State) (dispatch: Msg -> unit) =
     let header = menuHeader (state.menus) "menu%s" (SetMenus >> dispatch)
     renderTicketList ["Entrées", [InsideMainStarter; InsideExtraStarter];
-                      "Plats", [InsideBolo; InsideExtraDish]]
+                      "Plats", [InsideMainDish; InsideExtraDish]]
                      state
                      header
                      [renderDessertDisplay <| state.menus]
@@ -402,7 +402,7 @@ let renderInsideMenu (state: State) (dispatch: Msg -> unit) =
 
 let renderKidsMenu (state: State) (dispatch: Msg -> unit) =
     let header = menuHeader (state.kidsMenus) "menu%s enfants" (SetKidsMenus >> dispatch)
-    renderTicketList ["Plats", [BoloKids; ExtraDishKids]]
+    renderTicketList ["Plats", [KidsMainDish; KidsExtraDish]]
                      state
                      header
                      [renderDessertDisplay <| state.kidsMenus]
@@ -414,7 +414,7 @@ let renderOutsideMenu (state: State) (dispatch: Msg -> unit) =
         | [] -> state.tickets.Get p
         | _ -> 0
     let outsideChoices = [("Entrées", [OutsideMainStarter; OutsideExtraStarter])
-                          ("Plats", [OutsideBolo; OutsideExtraDish])
+                          ("Plats", [OutsideMainDish; OutsideExtraDish])
                           ("Dessert", [OutsideDessert])]
     let header = Html.div [
         prop.style plateLabelFontStyle // for visual consistency with food selection controls
@@ -536,15 +536,15 @@ let init() =
         kidsMenus = 0
         tickets = { insideMainStarter = 0;
                     insideExtraStarter = 0;
-                    insideBolo = 0;
+                    insideMainDish = 0;
                     insideExtraDish = 0;
                     outsideMainStarter = 0;
                     outsideExtraStarter = 0;
-                    outsideBolo = 0;
+                    outsideMainDish = 0;
                     outsideExtraDish = 0;
                     outsideDessert = 0;
-                    boloKids = 0;
-                    extraDishKids = 0 }
+                    kidsMainDish = 0;
+                    kidsExtraDish = 0 }
         nameError = None
         emailError = None
         menusErrors = []
@@ -552,15 +552,15 @@ let init() =
         placesErrors = []
         ticketsErrors = { insideMainStarter = [];
                           insideExtraStarter = [];
-                          insideBolo = [];
+                          insideMainDish = [];
                           insideExtraDish = [];
                           outsideMainStarter = [];
                           outsideExtraStarter = [];
-                          outsideBolo = [];
+                          outsideMainDish = [];
                           outsideExtraDish = [];
                           outsideDessert = [];
-                          boloKids = [];
-                          extraDishKids = [] }
+                          kidsMainDish = [];
+                          kidsExtraDish = [] }
     }
     validateState state
 

@@ -2,38 +2,42 @@ import itertools
 
 from htmlgen import (cents_to_euro)
 import config
+from storage import Reservation
 
 _CONFIGURATION = config.get_configuration()
 
 MAIN_STARTER_SHORT = _CONFIGURATION["main_starter_short"]
 EXTRA_STARTER_SHORT = _CONFIGURATION["extra_starter_short"]
-BOLO_SHORT = _CONFIGURATION["bolo_short"]
+MAIN_DISH_SHORT = _CONFIGURATION["main_dish_short"]
 EXTRA_DISH_SHORT = _CONFIGURATION["extra_dish_short"]
-KIDS_BOLO_SHORT = _CONFIGURATION["kids_bolo_short"]
+THIRD_DISH_SHORT = _CONFIGURATION["third_dish_short"]
+KIDS_MAIN_DISH_SHORT = _CONFIGURATION["kids_main_dish_short"]
 KIDS_EXTRA_DISH_SHORT = _CONFIGURATION["kids_extra_dish_short"]
-DESSERT_SHORT = _CONFIGURATION["dessert_short"]
+KIDS_THIRD_DISH_SHORT = _CONFIGURATION["kids_third_dish_short"]
+MAIN_DESSERT_SHORT = _CONFIGURATION["main_dessert_short"]
+EXTRA_DESSERT_SHORT = _CONFIGURATION["extra_dessert_short"]
 
 def write_column_header_rows(writer):
-    PLATS = (MAIN_STARTER_SHORT, EXTRA_STARTER_SHORT, BOLO_SHORT, EXTRA_DISH_SHORT, DESSERT_SHORT,)
+    PLATS = (MAIN_STARTER_SHORT, EXTRA_STARTER_SHORT, MAIN_DISH_SHORT, EXTRA_DISH_SHORT, THIRD_DISH_SHORT, MAIN_DESSERT_SHORT, EXTRA_DESSERT_SHORT)
     # Wrap iterator in `tuple' because we want to traverse it twice!
     DOTS = tuple(itertools.repeat('...', len(PLATS) - 1))
-    KIDS_PLATS = (KIDS_BOLO_SHORT, KIDS_EXTRA_DISH_SHORT, DESSERT_SHORT,)
+    KIDS_PLATS = (KIDS_MAIN_DISH_SHORT, KIDS_EXTRA_DISH_SHORT, KIDS_THIRD_DISH_SHORT, MAIN_DESSERT_SHORT, EXTRA_DESSERT_SHORT,)
     KIDS_DOTS = tuple(itertools.repeat('...', len(KIDS_PLATS) - 1))
-    writer.writerow(
-        ('','',
+    row1 = ('','',
          'Menu', *DOTS,
          'Enfants', *KIDS_DOTS,
          'À la carte', *DOTS,
-         '','','','','','',))
-    writer.writerow(
-        ('Nom', 'Places',
+         '','','','','','','',)
+    row2 = ('Nom', 'Places',
          *PLATS,
          *KIDS_PLATS,
          *PLATS,
-         'Total', 'Dû', 'Commentaire', 'Email', 'RGPD', 'Actif', 'Origine',))
+         'Total', 'Dû', 'Commentaire', 'Email', 'RGPD', 'Actif', 'Origine',)
+    writer.writerow(row1)
+    writer.writerow(row2)
 
 
-def export_reservation(writer, connection, x):
+def export_reservation(writer, connection, x: Reservation) -> None:
     if x.origin:
         email = ''
         gdpr_email = ''
@@ -42,14 +46,14 @@ def export_reservation(writer, connection, x):
         gdpr_email = x.email if x.gdpr_accepts_use else ''
     writer.writerow((
         x.name, x.places,
-        x.inside_main_starter, x.inside_extra_starter,
-        x.inside_bolo, x.inside_extra_dish,
-        x.inside_dessert,
-        x.kids_bolo, x.kids_extra_dish,
-        x.kids_dessert,
-        x.outside_main_starter, x.outside_extra_starter,
-        x.outside_bolo, x.outside_extra_dish,
-        x.outside_dessert,
+        x.inside.main_starter, x.inside.extra_starter,
+        x.inside.main_dish, x.inside.extra_dish, x.inside.third_dish,
+        x.inside.main_dessert,x.inside.extra_dessert,
+        x.kids.main_dish, x.kids.extra_dish, x.kids.third_dish,
+        x.kids.main_dessert, x.kids.extra_dessert,
+        x.outside.main_starter, x.outside.extra_starter,
+        x.outside.main_dish, x.outside.extra_dish, x.outside.third_dish,
+        x.outside.main_dessert, x.outside.extra_dessert,
         _with_euro_sign(x.cents_due),
         _with_euro_sign(x.remaining_amount_due_in_cents(connection)),
         x.extra_comment, email, gdpr_email, x.active, x.origin

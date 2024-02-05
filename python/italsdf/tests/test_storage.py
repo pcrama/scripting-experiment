@@ -14,6 +14,129 @@ except ImportError:
         import storage
 
 
+class TestReservation(unittest.TestCase):
+    connection: Optional[sqlite3.Connection] = None
+
+    @classmethod
+    def setUpClass(cls):
+        cls.connection = storage.create_db({'dbdir': ':memory:'})
+        with cls.connection:
+            storage.Reservation(
+                 name='n1',
+                 email='n1@e.com',
+                 extra_comment='nn1',
+                 places=1,
+                 date='2024-03-23',
+                 outside=storage.FullMealCount(main_starter=0, extra_starter=0, main_dish=1, extra_dish=0, third_dish=0, main_dessert=0, extra_dessert=1),
+                 inside=storage.MenuCount(main_starter=0, extra_starter=2, main_dish=1, extra_dish=0, third_dish=1, main_dessert=1, extra_dessert=1),
+                 kids=storage.KidMealCount(main_dish=2, extra_dish=0, third_dish=0, main_dessert=2, extra_dessert=0),
+                 gdpr_accepts_use=True,
+                 cents_due=1234,
+                 bank_id='bank_id_1',
+                 uuid='uuid_1',
+                 time=3.14,
+                 active=True,
+                 origin=None).insert_data(cls.connection)
+            storage.Reservation(
+                 name='n2',
+                 email='n2@f.com',
+                 extra_comment='mm2',
+                 places=4,
+                 date='2024-03-23',
+                 outside=storage.FullMealCount(main_starter=1, extra_starter=1, main_dish=0, extra_dish=0, third_dish=0, main_dessert=1, extra_dessert=1),
+                 inside=storage.MenuCount(main_starter=1, extra_starter=2, main_dish=1, extra_dish=1, third_dish=1, main_dessert=2, extra_dessert=1),
+                 kids=storage.KidMealCount(main_dish=0, extra_dish=0, third_dish=0, main_dessert=0, extra_dessert=0),
+                 gdpr_accepts_use=True,
+                 cents_due=2345,
+                 bank_id='bank_id_2',
+                 uuid='uuid_2',
+                 time=1.41,
+                 active=True,
+                 origin=None).insert_data(cls.connection)
+            storage.Reservation(
+                 name='n3',
+                 email='n3@g.com',
+                 extra_comment='pp3',
+                 places=4,
+                 date='2024-03-23',
+                 outside=storage.FullMealCount(main_starter=1, extra_starter=1, main_dish=0, extra_dish=0, third_dish=0, main_dessert=1, extra_dessert=1),
+                 inside=storage.MenuCount(main_starter=1, extra_starter=2, main_dish=1, extra_dish=1, third_dish=1, main_dessert=2, extra_dessert=1),
+                 kids=storage.KidMealCount(main_dish=1, extra_dish=1, third_dish=1, main_dessert=1, extra_dessert=2),
+                 gdpr_accepts_use=True,
+                 cents_due=2345,
+                 bank_id='bank_id_3',
+                 uuid='uuid_3',
+                 time=1.71,
+                 active=False,
+                 origin='admin').insert_data(cls.connection)
+            storage.Reservation(
+                 name='n1',
+                 email='n1@e.com',
+                 extra_comment='mm4',
+                 places=5,
+                 date='2099-12-31',
+                 outside=storage.FullMealCount(main_starter=2, extra_starter=2, main_dish=1, extra_dish=1, third_dish=1, main_dessert=2, extra_dessert=3),
+                 inside=storage.MenuCount(main_starter=2, extra_starter=3, main_dish=1, extra_dish=2, third_dish=2, main_dessert=3, extra_dessert=2),
+                 kids=storage.KidMealCount(main_dish=1, extra_dish=1, third_dish=0, main_dessert=1, extra_dessert=1),
+                 gdpr_accepts_use=True,
+                 cents_due=3456,
+                 bank_id='bank_id_4',
+                 uuid='uuid_4',
+                 time=2.72,
+                 active=True,
+                 origin=None).insert_data(cls.connection)
+
+    def test_count_places(self):
+        self.assertEqual(storage.Reservation.count_places(self.connection), (3, 10))
+        self.assertEqual(storage.Reservation.count_places(self.connection, name='n1'), (2, 6))
+        self.assertEqual(storage.Reservation.count_places(self.connection, name='N1', email='N2@F.COM'), (3, 10))
+
+    def test_count_menu_data(self):
+        self.assertEqual(storage.Reservation.count_menu_data(self.connection), (3, 6, 10, 5, 4, 5, 3, 1, 0, 12, 10))
+        self.assertEqual(storage.Reservation.count_menu_data(self.connection, '2099-12-31'), (1, 4, 5, 2, 3, 3, 1, 1, 0, 6, 6))
+
+    def test_parse_from_row_simple_reservation(self):
+        reservation, tail = storage.Reservation.parse_from_row(
+            ['name', 'email@example.com', 'extra_comment', 333, '2024-03-23',
+             1, 2, 3, 4, 5, 6, 7,
+             8, 9, 10, 11, 12, 13, 14,
+             15, 16, 17, 18, 19,
+             True, 100, 'bank_id', 'uuid', 3.1415, True, 'origin'])
+        self.assertIsNotNone(reservation)
+        self.assertEqual(tail, [])
+        self.assertEqual(reservation.name, 'name')
+        self.assertEqual(reservation.email, 'email@example.com')
+        self.assertEqual(reservation.extra_comment, 'extra_comment')
+        self.assertEqual(reservation.places, 333)
+        self.assertEqual(reservation.date, '2024-03-23')
+        self.assertEqual(reservation.outside.main_starter, 1)
+        self.assertEqual(reservation.outside.extra_starter, 2)
+        self.assertEqual(reservation.outside.main_dish, 3)
+        self.assertEqual(reservation.outside.extra_dish, 4)
+        self.assertEqual(reservation.outside.third_dish, 5)
+        self.assertEqual(reservation.outside.main_dessert, 6)
+        self.assertEqual(reservation.outside.extra_dessert, 7)
+        self.assertEqual(reservation.inside.main_starter, 8)
+        self.assertEqual(reservation.inside.extra_starter, 9)
+        self.assertEqual(reservation.inside.main_dish, 10)
+        self.assertEqual(reservation.inside.extra_dish, 11)
+        self.assertEqual(reservation.inside.third_dish, 12)
+        self.assertEqual(reservation.inside.main_dessert, 13)
+        self.assertEqual(reservation.inside.extra_dessert, 14)
+        self.assertEqual(reservation.kids.main_dish, 15)
+        self.assertEqual(reservation.kids.extra_dish, 16)
+        self.assertEqual(reservation.kids.third_dish, 17)
+        self.assertEqual(reservation.kids.main_dessert, 18)
+        self.assertEqual(reservation.kids.extra_dessert, 19)
+        self.assertEqual(reservation.gdpr_accepts_use, True)
+        self.assertEqual(reservation.cents_due, 100)
+        self.assertEqual(reservation.bank_id, 'bank_id')
+        self.assertEqual(reservation.uuid, 'uuid')
+        self.assertEqual(reservation.timestamp, 3.1415)
+        self.assertEqual(reservation.active, True)
+        self.assertEqual(reservation.origin, 'origin')
+
+
 class TestPayments(unittest.TestCase):
     CONNECTION: Optional[sqlite3.Connection]
     CONFIGURATION = {}
@@ -77,8 +200,8 @@ class TestPayments(unittest.TestCase):
         with cls.CONNECTION:
             for pmnt in payments:
                 pmnt.insert_data(cls.CONNECTION)
-            make_reservation(name="name1", email="one@example.com", places=3, outside_dessert=1, inside_bolo=1, inside_main_starter=1, cents_due=12345, bank_id="bank_id_1", uuid=cls.UUID_WITH_TWO_PAYMENTS).insert_data(cls.CONNECTION)
-            make_reservation(name="name2", email="two@example.com", places=2, outside_dessert=1, inside_bolo=2, inside_main_starter=2, cents_due=34512, bank_id="bank_id_2", uuid="beef12346789fedc").insert_data(cls.CONNECTION)
+            make_reservation(name="name1", email="one@example.com", places=3, outside_main_dessert=1, inside_main_dish=1, inside_main_starter=1, inside_extra_dessert=1, cents_due=12345, bank_id="bank_id_1", uuid=cls.UUID_WITH_TWO_PAYMENTS).insert_data(cls.CONNECTION)
+            make_reservation(name="name2", email="two@example.com", places=2, outside_main_dessert=1, inside_main_dish=1, inside_third_dish=1, inside_main_starter=2, inside_extra_dessert=1, inside_main_dessert=1, cents_due=34512, bank_id="bank_id_2", uuid="beef12346789fedc").insert_data(cls.CONNECTION)
 
     @classmethod
     def tearDownClass(cls):

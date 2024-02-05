@@ -80,13 +80,13 @@ script:
     <ul>
       <li>Entrées
         <ol>
-        <li><label style="display: inline-block; width: 14em;" for="assiettes">Assiette italienne (8€):</label> <input id="assiettes" style="width: 5em;" max="20" min="0" name="assiettes" type="number" value="0"></li>
+        <li><label style="display: inline-block; width: 14em;" for="main_starter">Assiette italienne (8€):</label> <input id="main_starter" style="width: 5em;" max="20" min="0" name="main_starter" type="number" value="0"></li>
         <li><label style="display: inline-block; width: 14em;" for="fondus">Croquettes au fromage (8€):</label> <input id="fondus" style="width: 5em;" max="20" min="0" name="fondus" type="number" value="0"></li>
         </ol>
       </li>
       <li>Plats
         <ol>
-        <li><label style="display: inline-block; width: 14em;" for="bolo">Spaghetti Bolognaise (10€):</label> <input id="bolo" style="width: 5em;" max="20" min="0" name="bolo" type="number" value="0"></li>
+        <li><label style="display: inline-block; width: 14em;" for="main_dish">Spaghetti Bolognaise (10€):</label> <input id="main_dish" style="width: 5em;" max="20" min="0" name="main_dish" type="number" value="0"></li>
         <li><label style="display: inline-block; width: 14em;" for="scampis">Spaghetti aux scampis (15€):</label> <input id="scampis" style="width: 5em;" max="20" min="0" name="scampis" type="number" value="0"></li>
         </ol>
       </li>
@@ -99,7 +99,7 @@ script:
     </ul>
     <div style="display: grid;">
       <div style="grid-row: 1; grid-column: 1;"><input id="gdpr_accepts_use" name="gdpr_accepts_use" type="checkbox" value="true"></div>
-      <div style="grid-row: 1; grid-column: 2;"><label for="gdpr_accepts_use">J’autorise la Société Royale d’Harmonie de Braine-l’Alleud à utiliser mon adresse email pour m’avertir de ses futures activités.</label></div>
+      <div style="grid-row: 1; grid-column: 2;"><label for="gdpr_accepts_use">J'autorise la Société Royale d’Harmonie de Braine-l’Alleud à utiliser mon adresse email pour m’avertir de ses futures activités.</label></div>
     </div>
     <input type="submit" value="Confirmer">
   </form>

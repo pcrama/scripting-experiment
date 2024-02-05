@@ -60,7 +60,7 @@ else
         (cd "$(dirname "$0")/input-form/build" \
              && cp *.js *.js.LICENSE.txt "$staging_dir" \
              && sed -n -e '/script defer src="/q' -e 'p' "$index_html" > "$dest_index_html" \
-             && echo "<script>const ACTION_DEST=\"$base_url/$deploy_folder/post_reservation.cgi\"; const CONCERT_DATE=\"2023-03-25\";</script>" >> "$dest_index_html" \
+             && echo "<script>const ACTION_DEST=\"$base_url/$deploy_folder/post_reservation.cgi\"; const CONCERT_DATE=\"2024-03-23\";</script>" >> "$dest_index_html" \
              && for js in *.js ; do echo "<script defer src=\"$js\"></script>" >> "$dest_index_html" ; done \
              && sed -n -e '/script defer src="/ { s,.*</script>,,p ; q }' "$index_html" >> "$dest_index_html" \
              && sed -e '1,/script defer src="/d' "$index_html" >>"$dest_index_html" )

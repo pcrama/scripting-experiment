@@ -114,11 +114,14 @@ if __name__ == '__main__':
 
     MAIN_STARTER_SHORT = CONFIGURATION["main_starter_short"]
     EXTRA_STARTER_SHORT = CONFIGURATION["extra_starter_short"]
-    BOLO_SHORT = CONFIGURATION["bolo_short"]
+    MAIN_DISH_SHORT = CONFIGURATION["main_dish_short"]
     EXTRA_DISH_SHORT = CONFIGURATION["extra_dish_short"]
-    KIDS_BOLO_SHORT = CONFIGURATION["kids_bolo_short"]
+    THIRD_DISH_SHORT = CONFIGURATION["third_dish_short"]
+    KIDS_MAIN_DISH_SHORT = CONFIGURATION["kids_main_dish_short"]
     KIDS_EXTRA_DISH_SHORT = CONFIGURATION["kids_extra_dish_short"]
-    DESSERT_SHORT = CONFIGURATION["dessert_short"]
+    KIDS_THIRD_DISH_SHORT = CONFIGURATION["kids_third_dish_short"]
+    MAIN_DESSERT_SHORT = CONFIGURATION["main_dessert_short"]
+    EXTRA_DESSERT_SHORT = CONFIGURATION["extra_dessert_short"]
 
     try:
         # NB: the latter branch of the `or' is for automated testing purposes only...
@@ -140,9 +143,9 @@ if __name__ == '__main__':
         COLUMNS = [('name', 'Nom'), ('email', 'Email'), ('extra_comment', 'Commentaire'),
                    ('places', 'Places'),
                    ('main_starter', MAIN_STARTER_SHORT), ('extra_starter', EXTRA_STARTER_SHORT),
-                   ('bolo', BOLO_SHORT), ('extra_dish', EXTRA_DISH_SHORT),
-                   ('kids_bolo', KIDS_BOLO_SHORT), ('kids_extra_dish', KIDS_EXTRA_DISH_SHORT),
-                   ('dessert', DESSERT_SHORT),
+                   ('main_dish', MAIN_DISH_SHORT), ('extra_dish', EXTRA_DISH_SHORT), ('third_dish', THIRD_DISH_SHORT),
+                   ('kids_main_dish', KIDS_MAIN_DISH_SHORT), ('kids_extra_dish', KIDS_EXTRA_DISH_SHORT), ('kids_third_dish', KIDS_THIRD_DISH_SHORT),
+                   ('main_dessert', MAIN_DESSERT_SHORT), ('extra_dessert', EXTRA_DESSERT_SHORT),
                    ('bank_id', 'Transaction'), ('date', 'Date'),
                    ('time', 'Réservé le')]
         table_header_row = tuple(
@@ -153,11 +156,14 @@ if __name__ == '__main__':
         (active_reservations,
          total_main_starter,
          total_extra_starter,
-         total_bolo,
+         total_main_dish,
          total_extra_dish,
-         total_kids_bolo,
+         total_third_dish,
+         total_kids_main_dish,
          total_kids_extra_dish,
-         total_dessert) = Reservation.count_menu_data(connection)
+         total_kids_third_dish,
+         total_main_dessert,
+         total_extra_dessert) = Reservation.count_menu_data(connection)
         reservation_summary = Reservation.summary_by_date(connection)
         pagination_links = tuple((
             x for x in
@@ -180,13 +186,13 @@ if __name__ == '__main__':
                  pluriel_naif(active_reservations, ['est active', 'sont actives']),
                  '.'),
                 ul_for_menu_data(total_main_starter, total_extra_starter,
-                                 total_bolo, total_extra_dish,
-                                 total_kids_bolo, total_kids_extra_dish,
-                                 total_dessert)
+                                 total_main_dish, total_extra_dish, total_third_dish,
+                                 total_kids_main_dish, total_kids_extra_dish, total_kids_third_dish,
+                                 total_main_dessert, total_extra_dessert)
                 if sum((total_main_starter, total_extra_starter,
-                        total_bolo, total_extra_dish,
-                        total_kids_bolo, total_kids_extra_dish,
-                        total_dessert)
+                        total_main_dish, total_extra_dish, total_third_dish,
+                        total_kids_main_dish, total_kids_extra_dish, total_kids_third_dish,
+                        total_main_dessert, total_extra_dessert)
                        ) > 0
                 else '')
                if total_bookings > 0
@@ -211,13 +217,16 @@ if __name__ == '__main__':
                       ('td', make_show_reservation_link_elt(r, r.email)),
                       ('td', make_show_reservation_link_elt(r, r.extra_comment)),
                       ('td', r.places),
-                      ('td', r.outside_main_starter + r.inside_main_starter),
-                      ('td', r.outside_extra_starter + r.inside_extra_starter),
-                      ('td', r.outside_bolo + r.inside_bolo),
-                      ('td', r.outside_extra_dish + r.inside_extra_dish),
-                      ('td', r.kids_bolo),
-                      ('td', r.kids_extra_dish),
-                      ('td', r.outside_dessert + r.inside_dessert + r.kids_dessert),
+                      ('td', r.outside.main_starter + r.inside.main_starter),
+                      ('td', r.outside.extra_starter + r.inside.extra_starter),
+                      ('td', r.outside.main_dish + r.inside.main_dish),
+                      ('td', r.outside.extra_dish + r.inside.extra_dish),
+                      ('td', r.outside.third_dish + r.inside.third_dish),
+                      ('td', r.kids.main_dish),
+                      ('td', r.kids.extra_dish),
+                      ('td', r.kids.third_dish),
+                      ('td', r.outside.main_dessert + r.inside.main_dessert + r.kids.main_dessert),
+                      ('td', r.outside.extra_dessert + r.inside.extra_dessert + r.kids.extra_dessert),
                       ('td', format_bank_id(r.bank_id)),
                       ('td', r.date),
                       ('td', time.strftime('%d/%m/%Y %H:%M', time.gmtime(r.timestamp))))
@@ -241,7 +250,7 @@ if __name__ == '__main__':
              (('div', 'id', 'elmish-app'), ''),
              ('script',
               'const ACTION_DEST = "add_unchecked_reservation.cgi";',
-              'const CONCERT_DATE = "2023-03-25";',
+              'const CONCERT_DATE = "2024-03-23";',
               'const CSRF_TOKEN = "', csrf_token.token, '";'),
              *((('script', 'defer src', js),) for js in JS_FILES),
              ('hr',),

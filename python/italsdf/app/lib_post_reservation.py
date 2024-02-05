@@ -17,6 +17,9 @@ from pricing import (
     price_in_cents,
 )
 from storage import(
+    FullMealCount,
+    KidMealCount,
+    MenuCount,
     Reservation,
     ensure_connection,
 )
@@ -32,21 +35,22 @@ def is_test_reservation(name, email):
 
 def validate_data(
         name, email, extra_comment, places, date,
-        outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert,
-        inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish,
-        kids_bolo, kids_extra_dish,
+        outside_main_starter, outside_extra_starter, outside_main_dish, outside_extra_dish, outside_third_dish, outside_main_dessert, outside_extra_dessert,
+        inside_main_starter, inside_extra_starter, inside_main_dish, inside_extra_dish, inside_third_dish, inside_main_dessert, inside_extra_dessert,
+        kids_main_dish, kids_extra_dish, kids_third_dish, kids_main_dessert, kids_extra_dessert,
         gdpr_accepts_use, connection):
     (name, email, extra_comment, places, date,
-     outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert,
-     inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish,
-     kids_bolo, kids_extra_dish,
+     outside_main_starter, outside_extra_starter, outside_main_dish, outside_extra_dish, outside_third_dish, outside_main_dessert, outside_extra_dessert,
+     inside_main_starter, inside_extra_starter, inside_main_dish, inside_extra_dish, inside_third_dish, inside_main_dessert, inside_extra_dessert,
+     kids_main_dish, kids_extra_dish, kids_third_dish, kids_main_dessert, kids_extra_dessert,
      gdpr_accepts_use
      ) = normalize_data(
          name, email, extra_comment, places, date,
-         outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert,
-         inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish,
-         kids_bolo, kids_extra_dish,
-         gdpr_accepts_use)
+         outside_main_starter, outside_extra_starter, outside_main_dish, outside_extra_dish, outside_third_dish, outside_main_dessert, outside_extra_dessert,
+         inside_main_starter, inside_extra_starter, inside_main_dish, inside_extra_dish, inside_third_dish, inside_main_dessert, inside_extra_dessert,
+         kids_main_dish, kids_extra_dish, kids_third_dish, kids_main_dessert, kids_extra_dessert,
+         gdpr_accepts_use
+     )
     if not(name and email):
         raise ValidationException('Vos données de contact sont incomplètes')
     INVALID_EMAIL = "L'adresse email renseignée n'a pas le format requis"
@@ -60,37 +64,45 @@ def validate_data(
             raise ValidationException(INVALID_EMAIL)
     if places < 1:
         raise ValidationException("Vous n'avez pas indiqué combien de places vous vouliez réserver")
-    REAL_DATES = ('2023-03-25',)
+    REAL_DATES = ('2024-03-23',)
     if date not in (('2099-01-01', '2099-01-02')
                     if is_test_reservation(name, email)
                     else REAL_DATES):
         raise ValidationException(f"Il n'y a pas de repas italien ̀à cette date: {date=}")
-    total_menus = inside_bolo + inside_extra_dish
+    total_menus = inside_main_dish + inside_extra_dish + inside_third_dish
     if inside_extra_starter + inside_main_starter != total_menus:
         raise ValidationException(
             "Le nombre d'entrées ne correspond pas au nombre de plats commandés dans les menus.")
+    if inside_extra_dessert + inside_main_dessert != total_menus:
+        raise ValidationException(
+            "Le nombre de desserts ne correspond pas au nombre de plats commandés dans les menus.")
+    kids_total_menus = kids_main_dish + kids_extra_dish + kids_third_dish
+    if kids_extra_dessert + kids_main_dessert != kids_total_menus:
+        raise ValidationException(
+            "Le nombre de desserts ne correspond pas au nombre de plats commandés dans les menus enfants.")
     reservations_count, reserved_seats  = Reservation.count_places(connection, name, email)
     if (reservations_count or 0) > 10:
         raise ValidationException('Il y a déjà trop de réservations à votre nom')
     if (reserved_seats or 0) + places > 60:
         raise ValidationException('Vous réservez ou avez réservé trop de places')
     _, total_bookings = Reservation.count_places(connection)
-    MAX_PLACES = 200
+    MAX_PLACES = 140
     if (total_bookings or 0) + places > MAX_PLACES:
         max_restantes = MAX_PLACES - (total_bookings or 0)
         raise ValidationException(f"Il n'y a plus assez de place dans la salle, il ne reste plus que {max_restantes} places libres.")
     return (name, email, extra_comment, places, date,
-            outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert,
-            inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish,
-            kids_bolo, kids_extra_dish,
-            gdpr_accepts_use)
+     outside_main_starter, outside_extra_starter, outside_main_dish, outside_extra_dish, outside_third_dish, outside_main_dessert, outside_extra_dessert,
+     inside_main_starter, inside_extra_starter, inside_main_dish, inside_extra_dish, inside_third_dish, inside_main_dessert, inside_extra_dessert,
+     kids_main_dish, kids_extra_dish, kids_third_dish, kids_main_dessert, kids_extra_dessert,
+     gdpr_accepts_use
+     )
 
 
 def normalize_data(
         name, email, extra_comment, places, date,
-        outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert,
-        inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish,
-        kids_bolo, kids_extra_dish,
+        outside_main_starter, outside_extra_starter, outside_main_dish, outside_extra_dish, outside_third_dish, outside_main_dessert, outside_extra_dessert,
+        inside_main_starter, inside_extra_starter, inside_main_dish, inside_extra_dish, inside_third_dish, inside_main_dessert, inside_extra_dessert,
+        kids_main_dish, kids_extra_dish, kids_third_dish, kids_main_dessert, kids_extra_dessert,
         gdpr_accepts_use):
     def safe_strip(x):
         if x is None:
@@ -108,32 +120,40 @@ def normalize_data(
     extra_comment = safe_strip(extra_comment)
     places = safe_non_negative_int_less_or_equal_than_50(places)
     date = safe_strip(date)
-    outside_extra_starter = safe_non_negative_int_less_or_equal_than_50(outside_extra_starter)
     outside_main_starter = safe_non_negative_int_less_or_equal_than_50(outside_main_starter)
-    outside_bolo = safe_non_negative_int_less_or_equal_than_50(outside_bolo)
+    outside_extra_starter = safe_non_negative_int_less_or_equal_than_50(outside_extra_starter)
+    outside_main_dish = safe_non_negative_int_less_or_equal_than_50(outside_main_dish)
     outside_extra_dish = safe_non_negative_int_less_or_equal_than_50(outside_extra_dish)
-    outside_dessert = safe_non_negative_int_less_or_equal_than_50(outside_dessert)
-    inside_extra_starter = safe_non_negative_int_less_or_equal_than_50(inside_extra_starter)
+    outside_third_dish = safe_non_negative_int_less_or_equal_than_50(outside_third_dish)
+    outside_main_dessert = safe_non_negative_int_less_or_equal_than_50(outside_main_dessert)
+    outside_extra_dessert = safe_non_negative_int_less_or_equal_than_50(outside_extra_dessert)
     inside_main_starter = safe_non_negative_int_less_or_equal_than_50(inside_main_starter)
-    inside_bolo = safe_non_negative_int_less_or_equal_than_50(inside_bolo)
+    inside_extra_starter = safe_non_negative_int_less_or_equal_than_50(inside_extra_starter)
+    inside_main_dish = safe_non_negative_int_less_or_equal_than_50(inside_main_dish)
     inside_extra_dish = safe_non_negative_int_less_or_equal_than_50(inside_extra_dish)
-    kids_bolo = safe_non_negative_int_less_or_equal_than_50(kids_bolo)
+    inside_third_dish = safe_non_negative_int_less_or_equal_than_50(inside_third_dish)
+    inside_main_dessert = safe_non_negative_int_less_or_equal_than_50(inside_main_dessert)
+    inside_extra_dessert = safe_non_negative_int_less_or_equal_than_50(inside_extra_dessert)
+    kids_main_dish = safe_non_negative_int_less_or_equal_than_50(kids_main_dish)
     kids_extra_dish = safe_non_negative_int_less_or_equal_than_50(kids_extra_dish)
+    kids_third_dish = safe_non_negative_int_less_or_equal_than_50(kids_third_dish)
+    kids_main_dessert = safe_non_negative_int_less_or_equal_than_50(kids_main_dessert)
+    kids_extra_dessert = safe_non_negative_int_less_or_equal_than_50(kids_extra_dessert)
     try:
         gdpr_accepts_use = gdpr_accepts_use.lower() in ['yes', 'oui', '1', 'true', 'vrai']
     except Exception:
         gdpr_accepts_use = gdpr_accepts_use and gdpr_accepts_use not in [0, False]
     return (name, email, extra_comment, places, date,
-            outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert,
-            inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish,
-            kids_bolo, kids_extra_dish,
+            outside_main_starter, outside_extra_starter, outside_main_dish, outside_extra_dish, outside_third_dish, outside_main_dessert, outside_extra_dessert,
+            inside_main_starter, inside_extra_starter, inside_main_dish, inside_extra_dish, inside_third_dish, inside_main_dessert, inside_extra_dessert,
+            kids_main_dish, kids_extra_dish, kids_third_dish, kids_main_dessert, kids_extra_dessert,
             gdpr_accepts_use)
 
 
 def save_data_sqlite3(name, email, extra_comment, places, date,
-                      outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert,
-                      inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish,
-                      kids_bolo, kids_extra_dish,
+                      outside_main_starter, outside_extra_starter, outside_main_dish, outside_extra_dish, outside_third_dish, outside_main_dessert, outside_extra_dessert,
+                      inside_main_starter, inside_extra_starter, inside_main_dish, inside_extra_dish, inside_third_dish, inside_main_dessert, inside_extra_dessert,
+                      kids_main_dish, kids_extra_dish, kids_third_dish, kids_main_dessert, kids_extra_dessert,
                       gdpr_accepts_use, origin, connection_or_root_dir) -> Optional[Reservation]:
     connection = ensure_connection(connection_or_root_dir)
     process_id = os.getpid()
@@ -144,29 +164,33 @@ def save_data_sqlite3(name, email, extra_comment, places, date,
         timestamp = time.time()
         bank_id = generate_bank_id(timestamp, Reservation.length(connection), process_id)
         try:
-            new_row = Reservation(name=name,
-                                  email=email,
-                                  extra_comment=extra_comment,
-                                  places=places,
-                                  date=date,
-                                  outside_main_starter=outside_main_starter,
-                                  outside_extra_starter=outside_extra_starter,
-                                  outside_bolo=outside_bolo,
-                                  outside_extra_dish=outside_extra_dish,
-                                  outside_dessert=outside_dessert,
-                                  inside_main_starter=inside_main_starter,
-                                  inside_extra_starter=inside_extra_starter,
-                                  inside_bolo=inside_bolo,
-                                  inside_extra_dish=inside_extra_dish,
-                                  kids_bolo=kids_bolo,
-                                  kids_extra_dish=kids_extra_dish,
-                                  gdpr_accepts_use=gdpr_accepts_use,
-                                  cents_due=-1, # To be fixed once the object is initialized
-                                  bank_id=append_bank_id_control_number(bank_id),
-                                  uuid=uuid_hex,
-                                  time=timestamp,
-                                  active=True,
-                                  origin=origin)
+            new_row = Reservation(
+                name=name,
+                email=email,
+                extra_comment=extra_comment,
+                places=places,
+                date=date,
+                outside=FullMealCount(
+                    main_starter=outside_main_starter, extra_starter=outside_extra_starter,
+                    main_dish=outside_main_dish, extra_dish=outside_extra_dish, third_dish=outside_third_dish,
+                    main_dessert=outside_main_dessert, extra_dessert=outside_extra_dessert,
+                ),
+                inside=MenuCount(
+                    main_starter=inside_main_starter, extra_starter=inside_extra_starter,
+                    main_dish=inside_main_dish, extra_dish=inside_extra_dish, third_dish=inside_third_dish,
+                    main_dessert=inside_main_dessert, extra_dessert=inside_extra_dessert,
+                ),
+                kids=KidMealCount(
+                    main_dish=kids_main_dish, extra_dish=kids_extra_dish, third_dish=kids_third_dish,
+                    main_dessert=kids_main_dessert, extra_dessert=kids_extra_dessert,
+                ),
+                gdpr_accepts_use=gdpr_accepts_use,
+                cents_due=-1, # To be fixed once the object is initialized
+                bank_id=append_bank_id_control_number(bank_id),
+                uuid=uuid_hex,
+                time=timestamp,
+                active=True,
+                origin=origin)
             new_row.cents_due = price_in_cents(new_row)
             with connection:
                 new_row.insert_data(connection)
@@ -227,16 +251,16 @@ def make_show_reservation_url(uuid_hex: str, server_name: Optional[str]=None, sc
 
 def respond_with_reservation_confirmation(
         name, email, extra_comment, places, date,
-        outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert,
-        inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish,
-        kids_bolo, kids_extra_dish,
+        outside_main_starter, outside_extra_starter, outside_main_dish, outside_extra_dish, outside_third_dish, outside_main_dessert, outside_extra_dessert,
+        inside_main_starter, inside_extra_starter, inside_main_dish, inside_extra_dish, inside_third_dish, inside_main_dessert, inside_extra_dessert,
+        kids_main_dish, kids_extra_dish, kids_third_dish, kids_main_dessert, kids_extra_dessert,
         gdpr_accepts_use, connection, configuration, origin=None):
     try:
         new_row = save_data_sqlite3(
             name, email, extra_comment, places, date,
-            outside_main_starter, outside_extra_starter, outside_bolo, outside_extra_dish, outside_dessert,
-            inside_main_starter, inside_extra_starter, inside_bolo, inside_extra_dish,
-            kids_bolo, kids_extra_dish,
+            outside_main_starter, outside_extra_starter, outside_main_dish, outside_extra_dish, outside_third_dish, outside_main_dessert, outside_extra_dessert,
+            inside_main_starter, inside_extra_starter, inside_main_dish, inside_extra_dish, inside_third_dish, inside_main_dessert, inside_extra_dessert,
+            kids_main_dish, kids_extra_dish, kids_third_dish, kids_main_dessert, kids_extra_dessert,
             gdpr_accepts_use, origin, connection)
         if new_row is None:
             raise ValueError("Unable to save reservation in DB")

@@ -9,8 +9,7 @@ import cgi
 import cgitb
 import os
 import time
-from typing import Any
-from urllib.parse import ParseResult, urlunparse, urlencode
+from urllib.parse import ParseResult
 import qrcode
 from qrcode.image.svg import SvgPathFillImage
 
@@ -32,9 +31,9 @@ from storage import(
 )
 
 
-def commande(categorie, nombre1, nom1, nombre2=0, nom2=[]):
+def commande(categorie, nombre1, nom1, nombre2=0, nom2=[], nombre3=0, nom3=[]):
     commandes = [
-        pluriel_naif(n, x) for (n, x) in ((nombre1, nom1), (nombre2, nom2)) if n > 0]
+        pluriel_naif(n, x) for (n, x) in ((nombre1, nom1), (nombre2, nom2), (nombre3, nom3)) if n > 0]
     if len(commandes) == 0:
         return ''
     elif len(commandes) == 1:
@@ -56,16 +55,22 @@ if __name__ == '__main__':
     MAIN_STARTER_NAME_PLURAL = CONFIGURATION["main_starter_name_plural"]
     EXTRA_STARTER_NAME = CONFIGURATION["extra_starter_name"]
     EXTRA_STARTER_NAME_PLURAL = CONFIGURATION["extra_starter_name_plural"]
-    BOLO_NAME = CONFIGURATION["bolo_name"]
-    BOLO_NAME_PLURAL = CONFIGURATION["bolo_name_plural"]
+    MAIN_DISH_NAME = CONFIGURATION["main_dish_name"]
+    MAIN_DISH_NAME_PLURAL = CONFIGURATION["main_dish_name_plural"]
     EXTRA_DISH_NAME = CONFIGURATION["extra_dish_name"]
     EXTRA_DISH_NAME_PLURAL = CONFIGURATION["extra_dish_name_plural"]
-    DESSERT_NAME = CONFIGURATION["dessert_name"]
-    DESSERT_NAME_PLURAL = CONFIGURATION["dessert_name_plural"]
-    KIDS_BOLO_NAME = CONFIGURATION["kids_bolo_name"]
-    KIDS_BOLO_NAME_PLURAL = CONFIGURATION["kids_bolo_name_plural"]
+    THIRD_DISH_NAME = CONFIGURATION["third_dish_name"]
+    THIRD_DISH_NAME_PLURAL = CONFIGURATION["third_dish_name_plural"]
+    MAIN_DESSERT_NAME = CONFIGURATION["main_dessert_name"]
+    MAIN_DESSERT_NAME_PLURAL = CONFIGURATION["main_dessert_name_plural"]
+    EXTRA_DESSERT_NAME = CONFIGURATION["extra_dessert_name"]
+    EXTRA_DESSERT_NAME_PLURAL = CONFIGURATION["extra_dessert_name_plural"]
+    KIDS_MAIN_DISH_NAME = CONFIGURATION["kids_main_dish_name"]
+    KIDS_MAIN_DISH_NAME_PLURAL = CONFIGURATION["kids_main_dish_name_plural"]
     KIDS_EXTRA_DISH_NAME = CONFIGURATION["kids_extra_dish_name"]
     KIDS_EXTRA_DISH_NAME_PLURAL = CONFIGURATION["kids_extra_dish_name_plural"]
+    KIDS_THIRD_DISH_NAME = CONFIGURATION["kids_third_dish_name"]
+    KIDS_THIRD_DISH_NAME_PLURAL = CONFIGURATION["kids_third_dish_name_plural"]
     BANK_ACCOUNT = CONFIGURATION["bank_account"]
     ORGANIZER_NAME = CONFIGURATION["organizer_name"]
 
@@ -75,7 +80,7 @@ if __name__ == '__main__':
         uuid_hex = form.getfirst('uuid_hex', default='')
 
         db_connection = create_db(CONFIGURATION)
-
+        reservation = None
         try:
             reservation = next(Reservation.select(
                 db_connection,
@@ -88,24 +93,31 @@ if __name__ == '__main__':
             print('Content-Language: en')
             print()
 
+        assert reservation is not None
         commandes = [x for x in (commande('Entrée',
-                                          reservation.outside_main_starter + reservation.inside_main_starter,
+                                          reservation.outside.main_starter + reservation.inside.main_starter,
                                           [MAIN_STARTER_NAME, MAIN_STARTER_NAME_PLURAL],
-                                          reservation.outside_extra_starter + reservation.inside_extra_starter,
+                                          reservation.outside.extra_starter + reservation.inside.extra_starter,
                                           [EXTRA_STARTER_NAME, EXTRA_STARTER_NAME_PLURAL]),
                                  commande('Plat',
-                                          reservation.outside_bolo + reservation.inside_bolo,
-                                          [BOLO_NAME, BOLO_NAME_PLURAL],
-                                          reservation.outside_extra_dish + reservation.inside_extra_dish,
-                                          [EXTRA_DISH_NAME, EXTRA_DISH_NAME_PLURAL]),
+                                          reservation.outside.main_dish + reservation.inside.main_dish,
+                                          [MAIN_DISH_NAME, MAIN_DISH_NAME_PLURAL],
+                                          reservation.outside.extra_dish + reservation.inside.extra_dish,
+                                          [EXTRA_DISH_NAME, EXTRA_DISH_NAME_PLURAL],
+                                          reservation.outside.third_dish + reservation.inside.third_dish,
+                                          [THIRD_DISH_NAME, THIRD_DISH_NAME_PLURAL]),
                                  commande('Plat enfants',
-                                          reservation.kids_bolo,
-                                          [KIDS_BOLO_NAME, KIDS_BOLO_NAME_PLURAL],
-                                          reservation.kids_extra_dish,
-                                          [KIDS_EXTRA_DISH_NAME, KIDS_EXTRA_DISH_NAME_PLURAL]),
+                                          reservation.kids.main_dish,
+                                          [KIDS_MAIN_DISH_NAME, KIDS_MAIN_DISH_NAME_PLURAL],
+                                          reservation.kids.extra_dish,
+                                          [KIDS_EXTRA_DISH_NAME, KIDS_EXTRA_DISH_NAME_PLURAL],
+                                          reservation.kids.third_dish,
+                                          [KIDS_THIRD_DISH_NAME, KIDS_THIRD_DISH_NAME_PLURAL]),
                                  commande('Dessert',
-                                          reservation.outside_dessert + reservation.inside_dessert + reservation.kids_dessert,
-                                          [DESSERT_NAME, DESSERT_NAME_PLURAL]))
+                                          reservation.outside.main_dessert + reservation.inside.main_dessert + reservation.kids.main_dessert,
+                                          [MAIN_DESSERT_NAME, MAIN_DESSERT_NAME_PLURAL],
+                                          reservation.outside.extra_dessert + reservation.inside.extra_dessert + reservation.kids.extra_dessert,
+                                          [EXTRA_DESSERT_NAME, EXTRA_DESSERT_NAME_PLURAL]))
                      if x]
         if commandes:
             remaining_due = reservation.remaining_amount_due_in_cents(db_connection)
@@ -122,7 +134,7 @@ if __name__ == '__main__':
                     cents_to_euro(remaining_due), ' € sont encore dûs.  ',
                     "Nous vous saurions gré de déjà verser cette somme avec la communication ",
                     "structurée ", ("code", format_bank_id(reservation.bank_id)), " sur le compte ",
-                    BANK_ACCOUNT, " (bénéficiaire '", ORGANIZER_NAME, "') pour confirmer votre réservation, p.ex. en scannant ce code QR: ",
+                    BANK_ACCOUNT, " (bénéficiaire '", ORGANIZER_NAME, "') pour confirmer votre réservation, p.ex. en scannant ce code QR avec votre application bancaire mobile: ",
                     ('br',),
                     ('raw', qrcode.make(generate_payment_QR_code_content(remaining_due, reservation.bank_id, CONFIGURATION),
                                         image_factory=SvgPathFillImage
