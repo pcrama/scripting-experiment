@@ -197,7 +197,7 @@ function generic_test_valid_reservation_for_test_date
 
 function get_csrf_token_from_html
 {
-    sed -n -e 's/.*CSRF_TOKEN *= *.\([a-f0-9A-F]*\).;.*/\1/p' "$1"
+    sed -n -e 's/.*<input type="hidden" name="csrf_token" value="\([a-f0-9A-F]*\)">.*/\1/p' "$1"
 }
 
 # Assumes up to date DB is available (see get_db_file), validates that the
@@ -211,7 +211,7 @@ function make_list_reservations_output_deterministic
     then
         die "No csrf_token in '$input'"
     else
-        sed -e 's/\(CSRF_TOKEN *= *.\)'"$csrf_token"'/\1CSRF_TOKEN/g' \
+        sed -e 's/value="'"$csrf_token"'"/value="CSRF_TOKEN"/g' \
             -e "s/$admin_user/TEST_ADMIN/g" \
             -e "$(date +"s,%d/%m/%Y [012][0-9]:[0-5][0-9]</td></tr>,TIMESTAMP</td></tr>,g")" \
             "$input"
@@ -307,7 +307,7 @@ function assert_html_response
     grep -q "Content-Type: text/html; charset=utf-8" "$test_output" || die "$test_name No Content-Type in $test_output"
     grep -q '<!DOCTYPE HTML><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>' "$test_output" || die "$test_name no HTML preamble boilerplate in $test_output"
     if [ -z "$no_banner" ]; then
-        grep -q '</title><link rel="stylesheet" href="styles.css"></head><body><div id="branding" role="banner"><h1 id="site-title">Société Royale d'\''Harmonie de Braine-l'\''Alleud</h1><img src="https://www.srhbraine.be/wp-content/uploads/2019/10/site-en-tete.jpg" width="940" height="198" alt=""></div>' "$test_output" || die "$test_name no banner in $test_output"
+        grep -q '</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet"[^>]*bootstrap[^>]*></head><body><div id="branding" role="banner"><h1 id="site-title">Société Royale d'\''Harmonie de Braine-l'\''Alleud</h1><img src="https://www.srhbraine.be/wp-content/uploads/2019/10/site-en-tete.jpg" width="940" height="198" alt=""></div>' "$test_output" || die "$test_name no banner in $test_output"
     else
         if grep -q '<h1.*Braine.*Alleud</h1><img src' "$test_output"; then
             die "$test_name banner in $test_output"
@@ -424,16 +424,11 @@ function test_04_locally_invalid_post_reservation
 
 function test_05_locally_list_reservations
 {
-    local test_name test_output js_files uuid_hex bank_transaction_number
+    local test_name test_output uuid_hex bank_transaction_number csrf_token
     test_name="test_05_locally_list_reservations"
     test_output="$(capture_admin_cgi_output "$test_name" GET list_reservations.cgi "")"
-    if js_files="$(ls $(dirname "$0")/../input-form/build/*.js 2> /dev/null)" ; then
-        js_file_patterns="$(basename -a $js_files | sed -e 's;^;<script.defer.src=.*;')"
-    else
-        js_file_patterns=""
-        # die "Build the JS application first!"
-    fi
     # Check that the output contains a link to the payment info and the transaction number
+    csrf_token="$(get_csrf_token_of_user "$admin_user")"
     uuid_hex="$(sql_query 'select uuid from reservations limit 1')"
     bank_transaction_number="$(get_bank_id_from_reservation_uuid "$uuid_hex")"
     assert_html_response "$test_name" "$test_output" \
@@ -450,9 +445,8 @@ function test_05_locally_list_reservations
                          "$bank_transaction_number" \
                          '<li><a href="list_payments.cgi">Gérer les paiements</a></li>' \
                          '<li><a href="generate_tickets.cgi">Générer les tickets nourriture pour impression</a></li>' \
-                         'const CSRF_TOKEN = "' \
-                         '<div id="elmish-app"></div><script>const ACTION_DEST = "add_unchecked_reservation.cgi";' \
-                         $js_file_patterns
+                         "document.addEventListener('DOMContentLoaded', function () {" \
+                         '<input type="hidden" name="csrf_token" value="'"$csrf_token"'">'
 }
 
 function test_06_locally_add_unchecked_reservation_CSRF_failure
@@ -467,7 +461,7 @@ function test_07_locally_add_unchecked_reservation
 {
     local test_name test_output csrf uuid_hex data expected_data
     test_name="test_07_locally_add_unchecked_reservation"
-    csrf="$(sql_query "SELECT token FROM csrfs LIMIT 1")"
+    csrf="$(get_csrf_token_of_user "$admin_user")"
     test_output="$(capture_admin_cgi_output "$test_name" POST add_unchecked_reservation.cgi "name=Qui+m%27appelle%3F&extraComment=02%2F123.45.67&places=1&insidemainstarter=1&insideextrastarter=0&insidemaindish=0&insideextradish=0&insidethirddish=1&kidsmaindish=0&kidsextradish=0&outsidemainstarter=0&outsideextrastarter=0&outsidemaindish=0&outsideextradish=0&outsidethirddessert=0&outsidemaindessert=0&outsideextradessert=0&insideextradessert=1&csrf_token=$csrf&date=2024-03-23")"
     grep -q "Status: 302" "$test_output" || die "$test_name No Status: 302 redirect in $test_output"
     if uuid_hex="$(sed -ne '/Location:.*uuid_hex=/ { s///p ; q0 }' -e '$q1' "$test_output")"; then
@@ -485,7 +479,7 @@ function test_08_locally_GET_generate_tickets
     local test_name test_output csrf
     test_name="test_08_locally_GET_generate_tickets"
     test_output="$(capture_admin_cgi_output "$test_name" GET generate_tickets.cgi "")"
-    csrf="$(sql_query "SELECT token FROM csrfs LIMIT 1")"
+    csrf="$(get_csrf_token_of_user "$admin_user")"
     assert_html_response "$test_name" "$test_output" \
                          "Impression des tickets pour la nourriture" \
                          'name="csrf_token" value="'"$csrf"'"' \
@@ -513,7 +507,7 @@ function test_09_locally_POST_generate_tickets
     test_output="$(capture_admin_cgi_output "${test_name}_no_csrf" POST generate_tickets.cgi "")"
     assert_redirect_to_concert_page_for_local_test "${test_name}_no_csrf" "$test_output"
 
-    csrf="$(sql_query "SELECT token FROM csrfs LIMIT 1")"
+    csrf="$(get_csrf_token_of_user "$admin_user")"
     test_output="$(capture_admin_cgi_output --ignore-cgitb "${test_name}_only_csrf" POST generate_tickets.cgi "csrf_token=$csrf")"
     grep -q "RuntimeError: Not enough tickets" "$test_output" || die "${test_name}_only_csrf should contain RuntimeError because a lack of tickets"
     test_output="$(capture_admin_cgi_output "${test_name}" POST generate_tickets.cgi "csrf_token=$csrf&main_starter=19&extra_starter=41&main_dish=42&extra_dish=73&third_dish=20&kids_main_dish=74&kids_extra_dish=75&kids_third_dish=28&main_dessert=20&extra_dessert=35")"

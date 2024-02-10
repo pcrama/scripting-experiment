@@ -4,12 +4,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/css/bootstrap.min.css" integrity="sha384-HSMxcRTRxnN+Bdg0JdbxYKrThecOKuH5zCYotlSAcp1+c8xmyTe9GYg1l9a69psu" crossorigin="anonymous">
     <style>
-      div.starter { border-bottom: grey 1px solid; padding-bottom: 1px; }
-      div.dish { padding-top: 2px; padding-bottom: 1px; }
-      div.dessert { border-top: grey 1px solid; padding-top: 2px; }
-      div.error-message { display: none; }
-      div.has-error div.error-message { display: inline; color: darkred; font-style: oblique }
-      input { width: 5em; margin-left: 1em; }
+      form div.starter { border-bottom: grey 1px solid; padding-bottom: 1px; }
+      form div.dish { padding-top: 2px; padding-bottom: 1px; }
+      form div.dessert { border-top: grey 1px solid; padding-top: 2px; }
+      form div.error-message { display: none; }
+      form div.has-error div.error-message { display: inline; color: darkred; font-style: oblique }
+      form fieldset input { width: 5em; margin-left: 1em; }
     </style>
     <script>
       document.addEventListener('DOMContentLoaded', function () {
@@ -18,8 +18,8 @@
 
           let validations = [
               {'reference_fields': ['insidemaindish', 'insideextradish', 'insidethirddish'],
-               'validations': [{'section': 'complete-menu-starter', 'validated_fields': ['insidemainstarter', 'insideextrastarter']},
-                               {'section': 'complete-menu-dessert', 'validated_fields': ['insidemaindessert', 'insideextradessert']}]},
+               'validations': [{'section': 'inside-menu-starter', 'validated_fields': ['insidemainstarter', 'insideextrastarter']},
+                               {'section': 'inside-menu-dessert', 'validated_fields': ['insidemaindessert', 'insideextradessert']}]},
               {'reference_fields': ['kidsmaindish', 'kidsextradish', 'kidsthirddish'],
                'validations': [{'section': 'kids-menu-dessert', 'validated_fields': ['kidsmaindessert', 'kidsextradessert']}]}
           ];
@@ -73,10 +73,11 @@
     </script>
   </head>
   <body>
-    <form method="POST" class="container" id="reservation">
+    <form method="POST" class="container" id="reservation" action="add_unchecked_reservation.cgi">
+      <input type="hidden" name="csrf_token" value="xxxXXXxxx">
       <fieldset class="col-md-4">
         <legend>Menu Complet</legend>
-        <div class="starter sum-group" id="complete-menu-starter">
+        <div class="starter sum-group" id="inside-menu-starter">
           <div class="error-message">Le nombre total d'entrées doit correspondre au nombre total de plats</div>
           <div><label for="insidemainstarter">Carpaccio</label>
           <input min="0" max="50" size="5" type="number" id="insidemainstarter" name="insidemainstarter" value="0"></div>
@@ -91,7 +92,7 @@
           <div><label for="insidethirddish">Spaghetti végétariens</label>
           <input min="0" max="50" size="5" type="number" id="insidethirddish" name="insidethirddish" value="0"></div>
         </div>
-        <div class="dessert sum-group" id="complete-menu-dessert">
+        <div class="dessert sum-group" id="inside-menu-dessert">
           <div class="error-message">Le nombre total de desserts doit correspondre au nombre total de plats.</div>
           <div><label for="insidemaindessert">Fondu au chocolat</label>
           <input min="0" max="50" size="5" type="number" id="insidemaindessert" name="insidemaindessert" value="0"></div>

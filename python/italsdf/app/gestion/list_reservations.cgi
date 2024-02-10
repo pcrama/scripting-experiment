@@ -12,6 +12,7 @@ import itertools
 import os
 import sys
 import time
+from typing import Optional
 import urllib.parse
 
 # hack to get at my utilities:
@@ -100,6 +101,18 @@ def make_show_reservation_link_elt(r, link_text):
         link_text)
 
 
+def make_sum_group(div_id: str, div_class: str, error_msg: Optional[str], inputs_and_labels: list[tuple[str, str]]):
+    return (('div', 'class', div_class, 'id', div_id),
+            *([] if error_msg is None else [(('div', 'class', 'error-message'), error_msg)]),
+            *(make_label_and_input(*data) for data in inputs_and_labels))
+
+
+def make_label_and_input(input_id: str, label: str):
+    return ('div',
+            (('label', 'for', input_id), label),
+            (('input', 'min', '0', 'max', '50', 'size', '5', 'type', 'number', 'id', input_id, 'name', input_id, 'value', '0'),))
+
+
 DEFAULT_LIMIT = 20
 MAX_LIMIT = 500
 
@@ -112,20 +125,28 @@ if __name__ == '__main__':
     CONFIGURATION = config.get_configuration()
     cgitb.enable(display=CONFIGURATION['cgitb_display'], logdir=CONFIGURATION['logdir'])
 
+    MAIN_STARTER = CONFIGURATION["main_starter_name"]
     MAIN_STARTER_SHORT = CONFIGURATION["main_starter_short"]
+    EXTRA_STARTER = CONFIGURATION["extra_starter_name"]
     EXTRA_STARTER_SHORT = CONFIGURATION["extra_starter_short"]
+    MAIN_DISH = CONFIGURATION["main_dish_name"]
     MAIN_DISH_SHORT = CONFIGURATION["main_dish_short"]
+    EXTRA_DISH = CONFIGURATION["extra_dish_name"]
     EXTRA_DISH_SHORT = CONFIGURATION["extra_dish_short"]
+    THIRD_DISH = CONFIGURATION["third_dish_name"]
     THIRD_DISH_SHORT = CONFIGURATION["third_dish_short"]
+    KIDS_MAIN_DISH = CONFIGURATION["kids_main_dish_name"]
     KIDS_MAIN_DISH_SHORT = CONFIGURATION["kids_main_dish_short"]
+    KIDS_EXTRA_DISH = CONFIGURATION["kids_extra_dish_name"]
     KIDS_EXTRA_DISH_SHORT = CONFIGURATION["kids_extra_dish_short"]
+    KIDS_THIRD_DISH = CONFIGURATION["kids_third_dish_name"]
     KIDS_THIRD_DISH_SHORT = CONFIGURATION["kids_third_dish_short"]
+    MAIN_DESSERT = CONFIGURATION["main_dessert_name"]
     MAIN_DESSERT_SHORT = CONFIGURATION["main_dessert_short"]
+    EXTRA_DESSERT = CONFIGURATION["extra_dessert_name"]
     EXTRA_DESSERT_SHORT = CONFIGURATION["extra_dessert_short"]
 
     try:
-        # NB: the latter branch of the `or' is for automated testing purposes only...
-        JS_FILES = glob.glob("../*.js") or glob.glob("../../input-form/build/*.js")
         params = cgi.parse()
         sort_order = params.get('sort_order', '')
         try:
@@ -247,12 +268,141 @@ if __name__ == '__main__':
               " pour plus d'explications."),
              ('hr',),
              ('p', 'Ajouter une réservation:'),
-             (('div', 'id', 'elmish-app'), ''),
-             ('script',
-              'const ACTION_DEST = "add_unchecked_reservation.cgi";',
-              'const CONCERT_DATE = "2024-03-23";',
-              'const CSRF_TOKEN = "', csrf_token.token, '";'),
-             *((('script', 'defer src', js),) for js in JS_FILES),
+             ('raw',
+              """<script>
+      document.addEventListener('DOMContentLoaded', function () {
+          const errorClass = 'has-error';
+          let form = document.querySelector('#reservation');
+
+          let validations = [
+              {'reference_fields': ['insidemaindish', 'insideextradish', 'insidethirddish'],
+               'validations': [{'section': 'inside-menu-starter', 'validated_fields': ['insidemainstarter', 'insideextrastarter']},
+                               {'section': 'inside-menu-dessert', 'validated_fields': ['insidemaindessert', 'insideextradessert']}]},
+              {'reference_fields': ['kidsmaindish', 'kidsextradish', 'kidsthirddish'],
+               'validations': [{'section': 'kids-menu-dessert', 'validated_fields': ['kidsmaindessert', 'kidsextradessert']}]}
+          ];
+
+          function sumOfInputFields(inputFieldIds) {
+              return inputFieldIds.reduce((sum, fieldId) => sum + parseInt(document.getElementById(fieldId).value),
+                                          0);
+          }
+
+          function runValidation(validation_suite) {
+              let referenceSum = sumOfInputFields(validation_suite.reference_fields);
+              validation_suite.validations.forEach(function(validation) {
+                  var section = document.getElementById(validation.section);
+                  var inputSum = sumOfInputFields(validation.validated_fields);
+
+                  if (inputSum == referenceSum) {
+                      section.classList.remove(errorClass);
+                  } else {
+                      section.classList.add(errorClass);
+                  }
+              });
+          }
+
+          function validateAll() {
+              validations.forEach(runValidation);
+          }
+
+          form.addEventListener('submit', function (event) {
+              // Reset error classes
+              resetErrorClasses();
+
+              validateAll();
+
+              // Prevent form submission if there are errors
+              if (form.querySelectorAll('.' + errorClass).length > 0) {
+                  event.preventDefault();
+              }
+          });
+
+          form.addEventListener('change', function (event) {
+              validateAll();
+          });
+
+          function resetErrorClasses() {
+              var errorSections = form.querySelectorAll('.' + errorClass);
+              errorSections.forEach(function (section) {
+                  section.classList.remove(errorClass);
+              });
+          }
+      });
+    </script>"""),
+             (('form', 'method', 'POST', 'class', 'container', 'id', 'reservation', 'action', 'add_unchecked_reservation.cgi'),
+              (('input', 'type', 'hidden', 'name', 'csrf_token', 'value', csrf_token.token),),
+              (('div', 'class', 'row'),
+               (('label', 'for', 'name-field-id', 'class', 'col-xs-3'), 'Nom'),
+               (('input', 'id', 'name-field-id', 'class', 'col-xs-9', 'type', 'text', 'name', 'name', 'minlength', '2'),)),
+              (('div', 'class', 'row'),
+               (('label', 'for', 'email-field-id', 'class', 'col-xs-3'), 'Adresse e-mail'),
+               (('input', 'id', 'email-field-id', 'class', 'col-xs-9', 'type', 'email', 'name', 'email'),)),
+              (('div', 'class', 'row'),
+               (('label', 'for', 'extraComment-field-id', 'class', 'col-xs-12'), 'Commentaire (p.ex. pour le placement si vous venez avec un autre groupe)')),
+              (('div', 'class', 'row'),
+               (('input', 'id', 'extraComment-field-id', 'class', 'col-xs-12', 'type', 'text', 'name', 'extraComment'),)),
+              (('div', 'class', 'row'),
+               (('label', 'for', 'places-field-id', 'class', 'col-xs-3'), 'Nombre de places'),
+               (('input', 'id', 'places-field-id', 'class', 'col-xs-3', 'name', 'places', 'type', 'number', 'min', '1', 'max', '50', 'value', '1'),),
+               (('label', 'for', 'date-field-id', 'class', 'col-xs-2'), 'Date'),
+               (('input', 'id', 'date-field-id', 'class', 'col-xs-4', 'name', 'date', 'type', 'date', 'readonly', 'readonly', 'value', '2099-01-01'),)),
+              (('div', 'class', 'row'),
+               (('fieldset', 'class', 'col-md-4'),
+               ('legend', 'Menu Complet'),
+               make_sum_group("inside-menu-starter",
+                              "starter sum-group",
+                              "Le nombre total d'entrées doit correspondre au nombre total de plats",
+                              [('insidemainstarter', MAIN_STARTER),
+                               ('insideextrastarter', EXTRA_STARTER)]),
+               make_sum_group("inside-menu-dish",
+                              "dish sum-group",
+                              None,
+                              [('insidemaindish', MAIN_DISH),
+                               ('insideextradish', EXTRA_DISH),
+                               ('insidethirddish', THIRD_DISH)]),
+               make_sum_group("inside-menu-dessert",
+                              "dessert sum-group",
+                              "Le nombre total de desserts doit correspondre au nombre total de plats",
+                              [('insidemaindessert', MAIN_DESSERT),
+                               ('insideextradessert', EXTRA_DESSERT)])),
+              (('fieldset', 'class', 'col-md-4'),
+               ('legend', 'Menu Enfant'),
+               make_sum_group("kids-menu-dish",
+                              "dish sum-group",
+                              None,
+                              [('kidsmaindish', KIDS_MAIN_DISH),
+                               ('kidsextradish', KIDS_EXTRA_DISH),
+                               ('kidsthirddish', KIDS_THIRD_DISH)]),
+               make_sum_group("kids-menu-dessert",
+                              "dessert sum-group",
+                              "Le nombre total de desserts doit correspondre au nombre total de plats enfants",
+                              [('kidsmaindessert', MAIN_DESSERT),
+                               ('kidsextradessert', EXTRA_DESSERT)])),
+              (('fieldset', 'class', 'col-md-4'),
+               ('legend', 'À la carte'),
+               make_sum_group("outside-menu-starter",
+                              "starter sum-group",
+                              None,
+                              [('outsidemainstarter', MAIN_STARTER),
+                               ('outsideextrastarter', EXTRA_STARTER)]),
+               make_sum_group("outside-menu-dish",
+                              "dish sum-group",
+                              None,
+                              [('outsidemaindish', MAIN_DISH),
+                               ('outsideextradish', EXTRA_DISH),
+                               ('outsidethirddish', THIRD_DISH)]),
+               make_sum_group("outside-menu-dessert",
+                              "dessert sum-group",
+                              None,
+                              [('outsidemaindessert', MAIN_DESSERT),
+                               ('outsideextradessert', EXTRA_DESSERT)]))),
+              (('div', 'class', 'row'),
+               (('p', 'class', 'col-md-12'),
+                "La Société Royale d'Harmonie de Braine-l'Alleud respecte votre vie privée. Vos données de contact seront uniquement utilisées dans le cadre de ce souper italien, à moins que vous nous donniez l'autorisation de les garder pour vous informer de nos concerts et autres fêtes dans le futur.")),
+              (('div', 'class', 'row'),
+               (('input', 'type', 'checkbox', 'value', '', 'id', 'gdpr_accepts_use', 'name', 'gdpr_accepts_use', 'class', 'col-xs-1'),),
+               (('label', 'for', 'gdpr_accepts_use', 'class', 'col-xs-11'), "Je désire être tenu au courant des activités futures de la SRH de Braine-l'Alleud et l'autorise à conserver mon nom et mon adresse email à cette fin.")),
+              (('input', 'type', "submit", 'value', "Confirmer", 'style', "width: 100%;"),)),
              ('hr',),
              ('ul',
               ('li', (('a', 'href', 'list_payments.cgi'), 'Gérer les paiements')),
