@@ -7,7 +7,6 @@
 
 import cgi
 import cgitb
-import glob
 import itertools
 import os
 import sys
@@ -19,8 +18,8 @@ import urllib.parse
 sys.path.append('..')
 import config
 from htmlgen import (
-    html_document,
     format_bank_id,
+    html_document,
     pluriel_naif,
     print_content_type,
     redirect_to_event,
@@ -29,6 +28,7 @@ from htmlgen import (
 from lib_post_reservation import (
     make_show_reservation_url
 )
+import pricing
 from storage import (
     Csrf,
     Reservation,
@@ -37,6 +37,11 @@ from storage import (
 from create_tickets import (
     ul_for_menu_data,
 )
+
+def multi_replace(s: str, replaces: list[tuple[str, str]]) -> str:
+    for pattern, new_value in replaces:
+        s = s.replace(pattern, new_value)
+    return s
 
 
 def update_sort_order(new_col_name, sort_order):
@@ -145,6 +150,7 @@ if __name__ == '__main__':
     MAIN_DESSERT_SHORT = CONFIGURATION["main_dessert_short"]
     EXTRA_DESSERT = CONFIGURATION["extra_dessert_name"]
     EXTRA_DESSERT_SHORT = CONFIGURATION["extra_dessert_short"]
+    INFO_EMAIL = CONFIGURATION["info_email"]
 
     try:
         params = cgi.parse()
@@ -261,7 +267,7 @@ if __name__ == '__main__':
               # name is a fake parameter to encourage clients to believe Excel
               # can really open it.
               (('a', 'href', 'export_csv.cgi?name=export.csv'),
-                    'Exporter en format CSV (Excel ou autres tableurs)'),
+               'Exporter en format CSV (Excel ou autres tableurs)'),
               '. Excel a du mal avec les accents et autres caractères spéciaux, voyez ',
               (('a', 'href', 'https://www.nextofwindows.com/how-to-display-csv-files-with-unicode-utf-8-encoding-in-excel'),
                'cette page'),
@@ -269,7 +275,7 @@ if __name__ == '__main__':
              ('hr',),
              ('p', 'Ajouter une réservation:'),
              ('raw',
-              """<script>
+              multi_replace("""<script>
       document.addEventListener('DOMContentLoaded', function () {
           const errorClass = 'has-error';
           let form = document.querySelector('#reservation');
@@ -317,8 +323,33 @@ if __name__ == '__main__':
               }
           });
 
+          function updatePrice() {
+              const prices = {
+                  'insidemaindish': insidemaindish,,
+                  'insideextradish': insideextradish,,
+                  'insidethirddish': insidethirddish,,
+                  'kidsmaindish': kidsmaindish,,
+                  'kidsextradish': kidsextradish,,
+                  'kidsthirddish': kidsthirddish,,
+                  'outsidemainstarter': outsidemainstarter,,
+                  'outsideextrastarter': outsideextrastarter,,
+                  'outsidemaindish': outsidemaindish,,
+                  'outsideextradish': outsideextradish,,
+                  'outsidethirddish': outsidethirddish,,
+                  'outsidemaindessert': outsidemaindessert,,
+                  'outsideextradessert': outsideextradessert,
+              };
+              let totalPrice = 0;
+              for (let key in prices) {
+                  totalPrice += parseInt(document.getElementById(key).value) * prices[key];
+              }
+              let cents = String(totalPrice % 100).padStart(2, '0');
+              document.getElementById('reservation-submit').value = totalPrice == 0?'Confirmer':`Prix total: ${totalPrice / 100}.${cents}€. Confirmer`
+          }
+
           form.addEventListener('change', function (event) {
               validateAll();
+              updatePrice();
           });
 
           function resetErrorClasses() {
@@ -327,16 +358,33 @@ if __name__ == '__main__':
                   section.classList.remove(errorClass);
               });
           }
+
+          resetErrorClasses();
+          validateAll();
+          updatePrice();
       });
-    </script>"""),
+    </script>""", [
+        (': insidemaindish,', f': {pricing.CENTS_MENU_MAIN_DISH}'),
+        (': insideextradish,', f': {pricing.CENTS_MENU_EXTRA_DISH}'),
+        (': insidethirddish,', f': {pricing.CENTS_MENU_THIRD_DISH}'),
+        (': kidsmaindish,', f': {pricing.CENTS_KIDS_MENU_MAIN_DISH}'),
+        (': kidsextradish,', f': {pricing.CENTS_KIDS_MENU_EXTRA_DISH}'),
+        (': kidsthirddish,', f': {pricing.CENTS_KIDS_MENU_THIRD_DISH}'),
+        (': outsidemainstarter,', f': {pricing.CENTS_STARTER}'),
+        (': outsideextrastarter,', f': {pricing.CENTS_STARTER}'),
+        (': outsidemaindish,', f': {pricing.CENTS_MAIN_DISH}'),
+        (': outsideextradish,', f': {pricing.CENTS_EXTRA_DISH}'),
+        (': outsidethirddish,', f': {pricing.CENTS_THIRD_DISH}'),
+        (': outsidemaindessert,', f': {pricing.CENTS_DESSERT}'),
+        (': outsideextradessert,', f': {pricing.CENTS_DESSERT}')])),
              (('form', 'method', 'POST', 'class', 'container', 'id', 'reservation', 'action', 'add_unchecked_reservation.cgi'),
               (('input', 'type', 'hidden', 'name', 'csrf_token', 'value', csrf_token.token),),
               (('div', 'class', 'row'),
                (('label', 'for', 'name-field-id', 'class', 'col-xs-3'), 'Nom'),
-               (('input', 'id', 'name-field-id', 'class', 'col-xs-9', 'type', 'text', 'name', 'name', 'minlength', '2'),)),
+               (('input', 'id', 'name-field-id', 'class', 'col-xs-9', 'type', 'text', 'name', 'name', 'required', 'required', 'minlength', '2'),)),
               (('div', 'class', 'row'),
-               (('label', 'for', 'email-field-id', 'class', 'col-xs-3'), 'Adresse e-mail'),
-               (('input', 'id', 'email-field-id', 'class', 'col-xs-9', 'type', 'email', 'name', 'email'),)),
+               (('label', 'for', 'email-field-id', 'class', 'col-xs-3'), 'e-mail ou téléphone'),
+               (('input', 'id', 'email-field-id', 'class', 'col-xs-9', 'type', 'text', 'name', 'email', 'minlength', '2', 'pattern', '^[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}$|^[0-9.\\/ \\-]+$'),)),
               (('div', 'class', 'row'),
                (('label', 'for', 'extraComment-field-id', 'class', 'col-xs-12'), 'Commentaire (p.ex. pour le placement si vous venez avec un autre groupe)')),
               (('div', 'class', 'row'),
@@ -398,11 +446,11 @@ if __name__ == '__main__':
                                ('outsideextradessert', EXTRA_DESSERT)]))),
               (('div', 'class', 'row'),
                (('p', 'class', 'col-md-12'),
-                "La Société Royale d'Harmonie de Braine-l'Alleud respecte votre vie privée. Vos données de contact seront uniquement utilisées dans le cadre de ce souper italien, à moins que vous nous donniez l'autorisation de les garder pour vous informer de nos concerts et autres fêtes dans le futur.")),
+                "La Société Royale d'Harmonie de Braine-l'Alleud respecte votre vie privée. Les données de contact que vous nous communiquez dans ce formulaire seront uniquement utilisées dans le cadre de ce souper italien, à moins que vous nous donniez l'autorisation de les garder pour vous informer de nos concerts et autres fêtes dans le futur. Contactez ", (('a', 'href', f"mailto:{INFO_EMAIL}"), INFO_EMAIL), " pour demander d'être retiré de nos fichiers.")),
               (('div', 'class', 'row'),
                (('input', 'type', 'checkbox', 'value', '', 'id', 'gdpr_accepts_use', 'name', 'gdpr_accepts_use', 'class', 'col-xs-1'),),
                (('label', 'for', 'gdpr_accepts_use', 'class', 'col-xs-11'), "Je désire être tenu au courant des activités futures de la SRH de Braine-l'Alleud et l'autorise à conserver mon nom et mon adresse email à cette fin.")),
-              (('input', 'type', "submit", 'value', "Confirmer", 'style', "width: 100%;"),)),
+              (('input', 'type', "submit", 'id', 'reservation-submit', 'value', "Confirmer", 'style', "width: 100%;"),)),
              ('hr',),
              ('ul',
               ('li', (('a', 'href', 'list_payments.cgi'), 'Gérer les paiements')),
