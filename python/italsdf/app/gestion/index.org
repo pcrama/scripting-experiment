@@ -1,6 +1,6 @@
 #+options: ^:{}
 #+author: Philippe Crama
-#+title: Souper Italien 2022
+#+title: Souper Italien 2024
 
 * Introduction
 

@@ -12,7 +12,7 @@ See also [[file+emacs:app/gestion/index.org][usage instructions and checklists (
 
 Use the ~deploy.sh~ script like this:
 #+begin_src shell :exports code
-  ./deploy.sh 'user@host' 'username' 'groupname' 'https://host' 'prefix_folder' 'deploy_folder' ['admin_user' 'admin_pw']
+  ./deploy.sh 'user@host' 'username' 'groupname' 'https://host' 'prefix_folder' 'deploy_folder' 'virtualenv_folder' ['admin_user' 'admin_pw']
 #+end_src
 
 - ~user@host~ :: anything that `ssh` accepts.
@@ -24,6 +24,8 @@ Use the ~deploy.sh~ script like this:
   not necessarily the path typed in your browser). ~prefix_folder~ is used to
   navigate on the SSH host, ~deploy_folder~ is used to navigate even deeper,
   but will also be part of the URLs of the web application.
+- ~virtualenv_folder~ :: absolute path where to create the virtual environment
+  with libraries
 - ~admin_user~ and ~admin_pw~ :: the administrative interface should be
   protected by authentication.  If the parameters are given, HTTP basic
   authentication is setup in that folder.
@@ -42,6 +44,10 @@ Then configure the application
     #+begin_example
       <a href="https://www.vecteezy.com/free-vector/croquette">Croquette Vectors by Vecteezy</a>
     #+end_example
+  + [[https://www.vecteezy.com/vector-art/3820058-delicious-traditional-kimchi][carpaccio]]
+    #+begin_example
+      <a href="https://www.vecteezy.com/vector-art/3820058-delicious-traditional-kimchi">Delicious traditional kimchi by Vecteezy</a>
+    #+end_example
   + [[https://www.vecteezy.com/vector-art/10456729-vector-contour-drawing-of-mozzarella-cheese-slices-on-a-white-background][mozzarella cheese]]
     #+begin_example
       <a href="https://www.vecteezy.com/free-vector/black">Black Vectors by Vecteezy</a>
@@ -54,60 +60,13 @@ Then configure the application
   [[file+emacs:app/config.py][app/config.py]]).
 - Put up the dynamic or static input form
 
-** Dynamic input form
-There is a [[file+emacs:input-form/][Fable/Elmish application]] that is deployed next to these CGI scripts
-that generates an input form dynamically.
-#+begin_example
-  <div id="elmish-app"></div>
-  <script>
-    const ACTION_DEST = 'https://your-host/.../post_reservation.cgi';
-    const CONCERT_DATE = '1234-56-78';</script>
-  <script defer src="http://your-host/.../demo.???.js"></script>
-  <script defer src="http://your-host/.../vendors.???.js"></script>
-#+end_example
 ** Static input form
 Host an HTML form that will =POST= its content to the =post_reservation.cgi=
-script:
-#+begin_example
-  <form action="https://YOUR_HOST/DEPLOYMENT_DIR/post_reservation.cgi" method="POST">
-    <input name="date" type="hidden" value="2099-01-01">
-    <label for="name">Nom:</label><br>
-    <input id="name" style="width: 100%;" name="name" required="required" type="text" placeholder="Il est obligatoire de saisir votre nom"><br>
-    <label for="email">Email:</label><br>
-    <input id="email" style="width: 100%;" name="email" required="required" type="email" placeholder="Nous pourrions avoir besoin de votre email pour le tracing"><br>
-    <label for="places">Nombre de convives:</label><br>
-    <input id="places" name="places" type="number"><p></p>
-    <ul>
-      <li>Entrées
-        <ol>
-        <li><label style="display: inline-block; width: 14em;" for="main_starter">Assiette italienne (8€):</label> <input id="main_starter" style="width: 5em;" max="20" min="0" name="main_starter" type="number" value="0"></li>
-        <li><label style="display: inline-block; width: 14em;" for="fondus">Croquettes au fromage (8€):</label> <input id="fondus" style="width: 5em;" max="20" min="0" name="fondus" type="number" value="0"></li>
-        </ol>
-      </li>
-      <li>Plats
-        <ol>
-        <li><label style="display: inline-block; width: 14em;" for="main_dish">Spaghetti Bolognaise (10€):</label> <input id="main_dish" style="width: 5em;" max="20" min="0" name="main_dish" type="number" value="0"></li>
-        <li><label style="display: inline-block; width: 14em;" for="scampis">Spaghetti aux scampis (15€):</label> <input id="scampis" style="width: 5em;" max="20" min="0" name="scampis" type="number" value="0"></li>
-        </ol>
-      </li>
-      <li>Desserts
-        <ol>
-        <li><label style="display: inline-block; width: 14em;" for="tiramisu">Tiramisu Maison (5€):</label> <input id="tiramisu" style="width: 5em;" max="20" min="0" name="tiramisu" type="number" value="0"></li>
-        <li><label style="display: inline-block; width: 14em;" for="tranches">Tranche Napolitaine (5€):</label> <input id="tranches" style="width: 5em;" max="20" min="0" name="tranches" type="number" value="0"></li>
-        </ol>
-      </li>
-    </ul>
-    <div style="display: grid;">
-      <div style="grid-row: 1; grid-column: 1;"><input id="gdpr_accepts_use" name="gdpr_accepts_use" type="checkbox" value="true"></div>
-      <div style="grid-row: 1; grid-column: 2;"><label for="gdpr_accepts_use">J'autorise la Société Royale d’Harmonie de Braine-l’Alleud à utiliser mon adresse email pour m’avertir de ses futures activités.</label></div>
-    </div>
-    <input type="submit" value="Confirmer">
-  </form>
-#+end_example
+script, cf [[file:new-input-form.html][new-input-form.html]].
 
 * Test mode
-There are 3 dates for the dinner: 2 fake dates in 2099 and the real dates
-in 2023.
+There are 3 dates for the dinner: 2 fake dates in 2099 and the real date
+in 2024.
 
 The trick to be able to book dates for the fake dates is that the name must
 start with ~Test~ and that the email address must end with ~@example.com~.
@@ -122,14 +81,3 @@ as the state of one test is often assumed in the next test.
 - Minimal validation on name and email: we count on the fact that few people
   will find the form and that we will weed out fake registrations by seeing
   who pays.
-
-* NixOS instructions
-If you don't use [[https://direnv.net/][direnv]] to automatically activate your nix-shell, use this
-command line (note that there are no quotes on purpose!):
-#+begin_src shell :exports code
-  nix-shell $(sed 's/use nix //' .envrc)
-#+end_src
-
-In the nix-shell:
-1. See [[file+emacs:input-form/README.md][input-form README file]] to build the interactive menu selection form
-2. Use the [[Deployment][Deployment instructions]]
