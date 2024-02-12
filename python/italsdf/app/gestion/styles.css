@@ -147,6 +147,7 @@ form div.starter { border-bottom: grey 1px solid; padding-bottom: 1px; }
 form div.dish { padding-top: 2px; padding-bottom: 1px; }
 form div.dessert { border-top: grey 1px solid; padding-top: 2px; }
 form div.error-message { display: none; }
-form div.has-error div.error-message { display: inline; color: darkred; font-style: oblique }
-form fieldset input { width: 5em; margin-left: 1em; }
+form div.has-error div.error-message { display: inline; color: #ed4337; font-style: oblique }
 input { padding-left: 0.2em; padding-right: 0.2em; }
+form fieldset input { width: 5em; margin-left: 1em; }
+form input:invalid { border-color: #ed4337 }

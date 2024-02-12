@@ -9,10 +9,10 @@
       form div.dish { padding-top: 2px; padding-bottom: 1px; }
       form div.dessert { border-top: grey 1px solid; padding-top: 2px; }
       form div.error-message { display: none; }
-      form div.has-error div.error-message { display: inline; color: firebrick; font-style: oblique }
+      form div.has-error div.error-message { display: inline; color: #ed4337; font-style: oblique }
+      input { padding-left: 0.2em; padding-right: 0.2em; }
       form fieldset input { width: 5em; margin-left: 1em; }
-      form input { padding-left: 0.2em; padding-right: 0.2em; }
-      form input:invalid { border-color: red }
+      form input:invalid { border-color: #ed4337 }
     </style>
     <script>
       document.addEventListener('DOMContentLoaded', function () {
@@ -131,103 +131,81 @@
           <legend>Menu Complet</legend>
           <div class="starter sum-group" id="inside-menu-starter">
             <div class="error-message">Le nombre total d'entrées doit correspondre au nombre total de plats</div>
-            <div>
-              <label for="insidemainstarter">Carpaccio de boeuf</label>
-              <input min="0" max="50" size="5" type="number" id="insidemainstarter" name="insidemainstarter" value="0">
-            </div>
-            <div>
-              <label for="insideextrastarter">Croquettes au fromage</label>
-              <input min="0" max="50" size="5" type="number" id="insideextrastarter" name="insideextrastarter" value="0">
+            <div style="display: grid;">
+              <label for="insidemainstarter" style="grid-row: 1; grid-column: 1">Carpaccio de boeuf</label>
+              <input min="0" max="50" size="5" type="number" id="insidemainstarter" name="insidemainstarter" value="0" style="grid-row: 1; grid-column: 2;">
+              <label for="insideextrastarter" style="grid-row: 2; grid-column: 1">Croquettes au fromage</label>
+              <input min="0" max="50" size="5" type="number" id="insideextrastarter" name="insideextrastarter" value="0" style="grid-row: 2; grid-column: 2;">
             </div>
           </div>
           <div class="dish sum-group" id="inside-menu-dish">
-            <div>
-              <label for="insidemaindish">Spaghetti bolognaise</label>
-              <input min="0" max="50" size="5" type="number" id="insidemaindish" name="insidemaindish" value="0">
-            </div>
-            <div>
-              <label for="insideextradish">Spaghetti aux scampis</label>
-              <input min="0" max="50" size="5" type="number" id="insideextradish" name="insideextradish" value="0">
-            </div>
-            <div>
-              <label for="insidethirddish">Spaghetti aux légumes</label>
-              <input min="0" max="50" size="5" type="number" id="insidethirddish" name="insidethirddish" value="0">
+            <div style="display: grid;">
+              <label for="insidemaindish" style="grid-row: 1; grid-column: 1">Spaghetti bolognaise</label>
+              <input min="0" max="50" size="5" type="number" id="insidemaindish" name="insidemaindish" value="0" style="grid-row: 1; grid-column: 2;">
+              <label for="insideextradish" style="grid-row: 2; grid-column: 1">Spaghetti aux scampis</label>
+              <input min="0" max="50" size="5" type="number" id="insideextradish" name="insideextradish" value="0" style="grid-row: 2; grid-column: 2;">
+              <label for="insidethirddish" style="grid-row: 3; grid-column: 1">Spaghetti aux légumes</label>
+              <input min="0" max="50" size="5" type="number" id="insidethirddish" name="insidethirddish" value="0" style="grid-row: 3; grid-column: 2;">
             </div>
           </div>
           <div class="dessert sum-group" id="inside-menu-dessert">
             <div class="error-message">Le nombre total de desserts doit correspondre au nombre total de plats</div>
-            <div>
-              <label for="insidemaindessert">Moelleux au chocolat</label>
-              <input min="0" max="50" size="5" type="number" id="insidemaindessert" name="insidemaindessert" value="0">
-            </div>
-            <div>
-              <label for="insideextradessert">Portion de glace</label>
-              <input min="0" max="50" size="5" type="number" id="insideextradessert" name="insideextradessert" value="0">
+            <div style="display: grid;">
+              <label for="insidemaindessert" style="grid-row: 1; grid-column: 1">Moelleux au chocolat</label>
+              <input min="0" max="50" size="5" type="number" id="insidemaindessert" name="insidemaindessert" value="0" style="grid-row: 1; grid-column: 2;">
+              <label for="insideextradessert" style="grid-row: 2; grid-column: 1">Glace du P'tit Seigneur à Ophain (caramel salé)</label>
+              <input min="0" max="50" size="5" type="number" id="insideextradessert" name="insideextradessert" value="0" style="grid-row: 2; grid-column: 2;">
             </div>
           </div>
         </fieldset>
         <fieldset class="col-md-4">
           <legend>Menu Enfant</legend>
           <div class="dish sum-group" id="kids-menu-dish">
-            <div>
-              <label for="kidsmaindish">Spag. bolognaise (enfants)</label>
-              <input min="0" max="50" size="5" type="number" id="kidsmaindish" name="kidsmaindish" value="0">
-            </div>
-            <div>
-              <label for="kidsextradish">Spag. aux scampis (enfants)</label>
-              <input min="0" max="50" size="5" type="number" id="kidsextradish" name="kidsextradish" value="0">
-            </div>
-            <div>
-              <label for="kidsthirddish">Spag. aux légumes (enfants)</label>
-              <input min="0" max="50" size="5" type="number" id="kidsthirddish" name="kidsthirddish" value="0">
+            <div style="display: grid;">
+              <label for="kidsmaindish" style="grid-row: 1; grid-column: 1">Spag. bolognaise (enfants)</label>
+              <input min="0" max="50" size="5" type="number" id="kidsmaindish" name="kidsmaindish" value="0" style="grid-row: 1; grid-column: 2;">
+              <label for="kidsextradish" style="grid-row: 2; grid-column: 1">Spag. aux scampis (enfants)</label>
+              <input min="0" max="50" size="5" type="number" id="kidsextradish" name="kidsextradish" value="0" style="grid-row: 2; grid-column: 2;">
+              <label for="kidsthirddish" style="grid-row: 3; grid-column: 1">Spag. aux légumes (enfants)</label>
+              <input min="0" max="50" size="5" type="number" id="kidsthirddish" name="kidsthirddish" value="0" style="grid-row: 3; grid-column: 2;">
             </div>
           </div>
-          <div class="dessert sum-group" id="kids-menu-dessert">
+          <div class="dessert sum-group has-error" id="kids-menu-dessert">
             <div class="error-message">Le nombre total de desserts doit correspondre au nombre total de plats enfants</div>
-            <div>
-              <label for="kidsmaindessert">Moelleux au chocolat</label>
-              <input min="0" max="50" size="5" type="number" id="kidsmaindessert" name="kidsmaindessert" value="0">
-            </div>
-            <div>
-              <label for="kidsextradessert">Portion de glace</label>
-              <input min="0" max="50" size="5" type="number" id="kidsextradessert" name="kidsextradessert" value="0">
+            <div style="display: grid;">
+              <label for="kidsmaindessert" style="grid-row: 1; grid-column: 1">Moelleux au chocolat</label>
+              <input min="0" max="50" size="5" type="number" id="kidsmaindessert" name="kidsmaindessert" value="0" style="grid-row: 1; grid-column: 2;">
+              <label for="kidsextradessert" style="grid-row: 2; grid-column: 1">Glace du P'tit Seigneur à Ophain (caramel salé)</label>
+              <input min="0" max="50" size="5" type="number" id="kidsextradessert" name="kidsextradessert" value="0" style="grid-row: 2; grid-column: 2;">
             </div>
           </div>
         </fieldset>
         <fieldset class="col-md-4">
           <legend>À la carte</legend>
           <div class="starter sum-group" id="outside-menu-starter">
-            <div>
-              <label for="outsidemainstarter">Carpaccio de boeuf</label>
-              <input min="0" max="50" size="5" type="number" id="outsidemainstarter" name="outsidemainstarter" value="0">
-            </div>
-            <div>
-              <label for="outsideextrastarter">Croquettes au fromage</label>
-              <input min="0" max="50" size="5" type="number" id="outsideextrastarter" name="outsideextrastarter" value="0">
+            <div style="display: grid;">
+              <label for="outsidemainstarter" style="grid-row: 1; grid-column: 1">Carpaccio de boeuf</label>
+              <input min="0" max="50" size="5" type="number" id="outsidemainstarter" name="outsidemainstarter" value="0" style="grid-row: 1; grid-column: 2;">
+              <label for="outsideextrastarter" style="grid-row: 2; grid-column: 1">Croquettes au fromage</label>
+              <input min="0" max="50" size="5" type="number" id="outsideextrastarter" name="outsideextrastarter" value="0" style="grid-row: 2; grid-column: 2;">
             </div>
           </div>
           <div class="dish sum-group" id="outside-menu-dish">
-            <div>
-              <label for="outsidemaindish">Spaghetti bolognaise</label>
-              <input min="0" max="50" size="5" type="number" id="outsidemaindish" name="outsidemaindish" value="0">
-            </div>
-            <div>
-              <label for="outsideextradish">Spaghetti aux scampis</label>
-              <input min="0" max="50" size="5" type="number" id="outsideextradish" name="outsideextradish" value="0">
-            </div>
-            <div>
-              <label for="outsidethirddish">Spaghetti aux légumes</label>
-              <input min="0" max="50" size="5" type="number" id="outsidethirddish" name="outsidethirddish" value="0">
+            <div style="display: grid;">
+              <label for="outsidemaindish" style="grid-row: 1; grid-column: 1">Spaghetti bolognaise</label>
+              <input min="0" max="50" size="5" type="number" id="outsidemaindish" name="outsidemaindish" value="0" style="grid-row: 1; grid-column: 2;">
+              <label for="outsideextradish" style="grid-row: 2; grid-column: 1">Spaghetti aux scampis</label>
+              <input min="0" max="50" size="5" type="number" id="outsideextradish" name="outsideextradish" value="0" style="grid-row: 2; grid-column: 2;">
+              <label for="outsidethirddish" style="grid-row: 3; grid-column: 1">Spaghetti aux légumes</label>
+              <input min="0" max="50" size="5" type="number" id="outsidethirddish" name="outsidethirddish" value="0" style="grid-row: 3; grid-column: 2;">
             </div>
           </div>
           <div class="dessert sum-group" id="outside-menu-dessert">
-            <div>
-              <label for="outsidemaindessert">Moelleux au chocolat</label>
-              <input min="0" max="50" size="5" type="number" id="outsidemaindessert" name="outsidemaindessert" value="0">
-            </div>
-            <div>
-              <label for="outsideextradessert">Portion de glace</label>
-              <input min="0" max="50" size="5" type="number" id="outsideextradessert" name="outsideextradessert" value="0">
+            <div style="display: grid;">
+              <label for="outsidemaindessert" style="grid-row: 1; grid-column: 1">Moelleux au chocolat</label>
+              <input min="0" max="50" size="5" type="number" id="outsidemaindessert" name="outsidemaindessert" value="0" style="grid-row: 1; grid-column: 2;">
+              <label for="outsideextradessert" style="grid-row: 2; grid-column: 1">Glace du P'tit Seigneur à Ophain (caramel salé)</label>
+              <input min="0" max="50" size="5" type="number" id="outsideextradessert" name="outsideextradessert" value="0" style="grid-row: 2; grid-column: 2;">
             </div>
           </div>
         </fieldset>

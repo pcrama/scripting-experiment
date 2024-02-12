@@ -109,13 +109,13 @@ def make_show_reservation_link_elt(r, link_text):
 def make_sum_group(div_id: str, div_class: str, error_msg: Optional[str], inputs_and_labels: list[tuple[str, str]]):
     return (('div', 'class', div_class, 'id', div_id),
             *([] if error_msg is None else [(('div', 'class', 'error-message'), error_msg)]),
-            *(make_label_and_input(*data) for data in inputs_and_labels))
+            (('div', 'style', 'display: grid;'),
+             *itertools.chain(*(make_label_and_input(row + 1, *data) for row, data in enumerate(inputs_and_labels)))))
 
 
-def make_label_and_input(input_id: str, label: str):
-    return ('div',
-            (('label', 'for', input_id), label),
-            (('input', 'min', '0', 'max', '50', 'size', '5', 'type', 'number', 'id', input_id, 'name', input_id, 'value', '0'),))
+def make_label_and_input(row: int, input_id: str, label: str):
+    return ((('label', 'for', input_id, 'style', f'grid-row: {row}; grid-column: 1'), label),
+            (('input', 'min', '0', 'max', '50', 'size', '5', 'type', 'number', 'id', input_id, 'name', input_id, 'value', '0', 'style', f'grid-row: {row}; grid-column: 2;'),))
 
 
 DEFAULT_LIMIT = 20
