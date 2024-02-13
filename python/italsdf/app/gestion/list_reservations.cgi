@@ -114,8 +114,10 @@ def make_sum_group(div_id: str, div_class: str, error_msg: Optional[str], inputs
 
 
 def make_label_and_input(row: int, input_id: str, label: str):
-    return ((('label', 'for', input_id, 'style', f'grid-row: {row}; grid-column: 1'), label),
-            (('input', 'min', '0', 'max', '50', 'size', '5', 'type', 'number', 'id', input_id, 'name', input_id, 'value', '0', 'style', f'grid-row: {row}; grid-column: 2;'),))
+    return ((('div', 'style', f'display: flex; place-items: center; grid-row: {row}; grid-column: 1'),
+             (('label', 'for', input_id), label)),
+            (('div', 'style', f'display: flex; place-items: center; grid-row: {row}; grid-column: 2;'),
+             (('input', 'min', '0', 'max', '50', 'size', '5', 'type', 'number', 'id', input_id, 'name', input_id, 'value', '0'),)))
 
 
 DEFAULT_LIMIT = 20
@@ -414,7 +416,7 @@ if __name__ == '__main__':
                               [('insidemaindessert', MAIN_DESSERT),
                                ('insideextradessert', EXTRA_DESSERT)])),
               (('fieldset', 'class', 'col-md-4'),
-               ('legend', 'Menu Enfant'),
+               ('legend', 'Menu Enfant (< 12 ans)'),
                make_sum_group("kids-menu-dish",
                               "dish sum-group",
                               None,
