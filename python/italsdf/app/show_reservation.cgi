@@ -123,7 +123,8 @@ if __name__ == '__main__':
             remaining_due = reservation.remaining_amount_due_in_cents(db_connection)
             last_payment_update_timestamp = time.localtime(Payment.max_timestamp(db_connection))
             last_payment_update = time.strftime(
-                "La dernière mise à jour de la liste des paiements reçus dans le système a eu lieu le %d/%m/%Y à %H:%M.")
+                "La dernière mise à jour de la liste des paiements reçus dans le système a eu lieu le %d/%m/%Y à %H:%M.",
+                last_payment_update_timestamp)
             if remaining_due <= 0:
                 due_amount_info = (
                     "Merci d'avoir déjà réglé l'entièreté des ", cents_to_euro(reservation.cents_due), " € dûs.  ",

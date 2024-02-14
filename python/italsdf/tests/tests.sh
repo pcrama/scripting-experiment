@@ -385,7 +385,8 @@ function test_03_locally_display_existing_reservation
     assert_html_response "$test_name" "$test_output" \
                          "Merci de nous avoir " \
                          "Le prix total est de " \
-                         "Nous vous saurions "
+                         "Nous vous saurions " \
+                         "La dernière mise à jour de la liste des paiements reçus dans le système a eu lieu le 25/01/2024 à 21:47"
 
     # insert reservation for places without any food reservation, using the
     # opportunity to double-check on HTML escaping.
@@ -535,7 +536,7 @@ function test_10_locally_list_payments_before_adding_any_to_db
 
 function test_11_locally_reservation_example
 {
-    local test_name test_output
+    local test_name test_output timestamp_epoch
     test_name="test_11_locally_reservation_example"
     test_output="$(capture_cgi_output "$test_name" POST post_reservation.cgi 'name=realperson&email=i%40gmail.com&extraComment=commentaire&places=2&insidemainstarter=1&insideextrastarter=0&insidemaindish=1&insideextradish=0&insideextradessert=1&kidsmaindish=1&kidsextradish=0&kidsextradessert=1&outsidemainstarter=0&outsideextrastarter=1&outsidemaindish=0&outsideextradish=0&outsideextradessert=0&outsidemaindessert=3&gdpr_accepts_use=false&date=2024-03-23')"
     grep -q "Status: 302" "$test_output" || die "$test_name No Status: 302 redirect in $test_output"
@@ -565,7 +566,8 @@ function test_11_locally_reservation_example
                              "Nous vous saurions gré de déjà verser cette somme avec la communication structurée" \
                              "code QR avec votre application bancaire mobile: <br><svg"
 
-        sql_query 'INSERT INTO payments VALUES (NULL, 86405.5, 7150, "partial payment", "'"$uuid_hex"'", "src_id_1", "BE001100", "realperson", "Accepté", "unit test admin user", "1.2.3.4")'
+        timestamp_epoch=86460
+        sql_query 'INSERT INTO payments VALUES (NULL, '"$timestamp_epoch"', 7150, "partial payment", "'"$uuid_hex"'", "src_id_1", "BE001100", "realperson", "Accepté", "unit test admin user", "1.2.3.4")'
         test_output="$(capture_cgi_output "$test_name" GET show_reservation.cgi "uuid_hex=$uuid_hex")"
         assert_html_response "$test_name" "$test_output" \
                              "Merci d'avoir déjà réglé l'entièreté des 75.00 € dûs" \
@@ -574,7 +576,8 @@ function test_11_locally_reservation_example
                              ">Plat: 1 Spaghetti bolognaise</li>" \
                              ">Plat enfants: 1 Spag. bolognaise (enfants)</li>" \
                              ">3 Fondus au chocolat</li>" \
-                             ">2 Portions de glace</li>"
+                             ">2 Portions de glace</li>" \
+                             "La dernière mise à jour de la liste des paiements reçus dans le système a eu lieu le $(date --date="@$timestamp_epoch" '+%d/%m/%Y à %H:%M')"
         assert_not_in_html_response "$test_name" "$test_output" "verser cette somme avec la communication structurée" "code QR avec votre application bancaire mobile: <br><svg"
     else
         die "$test_name unable to extract uuid_hex"
