@@ -143,16 +143,17 @@ def create_full_ticket_list(connection, rs: Iterable[Reservation], main_starter:
     yield _heading('Vente libre')
     yield ('div',
            ', '.join('='.join((n, str(v))) for n, v in (
-                    (MAIN_STARTER_NAME, main_starter),
-                    (EXTRA_STARTER_NAME, extra_starter),
-                    (MAIN_DISH_NAME, main_dish),
-                    (EXTRA_DISH_NAME, extra_dish),
-                    (THIRD_DISH_NAME, third_dish),
-                    (KIDS_MAIN_DISH_NAME, kids_main_dish),
-                    (KIDS_EXTRA_DISH_NAME, kids_extra_dish),
-                    (KIDS_THIRD_DISH_NAME, kids_third_dish),
-                    (MAIN_DESSERT_NAME, main_dessert),
-                    (EXTRA_DESSERT_NAME, extra_dessert))))
+               (MAIN_STARTER_NAME, main_starter),
+               (EXTRA_STARTER_NAME, extra_starter),
+               (MAIN_DISH_NAME, main_dish),
+               (EXTRA_DISH_NAME, extra_dish),
+               (THIRD_DISH_NAME, third_dish),
+               (KIDS_MAIN_DISH_NAME, kids_main_dish),
+               (KIDS_EXTRA_DISH_NAME, kids_extra_dish),
+               (KIDS_THIRD_DISH_NAME, kids_third_dish),
+               (MAIN_DESSERT_NAME, main_dessert),
+               (EXTRA_DESSERT_NAME, extra_dessert))
+                     if v > 0))
     yield _ticket_table(
         main_starter=main_starter,
         extra_starter=extra_starter,

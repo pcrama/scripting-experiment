@@ -23,7 +23,7 @@
               {'reference_fields': ['insidemaindish', 'insideextradish', 'insidethirddish'],
                'validations': [{'section': 'inside-menu-starter', 'validated_fields': ['insidemainstarter', 'insideextrastarter']},
                                {'section': 'inside-menu-dessert', 'validated_fields': ['insidemaindessert', 'insideextradessert']}]},
-              {'reference_fields': ['kidsmaindish', 'kidsextradish', 'kidsthirddish'],
+              {'reference_fields': ['kidsmaindish'],
                'validations': [{'section': 'kids-menu-dessert', 'validated_fields': ['kidsmaindessert', 'kidsextradessert']}]}
           ];
 
@@ -68,8 +68,6 @@
                   'insideextradish': 3400,
                   'insidethirddish': 3400,
                   'kidsmaindish': 1900,
-                  'kidsextradish': 2400,
-                  'kidsthirddish': 2400,
                   'outsidemainstarter': 900,
                   'outsideextrastarter': 900,
                   'outsidemaindish': 1700,
@@ -129,6 +127,11 @@
       <div class="row">
         <fieldset class="col-md-4">
           <legend>Menu Complet</legend>
+          <ul>
+            <li>Entrée + Spaghetti bolognaise + Dessert: 29.00€</li>
+            <li>Entrée + Spaghetti aux scampis + Dessert: 34.00€</li>
+            <li>Entrée + Spaghetti végétarien + Dessert: 34.00€</li>
+          </ul>
           <div class="starter sum-group" id="inside-menu-starter">
             <div class="error-message">Le nombre total d'entrées doit correspondre au nombre total de plats</div>
             <div style="display: grid;">
@@ -172,13 +175,13 @@
             <div class="error-message">Le nombre total de desserts doit correspondre au nombre total de plats</div>
             <div style="display: grid;">
               <div style="display: flex; place-items: center; grid-row: 1; grid-column: 1">
-                <label for="insidemaindessert">Moelleux au chocolat avec sauce vanille</label>
+                <label for="insidemaindessert">Moelleux au chocolat crème anglaise</label>
               </div>
               <div style="display: flex; place-items: center; grid-row: 1; grid-column: 2;">
                 <input min="0" max="50" size="5" type="number" id="insidemaindessert" name="insidemaindessert" value="0">
               </div>
               <div style="display: flex; place-items: center; grid-row: 2; grid-column: 1">
-                <label for="insideextradessert">Glace Caramel beurre salé du P'tit Seigneur - Produit local</label>
+                <label for="insideextradessert">Glace du P'tit Seigneur caramel beurre salé - Produit local</label>
               </div>
               <div style="display: flex; place-items: center; grid-row: 2; grid-column: 2;">
                 <input min="0" max="50" size="5" type="number" id="insideextradessert" name="insideextradessert" value="0">
@@ -187,7 +190,7 @@
           </div>
         </fieldset>
         <fieldset class="col-md-4">
-          <legend>Menu Enfant (&lt; 12 ans)</legend>
+          <legend>Menu Enfant (&lt; 12 ans) 19.00€</legend>
           <div class="dish sum-group" id="kids-menu-dish">
             <div style="display: grid;">
               <div style="display: flex; place-items: center; grid-row: 1; grid-column: 1">
@@ -196,31 +199,19 @@
               <div style="display: flex; place-items: center; grid-row: 1; grid-column: 2;">
                 <input min="0" max="50" size="5" type="number" id="kidsmaindish" name="kidsmaindish" value="0">
               </div>
-              <div style="display: flex; place-items: center; grid-row: 2; grid-column: 1">
-                <label for="kidsextradish">Spag. aux scampis (enfants)</label>
-              </div>
-              <div style="display: flex; place-items: center; grid-row: 2; grid-column: 2;">
-                <input min="0" max="50" size="5" type="number" id="kidsextradish" name="kidsextradish" value="0">
-              </div>
-              <div style="display: flex; place-items: center; grid-row: 3; grid-column: 1">
-                <label for="kidsthirddish">Spag. aux légumes (enfants)</label>
-              </div>
-              <div style="display: flex; place-items: center; grid-row: 3; grid-column: 2;">
-                <input min="0" max="50" size="5" type="number" id="kidsthirddish" name="kidsthirddish" value="0">
-              </div>
             </div>
           </div>
           <div class="dessert sum-group" id="kids-menu-dessert">
             <div class="error-message">Le nombre total de desserts doit correspondre au nombre total de plats enfants</div>
             <div style="display: grid;">
               <div style="display: flex; place-items: center; grid-row: 1; grid-column: 1">
-                <label for="kidsmaindessert">Moelleux au chocolat avec sauce vanille</label>
+                <label for="kidsmaindessert">Moelleux au chocolat crème anglaise</label>
               </div>
               <div style="display: flex; place-items: center; grid-row: 1; grid-column: 2;">
                 <input min="0" max="50" size="5" type="number" id="kidsmaindessert" name="kidsmaindessert" value="0">
               </div>
               <div style="display: flex; place-items: center; grid-row: 2; grid-column: 1">
-                <label for="kidsextradessert">Glace Caramel beurre salé du P'tit Seigneur - Produit local</label>
+                <label for="kidsextradessert">Glace du P'tit Seigneur caramel beurre salé - Produit local</label>
               </div>
               <div style="display: flex; place-items: center; grid-row: 2; grid-column: 2;">
                 <input min="0" max="50" size="5" type="number" id="kidsextradessert" name="kidsextradessert" value="0">
@@ -233,13 +224,13 @@
           <div class="starter sum-group" id="outside-menu-starter">
             <div style="display: grid;">
               <div style="display: flex; place-items: center; grid-row: 1; grid-column: 1">
-                <label for="outsidemainstarter">Carpaccio de boeuf</label>
+                <label for="outsidemainstarter">Carpaccio de boeuf 9.00€</label>
               </div>
               <div style="display: flex; place-items: center; grid-row: 1; grid-column: 2;">
                 <input min="0" max="50" size="5" type="number" id="outsidemainstarter" name="outsidemainstarter" value="0">
               </div>
               <div style="display: flex; place-items: center; grid-row: 2; grid-column: 1">
-                <label for="outsideextrastarter">Croquettes au fromage avec sa garniture</label>
+                <label for="outsideextrastarter">Croquettes au fromage avec sa garniture 9.00€</label>
               </div>
               <div style="display: flex; place-items: center; grid-row: 2; grid-column: 2;">
                 <input min="0" max="50" size="5" type="number" id="outsideextrastarter" name="outsideextrastarter" value="0">
@@ -249,19 +240,19 @@
           <div class="dish sum-group" id="outside-menu-dish">
             <div style="display: grid;">
               <div style="display: flex; place-items: center; grid-row: 1; grid-column: 1">
-                <label for="outsidemaindish">Spaghetti bolognaise</label>
+                <label for="outsidemaindish">Spaghetti bolognaise 17.00€</label>
               </div>
               <div style="display: flex; place-items: center; grid-row: 1; grid-column: 2;">
                 <input min="0" max="50" size="5" type="number" id="outsidemaindish" name="outsidemaindish" value="0">
               </div>
               <div style="display: flex; place-items: center; grid-row: 2; grid-column: 1">
-                <label for="outsideextradish">Spaghetti aux scampis</label>
+                <label for="outsideextradish">Spaghetti aux scampis 22.00€</label>
               </div>
               <div style="display: flex; place-items: center; grid-row: 2; grid-column: 2;">
                 <input min="0" max="50" size="5" type="number" id="outsideextradish" name="outsideextradish" value="0">
               </div>
               <div style="display: flex; place-items: center; grid-row: 3; grid-column: 1">
-                <label for="outsidethirddish">Spaghetti végétarien</label>
+                <label for="outsidethirddish">Spaghetti végétarien 22.00€</label>
               </div>
               <div style="display: flex; place-items: center; grid-row: 3; grid-column: 2;">
                 <input min="0" max="50" size="5" type="number" id="outsidethirddish" name="outsidethirddish" value="0">
@@ -271,13 +262,13 @@
           <div class="dessert sum-group" id="outside-menu-dessert">
             <div style="display: grid;">
               <div style="display: flex; place-items: center; grid-row: 1; grid-column: 1">
-                <label for="outsidemaindessert">Moelleux au chocolat avec sauce vanille</label>
+                <label for="outsidemaindessert">Moelleux au chocolat crème anglaise 6.00€</label>
               </div>
               <div style="display: flex; place-items: center; grid-row: 1; grid-column: 2;">
                 <input min="0" max="50" size="5" type="number" id="outsidemaindessert" name="outsidemaindessert" value="0">
               </div>
               <div style="display: flex; place-items: center; grid-row: 2; grid-column: 1">
-                <label for="outsideextradessert">Glace Caramel beurre salé du P'tit Seigneur - Produit local</label>
+                <label for="outsideextradessert">Glace du P'tit Seigneur caramel beurre salé - Produit local 6.00€</label>
               </div>
               <div style="display: flex; place-items: center; grid-row: 2; grid-column: 2;">
                 <input min="0" max="50" size="5" type="number" id="outsideextradessert" name="outsideextradessert" value="0">

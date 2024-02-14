@@ -34,13 +34,13 @@ KIDS_MAIN_DISH = ((('div', 'class', 'ticket-left-col'),
                    ('div', 'table n°'), ('div', 'serveur'), ('div', 'plat enfant:'), ('div', 'kids_main_dish')),
                   ('div', (('img', 'src', 'kids_main_dish_image'),)))
 
-KIDS_EXTRA_DISH = ((('div', 'class', 'ticket-left-col'),
-                    ('div', 'table n°'), ('div', 'serveur'), ('div', 'plat enfant:'), ('div', 'kids_extra_dish')),
-                   ('div', (('img', 'src', 'kids_extra_dish_image'),)))
+# KIDS_EXTRA_DISH = ((('div', 'class', 'ticket-left-col'),
+#                     ('div', 'table n°'), ('div', 'serveur'), ('div', 'plat enfant:'), ('div', 'kids_extra_dish')),
+#                    ('div', (('img', 'src', 'kids_extra_dish_image'),)))
 
-KIDS_THIRD_DISH = ((('div', 'class', 'ticket-left-col'),
-                    ('div', 'table n°'), ('div', 'serveur'), ('div', 'plat enfant:'), ('div', 'kids_third_dish')),
-                   ('div', (('img', 'src', 'kids_third_dish_image'),)))
+# KIDS_THIRD_DISH = ((('div', 'class', 'ticket-left-col'),
+#                     ('div', 'table n°'), ('div', 'serveur'), ('div', 'plat enfant:'), ('div', 'kids_third_dish')),
+#                    ('div', (('img', 'src', 'kids_third_dish_image'),)))
 
 MAIN_DESSERT = ((('div', 'class', 'ticket-left-col'),
                  ('div', 'table n°'), ('div', 'serveur'), ('div', 'dessert:'), ('div', 'main_dessert')),
@@ -130,17 +130,17 @@ class TestOneReservation(ConfiguredTestCase):
         places=4,
         outside_extra_starter=1, outside_main_starter=2, outside_main_dish=1, outside_extra_dish=1,
         inside_extra_starter=1, inside_main_dish=1, inside_main_dessert=1,
-        kids_third_dish=1, kids_extra_dessert=1)
+        kids_main_dish=1, kids_extra_dessert=1)
 
     E2 = [(('div', 'class', 'no-print-page-break'),
            (('div', 'class', 'ticket-heading'), 'other', ': ', '4 places', ' le ', '2022-03-20'),
            ('div', 'Total dû: ', '95.50 €', ' pour ', '10 tickets', ': ',
-            '0m+2c main_starter, 1m+1c extra_starter, 1m+1c bolo, 0m+1c extra_dish, 1m+0c kids_third_dish, 1m+0c main_dessert, 1m+0c extra_dessert', '.')),
+            '0m+2c main_starter, 1m+1c extra_starter, 1m+1c bolo, 0m+1c extra_dish, 1m+0c kids_main_dish, 1m+0c main_dessert, 1m+0c extra_dessert', '.')),
           (('div', 'class', 'tickets'),
            *MAIN_STARTER, *MAIN_STARTER,
            *EXTRA_STARTER, *EXTRA_STARTER,
            *MAIN_DISH, *MAIN_DISH,
-           *EXTRA_DISH, *KIDS_THIRD_DISH,
+           *EXTRA_DISH, *KIDS_MAIN_DISH,
            *MAIN_DESSERT, *EXTRA_DESSERT)]
 
     def test_example0(self):
@@ -189,21 +189,21 @@ class TestFullTicketList(ConfiguredTestCase):
                 extra_dish=9,
                 third_dish=3,
                 kids_main_dish=3,
-                kids_extra_dish=1,
-                kids_third_dish=1,
+                kids_extra_dish=0,
+                kids_third_dish=0,
                 main_dessert=11,
                 extra_dessert=11)),
             [*TestOneReservation.E1,
              *TestOneReservation.E2,
              (('div', 'class', 'ticket-heading'), 'Vente libre'),
-             ('div', 'main_starter=1, extra_starter=0, bolo=2, extra_dish=4, third_dish=2, kids_main_dish=3, kids_extra_dish=1, kids_third_dish=0, main_dessert=6, extra_dessert=3'),
+             ('div', 'main_starter=1, bolo=2, extra_dish=4, third_dish=2, kids_main_dish=2, main_dessert=6, extra_dessert=3'),
              (('div', 'class', 'tickets'),
               *MAIN_STARTER, *MAIN_DISH,
               *MAIN_DISH, *EXTRA_DISH,
               *EXTRA_DISH, *EXTRA_DISH, *EXTRA_DISH,
               *THIRD_DISH, *THIRD_DISH,
               *KIDS_MAIN_DISH, *KIDS_MAIN_DISH,
-              *KIDS_MAIN_DISH, *KIDS_EXTRA_DISH,
+              # *KIDS_MAIN_DISH, *KIDS_EXTRA_DISH,
               *MAIN_DESSERT, *MAIN_DESSERT,
               *MAIN_DESSERT, *MAIN_DESSERT,
               *MAIN_DESSERT, *MAIN_DESSERT,
@@ -244,17 +244,17 @@ class TestFullTicketList(ConfiguredTestCase):
                 third_dish=1,
                 kids_main_dish=1,
                 kids_extra_dish=0,
-                kids_third_dish=2,
+                kids_third_dish=0,
                 main_dessert=3,
                 extra_dessert=1)),
             [(('div', 'class', 'ticket-heading'), 'Vente libre'),
-             ('div', 'main_starter=2, extra_starter=1, bolo=1, extra_dish=2, third_dish=1, kids_main_dish=1, kids_extra_dish=0, kids_third_dish=2, main_dessert=3, extra_dessert=1'),
+             ('div', 'main_starter=2, extra_starter=1, bolo=1, extra_dish=2, third_dish=1, kids_main_dish=1, main_dessert=3, extra_dessert=1'),
              (('div', 'class', 'tickets'),
               *MAIN_STARTER, *MAIN_STARTER,
               *EXTRA_STARTER, *MAIN_DISH,
               *EXTRA_DISH, *EXTRA_DISH,
               *THIRD_DISH, *KIDS_MAIN_DISH,
-              *KIDS_THIRD_DISH, *KIDS_THIRD_DISH,
+              # *KIDS_THIRD_DISH, *KIDS_THIRD_DISH,
               *MAIN_DESSERT, *MAIN_DESSERT,
               *MAIN_DESSERT, *EXTRA_DESSERT)])
     

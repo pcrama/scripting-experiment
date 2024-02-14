@@ -61,7 +61,7 @@ class TestReservation(unittest.TestCase):
                  date='2024-03-23',
                  outside=storage.FullMealCount(main_starter=1, extra_starter=1, main_dish=0, extra_dish=0, third_dish=0, main_dessert=1, extra_dessert=1),
                  inside=storage.MenuCount(main_starter=1, extra_starter=2, main_dish=1, extra_dish=1, third_dish=1, main_dessert=2, extra_dessert=1),
-                 kids=storage.KidMealCount(main_dish=1, extra_dish=1, third_dish=1, main_dessert=1, extra_dessert=2),
+                 kids=storage.KidMealCount(main_dish=3, extra_dish=0, third_dish=0, main_dessert=1, extra_dessert=2),
                  gdpr_accepts_use=True,
                  cents_due=2345,
                  bank_id='bank_id_3',
@@ -77,7 +77,7 @@ class TestReservation(unittest.TestCase):
                  date='2099-12-31',
                  outside=storage.FullMealCount(main_starter=2, extra_starter=2, main_dish=1, extra_dish=1, third_dish=1, main_dessert=2, extra_dessert=3),
                  inside=storage.MenuCount(main_starter=2, extra_starter=3, main_dish=1, extra_dish=2, third_dish=2, main_dessert=3, extra_dessert=2),
-                 kids=storage.KidMealCount(main_dish=1, extra_dish=1, third_dish=0, main_dessert=1, extra_dessert=1),
+                 kids=storage.KidMealCount(main_dish=2, extra_dish=0, third_dish=0, main_dessert=1, extra_dessert=1),
                  gdpr_accepts_use=True,
                  cents_due=3456,
                  bank_id='bank_id_4',
@@ -92,8 +92,8 @@ class TestReservation(unittest.TestCase):
         self.assertEqual(storage.Reservation.count_places(self.connection, name='N1', email='N2@F.COM'), (3, 10))
 
     def test_count_menu_data(self):
-        self.assertEqual(storage.Reservation.count_menu_data(self.connection), (3, 6, 10, 5, 4, 5, 3, 1, 0, 12, 10))
-        self.assertEqual(storage.Reservation.count_menu_data(self.connection, '2099-12-31'), (1, 4, 5, 2, 3, 3, 1, 1, 0, 6, 6))
+        self.assertEqual(storage.Reservation.count_menu_data(self.connection), (3, 6, 10, 5, 4, 5, 4, 0, 0, 12, 10))
+        self.assertEqual(storage.Reservation.count_menu_data(self.connection, '2099-12-31'), (1, 4, 5, 2, 3, 3, 2, 0, 0, 6, 6))
 
     def test_parse_from_row_simple_reservation(self):
         reservation, tail = storage.Reservation.parse_from_row(
@@ -136,6 +136,30 @@ class TestReservation(unittest.TestCase):
         self.assertEqual(reservation.active, True)
         self.assertEqual(reservation.origin, 'origin')
 
+    def test_only_main_dishes_are_allowed_for_kids(self):
+        for extra_dish, third_dish in ((1, 0), (0, 1)):
+            with self.subTest(extra_dish=extra_dish, third_dish=third_dish):
+                reservation = storage.Reservation(
+                                      name=f'e={extra_dish} t={third_dish}',
+                                      email=f'ne{extra_dish}t{third_dish}@e.com',
+                                      extra_comment='',
+                                      places=1,
+                                      date='2099-12-31',
+                                      outside=storage.FullMealCount(main_starter=2, extra_starter=2, main_dish=1, extra_dish=1, third_dish=1, main_dessert=2, extra_dessert=3),
+                                      inside=storage.MenuCount(main_starter=2, extra_starter=3, main_dish=1, extra_dish=2, third_dish=2, main_dessert=3, extra_dessert=2),
+                                      kids=storage.KidMealCount(main_dish=0, extra_dish=extra_dish, third_dish=third_dish, main_dessert=extra_dish + third_dish, extra_dessert=0),
+                                      gdpr_accepts_use=True,
+                                      cents_due=3456,
+                                      bank_id=f'bank_id_e{extra_dish}_t{third_dish}',
+                                      uuid=f'uuid_e{extra_dish}_t{third_dish}',
+                                      time=2.72,
+                                      active=True,
+                                      origin=None)
+                # extra dish or third_dish should raise ...
+                self.assertRaises(sqlite3.IntegrityError, reservation.insert_data, self.connection)
+                # ... but not main dish
+                reservation.kids.main_dish, reservation.kids.extra_dish, reservation.kids.third_dish = extra_dish + third_dish, 0, 0
+                reservation.insert_data(self.connection)
 
 class TestPayments(unittest.TestCase):
     CONNECTION: Optional[sqlite3.Connection]

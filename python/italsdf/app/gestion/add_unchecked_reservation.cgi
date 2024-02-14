@@ -85,8 +85,8 @@ if __name__ == '__main__':
         inside_main_dessert = form.getfirst('insidemaindessert', default=0)
         inside_extra_dessert = form.getfirst('insideextradessert', default=0)
         kids_main_dish = form.getfirst('kidsmaindish', default=0)
-        kids_extra_dish = form.getfirst('kidsextradish', default=0)
-        kids_third_dish = form.getfirst('kidsthirddish', default=0)
+        kids_extra_dish = 0
+        kids_third_dish = 0
         kids_main_dessert = form.getfirst('kidsmaindessert', default=0)
         kids_extra_dessert = form.getfirst('kidsextradessert', default=0)
         gdpr_accepts_use = form.getfirst('gdpr_accepts_use', default=False)

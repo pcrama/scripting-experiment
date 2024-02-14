@@ -69,12 +69,12 @@ def get_method(db_connection, configuration, user, ip):
           ('br',),
           (('label', 'for', 'kids_main_dish'), configuration['kids_main_dish_name'], ':'),
           (('input', 'type', 'number', 'id', 'kids_main_dish', 'name', 'kids_main_dish', 'value', str(total_kids_main_dish), 'min', str(total_kids_main_dish), 'max', '200'), ),
-          ('br',),
-          (('label', 'for', 'kids_extra_dish'), configuration['kids_extra_dish_name'], ':'),
-          (('input', 'type', 'number', 'id', 'kids_extra_dish', 'name', 'kids_extra_dish', 'value', str(total_kids_extra_dish), 'min', str(total_kids_extra_dish), 'max', '200'), ),
-          ('br',),
-          (('label', 'for', 'kids_third_dish'), configuration['kids_third_dish_name'], ':'),
-          (('input', 'type', 'number', 'id', 'kids_third_dish', 'name', 'kids_third_dish', 'value', str(total_kids_third_dish), 'min', str(total_kids_third_dish), 'max', '200'), ),
+          # ('br',),
+          # (('label', 'for', 'kids_extra_dish'), configuration['kids_extra_dish_name'], ':'),
+          # (('input', 'type', 'number', 'id', 'kids_extra_dish', 'name', 'kids_extra_dish', 'value', str(total_kids_extra_dish), 'min', str(total_kids_extra_dish), 'max', '200'), ),
+          # ('br',),
+          # (('label', 'for', 'kids_third_dish'), configuration['kids_third_dish_name'], ':'),
+          # (('input', 'type', 'number', 'id', 'kids_third_dish', 'name', 'kids_third_dish', 'value', str(total_kids_third_dish), 'min', str(total_kids_third_dish), 'max', '200'), ),
           ('br',),
           (('label', 'for', 'main_dessert'), configuration['main_dessert_name'], ':'),
           (('input', 'type', 'number', 'id', 'main_dessert', 'name', 'main_dessert', 'value', str(total_main_dessert), 'min', str(total_main_dessert), 'max', '200'), ),
@@ -110,8 +110,8 @@ def post_method(db_connection, user, ip):
     extra_dish = safe_non_negative_int_less_or_equal_than_500(form.getfirst('extra_dish', default=0))
     third_dish = safe_non_negative_int_less_or_equal_than_500(form.getfirst('third_dish', default=0))
     kids_main_dish = safe_non_negative_int_less_or_equal_than_500(form.getfirst('kids_main_dish', default=0))
-    kids_extra_dish = safe_non_negative_int_less_or_equal_than_500(form.getfirst('kids_extra_dish', default=0))
-    kids_third_dish = safe_non_negative_int_less_or_equal_than_500(form.getfirst('kids_third_dish', default=0))
+    kids_extra_dish = 0
+    kids_third_dish = 0
     main_dessert = safe_non_negative_int_less_or_equal_than_500(form.getfirst('main_dessert', default=0))
     extra_dessert = safe_non_negative_int_less_or_equal_than_500(form.getfirst('extra_dessert', default=0))
 

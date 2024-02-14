@@ -18,6 +18,7 @@ import urllib.parse
 sys.path.append('..')
 import config
 from htmlgen import (
+    cents_to_euro,
     format_bank_id,
     html_document,
     pluriel_naif,
@@ -106,14 +107,16 @@ def make_show_reservation_link_elt(r, link_text):
         link_text)
 
 
-def make_sum_group(div_id: str, div_class: str, error_msg: Optional[str], inputs_and_labels: list[tuple[str, str]]):
+def make_sum_group(div_id: str, div_class: str, error_msg: Optional[str], inputs_and_labels: list[tuple[str, str, Optional[int]]]):
     return (('div', 'class', div_class, 'id', div_id),
             *([] if error_msg is None else [(('div', 'class', 'error-message'), error_msg)]),
             (('div', 'style', 'display: grid;'),
              *itertools.chain(*(make_label_and_input(row + 1, *data) for row, data in enumerate(inputs_and_labels)))))
 
 
-def make_label_and_input(row: int, input_id: str, label: str):
+def make_label_and_input(row: int, input_id: str, label: str, price_in_cents: Optional[int]):
+    if price_in_cents:
+        label += ' ' + cents_to_euro(price_in_cents) + '€'
     return ((('div', 'style', f'display: flex; place-items: center; grid-row: {row}; grid-column: 1'),
              (('label', 'for', input_id), label)),
             (('div', 'style', f'display: flex; place-items: center; grid-row: {row}; grid-column: 2;'),
@@ -286,7 +289,7 @@ if __name__ == '__main__':
               {'reference_fields': ['insidemaindish', 'insideextradish', 'insidethirddish'],
                'validations': [{'section': 'inside-menu-starter', 'validated_fields': ['insidemainstarter', 'insideextrastarter']},
                                {'section': 'inside-menu-dessert', 'validated_fields': ['insidemaindessert', 'insideextradessert']}]},
-              {'reference_fields': ['kidsmaindish', 'kidsextradish', 'kidsthirddish'],
+              {'reference_fields': ['kidsmaindish' /* , 'kidsextradish', 'kidsthirddish' */],
                'validations': [{'section': 'kids-menu-dessert', 'validated_fields': ['kidsmaindessert', 'kidsextradessert']}]}
           ];
 
@@ -331,8 +334,8 @@ if __name__ == '__main__':
                   'insideextradish': insideextradish,,
                   'insidethirddish': insidethirddish,,
                   'kidsmaindish': kidsmaindish,,
-                  'kidsextradish': kidsextradish,,
-                  'kidsthirddish': kidsthirddish,,
+                  // 'kidsextradish': kidsextradish,,
+                  // 'kidsthirddish': kidsthirddish,,
                   'outsidemainstarter': outsidemainstarter,,
                   'outsideextrastarter': outsideextrastarter,,
                   'outsidemaindish': outsidemaindish,,
@@ -370,8 +373,8 @@ if __name__ == '__main__':
         (': insideextradish,', f': {pricing.CENTS_MENU_EXTRA_DISH}'),
         (': insidethirddish,', f': {pricing.CENTS_MENU_THIRD_DISH}'),
         (': kidsmaindish,', f': {pricing.CENTS_KIDS_MENU_MAIN_DISH}'),
-        (': kidsextradish,', f': {pricing.CENTS_KIDS_MENU_EXTRA_DISH}'),
-        (': kidsthirddish,', f': {pricing.CENTS_KIDS_MENU_THIRD_DISH}'),
+        # (': kidsextradish,', f': {pricing.CENTS_KIDS_MENU_EXTRA_DISH}'),
+        # (': kidsthirddish,', f': {pricing.CENTS_KIDS_MENU_THIRD_DISH}'),
         (': outsidemainstarter,', f': {pricing.CENTS_STARTER}'),
         (': outsideextrastarter,', f': {pricing.CENTS_STARTER}'),
         (': outsidemaindish,', f': {pricing.CENTS_MAIN_DISH}'),
@@ -399,53 +402,70 @@ if __name__ == '__main__':
               (('div', 'class', 'row'),
                (('fieldset', 'class', 'col-md-4'),
                ('legend', 'Menu Complet'),
+               ('ul',
+                ('li', f'Entrée + {MAIN_DISH} + Dessert: {cents_to_euro(pricing.CENTS_MENU_MAIN_DISH)}€'),
+                ('li', f'Entrée + {EXTRA_DISH} + Dessert: {cents_to_euro(pricing.CENTS_MENU_EXTRA_DISH)}€'),
+                ('li', f'Entrée + {THIRD_DISH} + Dessert: {cents_to_euro(pricing.CENTS_MENU_THIRD_DISH)}€')),
                make_sum_group("inside-menu-starter",
                               "starter sum-group",
                               "Le nombre total d'entrées doit correspondre au nombre total de plats",
-                              [('insidemainstarter', MAIN_STARTER),
-                               ('insideextrastarter', EXTRA_STARTER)]),
+                              [('insidemainstarter', MAIN_STARTER, None),
+                               ('insideextrastarter', EXTRA_STARTER, None)]),
                make_sum_group("inside-menu-dish",
                               "dish sum-group",
                               None,
-                              [('insidemaindish', MAIN_DISH),
-                               ('insideextradish', EXTRA_DISH),
-                               ('insidethirddish', THIRD_DISH)]),
+                              [('insidemaindish', MAIN_DISH, None),
+                               ('insideextradish',
+                                EXTRA_DISH + ' +' + cents_to_euro(pricing.CENTS_MENU_EXTRA_DISH - pricing.CENTS_MENU_MAIN_DISH) + '€',
+                                None),
+                               ('insidethirddish',
+                                THIRD_DISH + ' +' + cents_to_euro(pricing.CENTS_MENU_THIRD_DISH - pricing.CENTS_MENU_MAIN_DISH) + '€',
+                                None)]),
                make_sum_group("inside-menu-dessert",
                               "dessert sum-group",
                               "Le nombre total de desserts doit correspondre au nombre total de plats",
-                              [('insidemaindessert', MAIN_DESSERT),
-                               ('insideextradessert', EXTRA_DESSERT)])),
+                              [('insidemaindessert', MAIN_DESSERT, None),
+                               ('insideextradessert', EXTRA_DESSERT, None)])),
               (('fieldset', 'class', 'col-md-4'),
-               ('legend', 'Menu Enfant (< 12 ans)'),
+               ('legend', 'Menu Enfant (< 12 ans) ' + cents_to_euro(pricing.CENTS_KIDS_MENU_MAIN_DISH) + '€'),
                make_sum_group("kids-menu-dish",
                               "dish sum-group",
                               None,
-                              [('kidsmaindish', KIDS_MAIN_DISH),
-                               ('kidsextradish', KIDS_EXTRA_DISH),
-                               ('kidsthirddish', KIDS_THIRD_DISH)]),
+                              [('kidsmaindish', KIDS_MAIN_DISH, None),
+                               # ('kidsextradish',
+                               #  KIDS_EXTRA_DISH + (
+                               #      '' if pricing.CENTS_KIDS_MENU_EXTRA_DISH == pricing.CENTS_KIDS_MENU_MAIN_DISH
+                               #      else (' +' + cents_to_euro(pricing.CENTS_KIDS_MENU_EXTRA_DISH - pricing.CENTS_KIDS_MENU_MAIN_DISH) + '€')),
+                               #  None),
+                               # ('kidsthirddish',
+                               #  KIDS_THIRD_DISH + (
+                               #      '' if pricing.CENTS_KIDS_MENU_THIRD_DISH == pricing.CENTS_KIDS_MENU_MAIN_DISH
+                               #      else (' +' + cents_to_euro(pricing.CENTS_KIDS_MENU_THIRD_DISH - pricing.CENTS_KIDS_MENU_MAIN_DISH) + '€')),
+                               #  None)
+                               ]),
                make_sum_group("kids-menu-dessert",
                               "dessert sum-group",
                               "Le nombre total de desserts doit correspondre au nombre total de plats enfants",
-                              [('kidsmaindessert', MAIN_DESSERT),
-                               ('kidsextradessert', EXTRA_DESSERT)])),
+                              [('kidsmaindessert', MAIN_DESSERT, None),
+                               ('kidsextradessert', EXTRA_DESSERT, None)])),
               (('fieldset', 'class', 'col-md-4'),
                ('legend', 'À la carte'),
                make_sum_group("outside-menu-starter",
                               "starter sum-group",
                               None,
-                              [('outsidemainstarter', MAIN_STARTER),
-                               ('outsideextrastarter', EXTRA_STARTER)]),
+                              [('outsidemainstarter', MAIN_STARTER, pricing.CENTS_STARTER),
+                               ('outsideextrastarter', EXTRA_STARTER, pricing.CENTS_STARTER)]),
                make_sum_group("outside-menu-dish",
                               "dish sum-group",
                               None,
-                              [('outsidemaindish', MAIN_DISH),
-                               ('outsideextradish', EXTRA_DISH),
-                               ('outsidethirddish', THIRD_DISH)]),
+                              [('outsidemaindish', MAIN_DISH, pricing.CENTS_MAIN_DISH),
+                               ('outsideextradish', EXTRA_DISH, pricing.CENTS_EXTRA_DISH),
+                               ('outsidethirddish', THIRD_DISH, pricing.CENTS_THIRD_DISH)]),
                make_sum_group("outside-menu-dessert",
                               "dessert sum-group",
                               None,
-                              [('outsidemaindessert', MAIN_DESSERT),
-                               ('outsideextradessert', EXTRA_DESSERT)]))),
+                              [('outsidemaindessert', MAIN_DESSERT, pricing.CENTS_DESSERT),
+                               ('outsideextradessert', EXTRA_DESSERT, pricing.CENTS_DESSERT)]))),
               (('div', 'class', 'row'),
                (('p', 'class', 'col-md-12'),
                 "La Société Royale d'Harmonie de Braine-l'Alleud respecte votre vie privée. Les données de contact que vous nous communiquez dans ce formulaire seront uniquement utilisées dans le cadre de ce souper italien, à moins que vous nous donniez l'autorisation de les garder pour vous informer de nos concerts et autres fêtes dans le futur. Contactez ", (('a', 'href', f"mailto:{INFO_EMAIL}"), INFO_EMAIL), " pour demander d'être retiré de nos fichiers.")),

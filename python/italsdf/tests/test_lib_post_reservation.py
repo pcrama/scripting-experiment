@@ -212,7 +212,7 @@ class ValidateDate(unittest.TestCase):
             name='name', email='email@example.com', extra_comment='extra_comment', places=1, date='2099-12-31',
             outside_main_starter=11, outside_extra_starter=12, outside_main_dish=13, outside_extra_dish=14, outside_third_dish=15, outside_main_dessert=24, outside_extra_dessert=25,
             inside_main_starter=20, inside_extra_starter=1, inside_main_dish=16, inside_extra_dish=2, inside_third_dish=3, inside_main_dessert=17, inside_extra_dessert=4,
-            kids_main_dish=7, kids_extra_dish=5, kids_third_dish=6, kids_main_dessert=8, kids_extra_dessert=10,
+            kids_main_dish=18, kids_extra_dish=0, kids_third_dish=0, kids_main_dessert=8, kids_extra_dessert=10,
             gdpr_accepts_use=True, origin='origin', connection_or_root_dir=connection)
 
         self.assertIsNot(new_row, None)
@@ -235,9 +235,9 @@ class ValidateDate(unittest.TestCase):
         self.assertEqual(new_row.inside.third_dish, 3)
         self.assertEqual(new_row.inside.main_dessert, 17)
         self.assertEqual(new_row.inside.extra_dessert, 4)
-        self.assertEqual(new_row.kids.main_dish, 7)
-        self.assertEqual(new_row.kids.extra_dish, 5)
-        self.assertEqual(new_row.kids.third_dish, 6)
+        self.assertEqual(new_row.kids.main_dish, 18)
+        self.assertEqual(new_row.kids.extra_dish, 0)
+        self.assertEqual(new_row.kids.third_dish, 0)
         self.assertEqual(new_row.kids.main_dessert, 8)
         self.assertEqual(new_row.kids.extra_dessert, 10)
         self.assertEqual(new_row.gdpr_accepts_use, True)
@@ -265,9 +265,9 @@ class ValidateDate(unittest.TestCase):
         self.assertEqual(fetched_row.inside.third_dish, 3)
         self.assertEqual(fetched_row.inside.main_dessert, 17)
         self.assertEqual(fetched_row.inside.extra_dessert, 4)
-        self.assertEqual(fetched_row.kids.main_dish, 7)
-        self.assertEqual(fetched_row.kids.extra_dish, 5)
-        self.assertEqual(fetched_row.kids.third_dish, 6)
+        self.assertEqual(fetched_row.kids.main_dish, 18)
+        self.assertEqual(fetched_row.kids.extra_dish, 0)
+        self.assertEqual(fetched_row.kids.third_dish, 0)
         self.assertEqual(fetched_row.kids.main_dessert, 8)
         self.assertEqual(fetched_row.kids.extra_dessert, 10)
         self.assertEqual(fetched_row.gdpr_accepts_use, True)

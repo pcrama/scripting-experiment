@@ -353,12 +353,13 @@ function test_01_locally_valid_post_reservation
 {
     local test_name test_output uuid_hex data expected_data
     test_name="test_01_locally_valid_post_reservation"
-    test_output="$(capture_cgi_output "$test_name" POST post_reservation.cgi 'name=test&email=i%40example.com&extraComment=commentaire&places=1&insidemainstarter=2&insideextrastarter=5&insidemaindish=4&insideextradish=1&insidethirddish=2&kidsmaindish=8&kidsextradish=5&kidsthirddish=4&outsidemainstarter=10&outsideextrastarter=11&outsidemaindish=12&outsideextradish=13&outsidemaindessert=14&outsideextradessert=15&kidsmaindessert=2&kidsextradessert=15&insidemaindessert=3&insideextradessert=4&gdpr_accepts_use=true&date=2099-01-01')"
+    # kidsextradish=5&kidsthirddish=4 should be ignored as only kidsmaindish should be used
+    test_output="$(capture_cgi_output "$test_name" POST post_reservation.cgi 'name=test&email=i%40example.com&extraComment=commentaire&places=1&insidemainstarter=2&insideextrastarter=5&insidemaindish=4&insideextradish=1&insidethirddish=2&kidsmaindish=17&kidsextradish=5&kidsthirddish=4&outsidemainstarter=10&outsideextrastarter=11&outsidemaindish=12&outsideextradish=13&outsidemaindessert=14&outsideextradessert=15&kidsmaindessert=2&kidsextradessert=15&insidemaindessert=3&insideextradessert=4&gdpr_accepts_use=true&date=2099-01-01')"
     grep -q "Status: 302" "$test_output" || die "$test_name No Status: 302 redirect in $test_output"
     if uuid_hex="$(sed -ne '/Location:.*uuid_hex=/ { s///p ; q0 }' -e '$q1' "$test_output")"; then
         [ "$(count_reservations)" = 1 ] || die "$test_name: Reservation count"
         data=$(sql_query "SELECT name, email, extra_comment, date, places, inside_main_starter, inside_extra_starter, inside_main_dish, inside_extra_dish, inside_third_dish, inside_main_dessert, inside_extra_dessert, outside_main_starter, outside_extra_starter, outside_main_dish, outside_extra_dish, outside_main_dessert, outside_extra_dessert, kids_main_dish, kids_extra_dish, kids_third_dish, kids_main_dessert, kids_extra_dessert FROM reservations WHERE uuid='$uuid_hex'")
-        expected_data="test|i@example.com|commentaire|2099-01-01|1|2|5|4|1|2|3|4|10|11|12|13|14|15|8|5|4|2|15"
+        expected_data="test|i@example.com|commentaire|2099-01-01|1|2|5|4|1|2|3|4|10|11|12|13|14|15|17|0|0|2|15"
         [ "$data" = "$expected_data" ] || die "$test_name Wrong data inserted for $uuid_hex: '$data' instead of '$expected_data'"
     else
         die "$test_name uuid_hex not found in $test_output"
@@ -402,7 +403,7 @@ function test_04_locally_invalid_post_reservation
     local test_name test_output uuid_hex inside_menu_mismatch_query_string invalid_email_query_string query_string
     test_name="test_04_locally_invalid_post_reservation"
 
-    inside_menu_mismatch_query_string='name=test&email=i%40example.com&extraComment=commentaire&places=1&insidemainstarter=2&insideextrastarter=5&insidemaindish=0&insideextradish=3&kidsmaindish=8&kidsextradish=9&outsidemainstarter=10&outsideextrastarter=11&outsidemaindish=12&outsideextradish=13&outsidemaindessert=14&gdpr_accepts_use=true&date=2099-01-01'
+    inside_menu_mismatch_query_string='name=test&email=i%40example.com&extraComment=commentaire&places=1&insidemainstarter=2&insideextrastarter=5&insidemaindish=0&insideextradish=3&kidsmaindish=17&kidsextradish=0&outsidemainstarter=10&outsideextrastarter=11&outsidemaindish=12&outsideextradish=13&outsidemaindessert=14&gdpr_accepts_use=true&date=2099-01-01'
     query_string="$inside_menu_mismatch_query_string"
     test_output="$(capture_cgi_output "$test_name" POST post_reservation.cgi "$query_string")"
     if uuid_hex="$(sed -ne '/Location:.*uuid_hex=/ { s///p ; q0 }' -e '$q1' "$test_output")"; then
@@ -412,7 +413,7 @@ function test_04_locally_invalid_post_reservation
                          "invalides dans le formulaire" \
                          "ne correspond pas au nombre de plats"
 
-    invalid_email_query_string='name=test&email=example.com%40&extraComment=commentaire&places=1&insidemainstarter=2&insideextrastarter=5&insidemaindish=4&insideextradish=3&kidsmaindish=8&kidsextradish=9&outsidemainstarter=10&outsideextrastarter=11&outsidemaindish=12&outsideextradish=13&outsidemaindessert=14&gdpr_accepts_use=true&date=2099-01-01'
+    invalid_email_query_string='name=test&email=example.com%40&extraComment=commentaire&places=1&insidemainstarter=2&insideextrastarter=5&insidemaindish=4&insideextradish=3&kidsmaindish=17&kidsextradish=0&outsidemainstarter=10&outsideextrastarter=11&outsidemaindish=12&outsideextradish=13&outsidemaindessert=14&gdpr_accepts_use=true&date=2099-01-01'
     query_string="$invalid_email_query_string"
     test_output="$(capture_cgi_output "$test_name" POST post_reservation.cgi "$query_string")"
     if uuid_hex="$(sed -ne '/Location:.*uuid_hex=/ { s///p ; q0 }' -e '$q1' "$test_output")"; then
@@ -438,8 +439,7 @@ function test_05_locally_list_reservations
                          "<li>16 Croquettes au fromage</li>" \
                          "<li>16 Spaghettis bolognaise</li>" \
                          "<li>2 Spaghettis aux légumes</li>" \
-                         "<li>8 Spag\\. bolognaise (enfants)</li>" \
-                         "<li>4 Spag\\. aux légumes (enfants)</li>" \
+                         "<li>17 Spag\\. bolognaise (enfants)</li>" \
                          "<li>19 Fondus au chocolat</li>" \
                          "<li>34 Portions de glace</li>" \
                          "<a href=[^ ]*show_reservation[^ ]*$uuid_hex" \
@@ -491,8 +491,6 @@ function test_08_locally_GET_generate_tickets
                          'label for="extra_dish">.*:</label><input type="number" id="extra_dish" name="extra_dish"' \
                          'label for="third_dish">.*:</label><input type="number" id="third_dish" name="third_dish"' \
                          'label for="kids_main_dish">.*:</label><input type="number" id="kids_main_dish" name="kids_main_dish"' \
-                         'label for="kids_extra_dish">.*:</label><input type="number" id="kids_extra_dish" name="kids_extra_dish"' \
-                         'label for="kids_third_dish">.*:</label><input type="number" id="kids_third_dish" name="kids_third_dish"' \
                          'label for="main_dessert">.*:</label><input type="number" id="main_dessert" name="main_dessert"' \
                          'label for="extra_dessert">.*:</label><input type="number" id="extra_dessert" name="extra_dessert"'
 
@@ -511,12 +509,13 @@ function test_09_locally_POST_generate_tickets
     csrf="$(get_csrf_token_of_user "$admin_user")"
     test_output="$(capture_admin_cgi_output --ignore-cgitb "${test_name}_only_csrf" POST generate_tickets.cgi "csrf_token=$csrf")"
     grep -q "RuntimeError: Not enough tickets" "$test_output" || die "${test_name}_only_csrf should contain RuntimeError because a lack of tickets"
+    # kids_extra_dish and kids_main_dish should be ignored
     test_output="$(capture_admin_cgi_output "${test_name}" POST generate_tickets.cgi "csrf_token=$csrf&main_starter=19&extra_starter=41&main_dish=42&extra_dish=73&third_dish=20&kids_main_dish=74&kids_extra_dish=75&kids_third_dish=28&main_dessert=20&extra_dessert=35")"
     assert_html_response --no-banner "$test_name" "$test_output" \
                          "<title>Liste des tickets à imprimer</title>" \
                          "Qui m'appelle[^:]*: 1 place.*pour 3 tickets: 1m[+0c]* Tomate Mozzarella, 1m[+0c]* Spaghetti aux légumes, 1m[+0c]* Portion de glace" \
-                         "test[^:]*: 1 place.*pour 130 tickets: 2m[+]10c Tomate Mozzarella, 5m[+]11c Croquettes au fromage, 4m[+]12c Spaghetti bolognaise, 1m[+]13c Spaghetti aux scampis, 2m[+]0c Spaghetti aux légumes, 8m[+]0c Spag. bolognaise (enfants), 5m[+]0c Spag. aux scampis (enfants), 4m[+]0c Spag. aux légumes (enfants), 5m[+]14c Fondu au chocolat, 19m[+]15c Portion de glace" \
-                         "Vente libre</div><div>Tomate Mozzarella=6, Croquettes au fromage=25, Spaghetti bolognaise=26, Spaghetti aux scampis=59, Spaghetti aux légumes=17, Spag. bolognaise (enfants)=66, Spag. aux scampis (enfants)=70, Spag. aux légumes (enfants)=24, Fondu au chocolat=1, Portion de glace=0</div>"
+                         "test[^:]*: 1 place.*pour 130 tickets: 2m[+]10c Tomate Mozzarella, 5m[+]11c Croquettes au fromage, 4m[+]12c Spaghetti bolognaise, 1m[+]13c Spaghetti aux scampis, 2m[+]0c Spaghetti aux légumes, 17m[+]0c Spag. bolognaise (enfants), 5m[+]14c Fondu au chocolat, 19m[+]15c Portion de glace" \
+                         "Vente libre</div><div>Tomate Mozzarella=6, Croquettes au fromage=25, Spaghetti bolognaise=26, Spaghetti aux scampis=59, Spaghetti aux légumes=17, Spag. bolognaise (enfants)=57, Fondu au chocolat=1</div>"
 }
 
 function test_10_locally_list_payments_before_adding_any_to_db

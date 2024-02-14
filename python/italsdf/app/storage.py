@@ -326,7 +326,7 @@ class Reservation(MiniOrm):
         ("date", "TEXT NOT NULL"),
         *((f"outside_{k}", "INTEGER") for k in FullMealCount.FIELD_NAMES),
         *((f"inside_{k}", "INTEGER") for k in MenuCount.FIELD_NAMES),
-        *((f"kids_{k}", "INTEGER") for k in KidMealCount.FIELD_NAMES),
+        *((f"kids_{k}", f"INTEGER CHECK(kids_{k} = 0)" if k in {"extra_dish", "third_dish"} else "INTEGER") for k in KidMealCount.FIELD_NAMES),
         # ("inside_extra_starter", "INTEGER CHECK(inside_extra_starter + inside_main_starter = inside_main_dish + inside_extra_dish)"),
         ("gdpr_accepts_use", "INTEGER"),
         ("cents_due", "INTEGER CHECK(cents_due >= 0)"),
