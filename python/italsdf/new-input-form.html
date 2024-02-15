@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
   </head>
   <body>
-    <h2>Réservez maintenant vos places pour le souper italien du 23 mars 2024</h2>
+    <h2>Réservez vos places pour le souper italien du 23 mars 2024</h2>
     <form id="reservation" action="https://pcrama.sdf-eu.org/italsdf2024/post_reservation.cgi" method="POST">
       <script>
         var meta = document.createElement("meta");
@@ -18,7 +18,7 @@
     'form#reservation div.dessert { border-top: grey 1px solid; padding-top: 2px; }\n' +
     'form#reservation div.error-message { display: none; }\n' +
     'form#reservation div.has-error div.error-message { display: inline; color: #ed4337; font-style: oblique }\n' +
-    'form#reservation input { padding-left: 0.2em; padding-right: 0.2em; }\n' +
+    'form#reservation input { padding-left: 0.2em; padding-right: 0.2em; margin-bottom: 0px; }\n' +
     'form#reservation fieldset input { width: 2.75em; margin-left: 1ex; }\n' +
     'form#reservation input:invalid { border-color: #ed4337 }\n' +
     '.col-xs-2 { width: 16.67% } .col-xs-3 { width: 25% } .col-xs-4 { width: 33.33% } .col-xs-10 { width: 83.33%; } .col-xs-12 { width: 100% }\n' +
@@ -68,7 +68,7 @@
                     'insidemaindish': 2900,
                     'insideextradish': 3400,
                     'insidethirddish': 3400,
-                    'kidsmaindish': 1900,
+                    'kidsmaindish': 1200,
                     'outsidemainstarter': 900,
                     'outsideextrastarter': 900,
                     'outsidemaindish': 1700,
@@ -142,7 +142,7 @@
           </div>
         </fieldset>
         <fieldset>
-          <legend>Menu Enfant (&lt; 12 ans) 19.00€</legend>
+          <legend>Menu Enfant (&lt; 12 ans) 12.00€</legend>
           <div id="kids-menu-dish" class="dish sum-group">
             <div style="display: grid;">
               <div style="display: flex; place-items: center; grid-row: 1; grid-column: 1;"><label for="kidsmaindish">Spag. bolognaise (enfants)</label></div>
