@@ -398,7 +398,7 @@ if __name__ == '__main__':
                (('label', 'for', 'places-field-id', 'class', 'col-xs-3'), 'Nombre de places'),
                (('input', 'id', 'places-field-id', 'class', 'col-xs-3', 'name', 'places', 'type', 'number', 'min', '1', 'max', '50', 'value', '1'),),
                (('label', 'for', 'date-field-id', 'class', 'col-xs-2'), 'Date'),
-               (('input', 'id', 'date-field-id', 'class', 'col-xs-4', 'name', 'date', 'type', 'date', 'readonly', 'readonly', 'value', '2099-01-01'),)),
+               (('input', 'id', 'date-field-id', 'class', 'col-xs-4', 'name', 'date', 'type', 'date', 'readonly', 'readonly', 'value', '2024-03-23'),)),
               (('div', 'class', 'row'),
                (('fieldset', 'class', 'col-md-4'),
                ('legend', 'Menu Complet'),
