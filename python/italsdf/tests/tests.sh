@@ -551,9 +551,9 @@ function test_11_locally_reservation_example
                              ">3 Fondus au chocolat</li>" \
                              ">2 Portions de glace</li>" \
                              "Nous vous saurions gré de déjà verser cette somme avec la communication structurée" \
-                             "code QR avec votre application bancaire mobile: <br><svg"
+                             "code QR[^<>]*bancaire[^<>]*<br><svg"
 
-        sql_query 'INSERT INTO payments VALUES (NULL, 2.3, 350, "partial payment", "'"$uuid_hex"'", "src_id_0", "BE001100", "realperson", "Accepté", "unit test admin user", "1.2.3.4")'
+        sql_query 'INSERT INTO payments VALUES (NULL, 2.3, 350, "partial payment", "'"$uuid_hex"'", "src_id_0", "BE001100", "realperson", "Accepté", "unit test admin user", "1.2.3.4", NULL)'
         test_output="$(capture_cgi_output "$test_name" GET show_reservation.cgi "uuid_hex=$uuid_hex")"
         assert_html_response "$test_name" "$test_output" \
                              "Le prix total est de 68.00 € pour le repas dont 64.50 € sont encore dûs" \
@@ -564,10 +564,10 @@ function test_11_locally_reservation_example
                              ">3 Fondus au chocolat</li>" \
                              ">2 Portions de glace</li>" \
                              "Nous vous saurions gré de déjà verser cette somme avec la communication structurée" \
-                             "code QR avec votre application bancaire mobile: <br><svg"
+                             "code QR[^<>]*bancaire[^<>]*<br><svg"
 
         timestamp_epoch=86460
-        sql_query 'INSERT INTO payments VALUES (NULL, '"$timestamp_epoch"', 6450, "partial payment", "'"$uuid_hex"'", "src_id_1", "BE001100", "realperson", "Accepté", "unit test admin user", "1.2.3.4")'
+        sql_query 'INSERT INTO payments VALUES (NULL, '"$timestamp_epoch"', 6450, "partial payment", "'"$uuid_hex"'", "src_id_1", "BE001100", "realperson", "Accepté", "unit test admin user", "1.2.3.4", NULL)'
         test_output="$(capture_cgi_output "$test_name" GET show_reservation.cgi "uuid_hex=$uuid_hex")"
         assert_html_response "$test_name" "$test_output" \
                              "Merci d'avoir déjà réglé l'entièreté des 68.00 € dûs" \
@@ -610,8 +610,8 @@ function test_13_locally_list_2_payments
     assert_html_response "$test_name" "$test_output" \
                          '<input type="hidden" id="csrf_token" name="csrf_token" value="'"$csrf_token"'">' \
                          '<input type="file" id="csv_file" name="csv_file">' \
-                         '<tr><td>src_id_0</td><td>01/01/1970</td><td>BE001100</td><td>realperson</td><td>Accepté</td><td>partial payment</td><td>3.50</td><td><form method="POST" action="/gestion/link_payment_and_reservation.cgi"><a href="https://example.com/show_reservation.cgi?uuid_hex='"$uuid_hex"'">realperson i@gmail.com</a> <input type="hidden" name="csrf_token" value="'"$csrf_token"'"><input type="hidden" name="src_id" value="src_id_0"><input type="hidden" name="reservation_uuid" value=""><input type="submit" value="X"></form></td></tr>' \
-                         '<tr><td>src_id_1</td><td>02/01/1970</td><td>BE001100</td><td>realperson</td><td>Accepté</td><td>partial payment</td><td>64.50</td><td><form method="POST" action="/gestion/link_payment_and_reservation.cgi"><a href="https://example.com/show_reservation.cgi?uuid_hex='"$uuid_hex"'">realperson i@gmail.com</a> <input type="hidden" name="csrf_token" value="'"$csrf_token"'"><input type="hidden" name="src_id" value="src_id_1"><input type="hidden" name="reservation_uuid" value=""><input type="submit" value="X"></form></td></tr>'
+                         '<tr><td>src_id_0</td><td>01/01/1970</td><td>BE001100</td><td>realperson</td><td>Accepté</td><td>partial payment</td><td>3.50</td><td><div><form style="display: inline" method="POST" action="/gestion/link_payment_and_reservation.cgi"><a href="https://example.com/show_reservation.cgi?uuid_hex='"$uuid_hex"'">realperson i@gmail.com</a> <input type="hidden" name="csrf_token" value="'"$csrf_token"'"><input type="hidden" name="src_id" value="src_id_0"><input type="hidden" name="reservation_uuid" value=""><input type="submit" value="X"></form><a[^<>]*>[^<>]*</a></div></td></tr>' \
+                         '<tr><td>src_id_1</td><td>02/01/1970</td><td>BE001100</td><td>realperson</td><td>Accepté</td><td>partial payment</td><td>64.50</td><td><div><form style="display: inline" method="POST" action="/gestion/link_payment_and_reservation.cgi"><a href="https://example.com/show_reservation.cgi?uuid_hex='"$uuid_hex"'">realperson i@gmail.com</a> <input type="hidden" name="csrf_token" value="'"$csrf_token"'"><input type="hidden" name="src_id" value="src_id_1"><input type="hidden" name="reservation_uuid" value=""><input type="submit" value="X"></form><a[^<>]*>[^<>]*</a></div></td></tr>'
 }
 
 function test_14_locally_upload_payments
@@ -682,8 +682,8 @@ function test_15_locally_list_4_payments
     assert_html_response "$test_name" "$test_output" \
                          '<input type="hidden" id="csrf_token" name="csrf_token" value="'"$csrf_token"'">' \
                          '<input type="file" id="csv_file" name="csv_file">' \
-                         '<tr><td>src_id_0</td><td>01/01/1970</td><td>BE001100</td><td>realperson</td><td>Accepté</td><td>partial payment</td><td>3.50</td><td><form method="POST" action="/gestion/link_payment_and_reservation.cgi"><a href="https://example.com/show_reservation.cgi?uuid_hex='"$uuid_hex_p1_and_p2"'">realperson i@gmail.com</a> <input type="hidden" name="csrf_token" value="'"$csrf_token"'"><input type="hidden" name="src_id" value="src_id_0"><input type="hidden" name="reservation_uuid" value=""><input type="submit" value="X"></form></td></tr>' \
-                         '<tr><td>src_id_1</td><td>02/01/1970</td><td>BE001100</td><td>realperson</td><td>Accepté</td><td>partial payment</td><td>64.50</td><td><form method="POST" action="/gestion/link_payment_and_reservation.cgi"><a href="https://example.com/show_reservation.cgi?uuid_hex='"$uuid_hex_p1_and_p2"'">realperson i@gmail.com</a> <input type="hidden" name="csrf_token" value="'"$csrf_token"'"><input type="hidden" name="src_id" value="src_id_1"><input type="hidden" name="reservation_uuid" value=""><input type="submit" value="X"></form></td></tr>' \
+                         '<tr><td>src_id_0</td><td>01/01/1970</td><td>BE001100</td><td>realperson</td><td>Accepté</td><td>partial payment</td><td>3.50</td><td><div><form style="display: inline" method="POST" action="/gestion/link_payment_and_reservation.cgi"><a href="https://example.com/show_reservation.cgi?uuid_hex='"$uuid_hex_p1_and_p2"'">realperson i@gmail.com</a> <input type="hidden" name="csrf_token" value="'"$csrf_token"'"><input type="hidden" name="src_id" value="src_id_0"><input type="hidden" name="reservation_uuid" value=""><input type="submit" value="X"></form><a href=[^<>]*>[^<>]*</a></div></td></tr>' \
+                         '<tr><td>src_id_1</td><td>02/01/1970</td><td>BE001100</td><td>realperson</td><td>Accepté</td><td>partial payment</td><td>64.50</td><td><div><form style="display: inline" method="POST" action="/gestion/link_payment_and_reservation.cgi"><a href="https://example.com/show_reservation.cgi?uuid_hex='"$uuid_hex_p1_and_p2"'">realperson i@gmail.com</a> <input type="hidden" name="csrf_token" value="'"$csrf_token"'"><input type="hidden" name="src_id" value="src_id_1"><input type="hidden" name="reservation_uuid" value=""><input type="submit" value="X"></form><a href=[^<>]*>[^<>]*</a></div></td></tr>' \
                          "<tr><td>2023-00127</td><td>28/03/2023</td><td>BE00020002000202</td><td>ccccc-ccccccccc</td><td>Accepté</td><td>reprise marchandise</td><td>18.00</td><td><form method=\"POST\" action=\"/gestion/link_payment_and_reservation.cgi\"><input type=\"hidden\" name=\"csrf_token\" value=\"$csrf_token\"><input type=\"hidden\" name=\"src_id\" value=\"2023-00127\"><select name=\"reservation_uuid\"><option value=\"\">--- Choisir la réservation correspondante ---</option>.*</select>.*</form></td></tr><tr><td>2023-00119</td>" \
                          "<tr><td>2023-00119</td><td>25/03/2023</td><td>BE100010001010</td><td>SSSSSS GGGGGGGG</td><td>Accepté</td><td>[0-9+/]*</td><td>27.00</td><td><form method=\"POST\" action=\"/gestion/link_payment_and_reservation.cgi\"><input type=\"hidden\" name=\"csrf_token\" value=\"$csrf_token\"><input type=\"hidden\" name=\"src_id\" value=\"2023-00119\"><select name=\"reservation_uuid\"><option value=\"$uuid_hex_p4\" selected=\"selected\">[0-9+/]* test i@example.com</option><option value"
 }
@@ -719,7 +719,7 @@ $src_id
     test_output="$(capture_admin_cgi_output "${test_name}" POST link_payment_and_reservation.cgi '' CONTENT_TYPE="multipart/form-data; boundary=$content_boundary")"
     export CONTENT_STDIN=""
     grep -q "^Status: 302" "$test_output" || die "$test_name No Status: 302 redirect in $test_output"
-    target="/gestion/list_payments.cgi"
+    target="/gestion/confirm_payment.cgi?uuid_hex=${uuid_hex_p4}&src_id=${src_id}"
     grep -q "^Location: .*$target" "$test_output" || die "$test_name not redirecting to correct target \`\`$target'' in $test_output"
     payment_uuid="$(sql_query 'select uuid from payments where src_id="'"$src_id"'" limit 1')"
     [ "$payment_uuid" == "$uuid_hex_p4" ] || die "$test_name payment.uuid='$payment_uuid' not linked with reservation '$uuid_hex_p4'"

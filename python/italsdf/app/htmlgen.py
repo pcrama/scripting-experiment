@@ -6,11 +6,11 @@ import sys
 
 _html_gen_printed_header = False
 
-def print_content_type(content_type):
+def print_content_type(content_type, file=None):
     global _html_gen_printed_header
     if _html_gen_printed_header:
         return False
-    print(f'Content-Type: {content_type}')
+    print(f'Content-Type: {content_type}', file=file)
     _html_gen_printed_header = True
     return True
 
@@ -101,18 +101,18 @@ def html_document(title, body, with_banner=True):
         yield x
 
 
-def respond_html(data):
-    if print_content_type('text/html; charset=utf-8'):
-        print('Content-Language: en, fr')
-        print()
+def respond_html(data, file=None):
+    if print_content_type('text/html; charset=utf-8', file=file):
+        print('Content-Language: en, fr', file=file)
+        print(file=file)
     for x in data:
-        print(x, end='')
+        print(x, end='', file=file)
 
 
-def redirect(new_url, and_exit=True):
-    print('Status: 302')
-    print(f'Location: {new_url}')
-    print()
+def redirect(new_url, and_exit=True, file=None):
+    print('Status: 302', file=file)
+    print(f'Location: {new_url}', file=file)
+    print(file=file)
     if and_exit:
         sys.exit(0)
 

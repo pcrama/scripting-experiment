@@ -89,6 +89,7 @@ def make_payment(**overrides) -> Payment:
         other_name="Ms Abc",
         status="Accepté",
         user="unit-test-user",
-        ip="1.2.3.4")
+        ip="1.2.3.4",
+        confirmation_timestamp=None)
     defaults.update(**overrides)
     return Payment(**defaults)

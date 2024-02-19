@@ -5,6 +5,7 @@ import sqlite3
 import os
 import time
 from typing import Any, Callable, Iterable, Optional, Union
+from urllib.parse import urlencode, urljoin, urlunsplit
 
 from storage import Csrf, Payment, Reservation
 from htmlgen import (
@@ -75,6 +76,7 @@ def make_payment_builder(header_row: list[str]) -> Callable[[list[str], Optional
             status=row[columns['status']],
             user=None if proto is None else proto.user,
             ip=None if proto is None else proto.ip,
+            confirmation_timestamp=None if proto is None else proto.confirmation_timestamp,
         )
 
     return payment_builder
@@ -84,7 +86,7 @@ def import_bank_statements(connection, bank_statements_csv: str, user:str, ip: s
     csv_reader = csv.reader(io.StringIO(bank_statements_csv), delimiter=';')
     builder = make_payment_builder(next(csv_reader))
     proto = Payment(
-        rowid=None, timestamp=None, amount_in_cents=None, comment=None, uuid=None, src_id=None, other_account=None, other_name=None, status=None, user=user, ip=ip
+        rowid=None, timestamp=None, amount_in_cents=None, comment=None, uuid=None, src_id=None, other_account=None, other_name=None, status=None, user=user, ip=ip, confirmation_timestamp=None,
     )
     exceptions = []
     with connection:
@@ -142,7 +144,8 @@ def maybe_link_to_reservation(
     (script_dir, script_basename) = os.path.split(script_name)
     script_super_dir = os.path.dirname(script_dir)
     if res is not None:
-        return (('form', 'method', 'POST', 'action', os.path.join(script_dir, 'link_payment_and_reservation.cgi')),
+        return ('div',
+                (('form', 'style', 'display: inline', 'method', 'POST', 'action', os.path.join(script_dir, 'link_payment_and_reservation.cgi')),
                  (('a',
                    'href',
                    make_show_reservation_url(
@@ -152,7 +155,14 @@ def maybe_link_to_reservation(
                  (('input', 'type', 'hidden', 'name', 'csrf_token', 'value', csrf_token),),
                  (('input', 'type', 'hidden', 'name', 'src_id', 'value', pmnt.src_id),),
                  (('input', 'type', 'hidden', 'name', 'reservation_uuid', 'value', ''),),
-                 (('input', 'type', 'submit', 'value', 'X'),))
+                 (('input', 'type', 'submit', 'value', 'X'),)),
+                (('a', 'href', urlunsplit((
+                    'https',
+                    server_name,
+                    os.path.join(script_dir, 'confirm_payment.cgi'),
+                    urlencode((('uuid_hex', res.uuid), ('src_id', pmnt.src_id))),
+                    ''))),
+                 '🖄' if pmnt.confirmation_timestamp is None else 'send again?'))
 
     bank_id = pmnt.comment.strip().replace("+", "").replace("/", "")
     if len(bank_id) != 12 or not all(ch.isdigit() for ch in bank_id):
@@ -248,4 +258,10 @@ def link_payment_and_reservation(db_connection, server_name: str, script_name: s
             list_payments)
         return
 
-    redirect(list_payments)
+    send_email = urlunsplit((
+        'https',
+        server_name,
+        os.path.join(os.path.dirname(script_name), 'confirm_payment.cgi'),
+        urlencode((('uuid_hex', reservation_uuid), ('src_id', src_id))),
+        ''))
+    redirect(send_email)

@@ -55,7 +55,8 @@ class MakePaymentBuilder(unittest.TestCase):
                                 other_name="Ms Abc",
                                 status="Accepté",
                                 user="unit-test-user",
-                                ip="1.2.3.4")
+                                ip="1.2.3.4",
+                                confirmation_timestamp=None)
 
         def sub_test(data_row, with_proto, byte_order_mark, expected_dict):
             builder = lib_payments.make_payment_builder(
@@ -67,6 +68,7 @@ class MakePaymentBuilder(unittest.TestCase):
 
         sub_test(0, False, '', { 'rowid': None,
                                  'timestamp': 1679997600.0,
+                                 'confirmation_timestamp': None,
                                  'amount_in_cents': 1800,
                                  'comment': 'Reprise marchandises (viande hachee) souper italien',
                                  'uuid': None,
@@ -78,6 +80,7 @@ class MakePaymentBuilder(unittest.TestCase):
                                  'ip': None})
         sub_test(0, True, '\ufeff', { 'rowid': None,
                                       'timestamp': 1679997600.0,
+                                      'confirmation_timestamp': None,
                                       'amount_in_cents': 1800,
                                       'comment': 'Reprise marchandises (viande hachee) souper italien',
                                       'uuid': None,
@@ -89,6 +92,7 @@ class MakePaymentBuilder(unittest.TestCase):
                                       'ip': "1.2.3.4"})
         sub_test(1, False, '', { 'rowid': None,
                                  'timestamp': 1677409200.0,
+                                 'confirmation_timestamp': None,
                                  'amount_in_cents': -5034,
                                  'comment': 'Cotisation',
                                  'uuid': None,
@@ -250,7 +254,7 @@ class GetListPaymentsRow(unittest.TestCase):
             with self.subTest(email=email):
                 with connection:
                     reservation = conftest.make_reservation(email=email, places=1, bank_id=uuid_hex, uuid=uuid_hex).insert_data(connection)
-                    payment = conftest.make_payment(uuid=reservation.uuid, src_id=src_id).insert_data(connection)
+                    payment = conftest.make_payment(uuid=reservation.uuid, src_id=src_id, confirmation_timestamp=1234.5).insert_data(connection)
                 html_row = lib_payments.get_list_payments_row(connection, payment, reservation, 'example.com', 'italsdf2024/gestion/list_payments.cgi', 'csrf_token_value')
 
                 self.assertEqual(html_row, (('td', src_id),
@@ -261,16 +265,17 @@ class GetListPaymentsRow(unittest.TestCase):
                                             ('td', 'unit test comment'),
                                             ('td', '30.00'),
                                             ('td',
-                                             (('form', 'method', 'POST', 'action', 'italsdf2024/gestion/link_payment_and_reservation.cgi'),
-                                              (('a',
-                                                'href',
-                                                f'https://example.com/italsdf2024/show_reservation.cgi?uuid_hex={uuid_hex}'),
-                                               expected_text),
-                                              ' ',
-                                              (('input', 'type', 'hidden', 'name', 'csrf_token', 'value', 'csrf_token_value'),),
-                                              (('input', 'type', 'hidden', 'name', 'src_id', 'value', src_id),),
-                                              (('input', 'type', 'hidden', 'name', 'reservation_uuid', 'value', ''),),
-                                              (('input', 'type', 'submit', 'value', 'X'),)))))
+                                             ('div',
+                                              (('form', 'style', 'display: inline', 'method', 'POST', 'action', 'italsdf2024/gestion/link_payment_and_reservation.cgi'),
+                                               (('a', 'href', f'https://example.com/italsdf2024/show_reservation.cgi?uuid_hex={uuid_hex}'),
+                                                expected_text),
+                                               ' ',
+                                               (('input', 'type', 'hidden', 'name', 'csrf_token', 'value', 'csrf_token_value'),),
+                                               (('input', 'type', 'hidden', 'name', 'src_id', 'value', src_id),),
+                                               (('input', 'type', 'hidden', 'name', 'reservation_uuid', 'value', ''),),
+                                               (('input', 'type', 'submit', 'value', 'X'),)),
+                                              (('a', 'href', f"https://example.com/italsdf2024/gestion/confirm_payment.cgi?uuid_hex={uuid_hex}&src_id={src_id}"),
+                                               'send again?')))))
 
 
     def test_payment_possible_bankid_and_reservation_match(self):

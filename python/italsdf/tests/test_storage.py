@@ -162,7 +162,7 @@ class TestReservation(unittest.TestCase):
                 reservation.insert_data(self.connection)
 
 class TestPayments(unittest.TestCase):
-    CONNECTION: Optional[sqlite3.Connection]
+    CONNECTION: sqlite3.Connection
     CONFIGURATION = {}
     UUID_WITH_TWO_PAYMENTS = "c0ffee00beef1234"
 
@@ -181,6 +181,7 @@ class TestPayments(unittest.TestCase):
                         other_name='name 0',
                         status='Accepté',
                         user="unit-test-user",
+                        confirmation_timestamp=864060.3,
                         ip="1.2.3.4"),
                     storage.Payment(
                         rowid=2,
@@ -193,7 +194,8 @@ class TestPayments(unittest.TestCase):
                         other_name='name 1',
                         status='Accepté',
                         user="unit-test-user",
-                        ip="1.2.3.4"),
+                        ip="1.2.3.4",
+                        confirmation_timestamp=None),
                     storage.Payment(
                         rowid=3,
                         timestamp=5.0,
@@ -205,7 +207,8 @@ class TestPayments(unittest.TestCase):
                         other_name='name 2',
                         status='Accepté',
                         user="unit-test-user",
-                        ip="2.1.4.3")] + [
+                        ip="2.1.4.3",
+                        confirmation_timestamp=None)] + [
                             storage.Payment(
                                 rowid=x + (53 if x % 3 == 0 else 28),
                                 timestamp = (104.5 if x % 2 == 0 else 99) - x,
@@ -218,6 +221,7 @@ class TestPayments(unittest.TestCase):
                                 status='Accepté',
                                 user="other-test-user" if x % 7 == 0 else "unit-test-user",
                                 ip=f"1.{x}.3.{x}",
+                                confirmation_timestamp=None,
                             )
                             for x in range(10)
                         ]
@@ -256,6 +260,20 @@ class TestPayments(unittest.TestCase):
         self.assertEqual(sum((res is not None for _, res in joined)), 3)
         self.assertEqual(sum((res is not None and res.bank_id == "bank_id_1" for _, res in joined)), 2)
         self.assertEqual(sum((res is not None and res.bank_id == "bank_id_2" for _, res in joined)), 1)
+
+    def test_confirmation_timestamp(self):
+        p1 = storage.Payment.find_by_src_id(self.CONNECTION, "src_id_0")
+        self.assertEqual(p1.confirmation_timestamp, 864060.3)
+
+        p2 = storage.Payment.find_by_src_id(self.CONNECTION, "src_id_1")
+        self.assertIsNone(p2.confirmation_timestamp)
+
+        with self.CONNECTION:
+            p2.update_confirmation_timestamp(self.CONNECTION, 987654.32)
+
+        p2_after = storage.Payment.find_by_src_id(self.CONNECTION, p2.src_id)
+        self.assertEqual(p2_after.confirmation_timestamp, 987654.32)
+            
 
 
 class TestPayments_max_timestamp(unittest.TestCase):

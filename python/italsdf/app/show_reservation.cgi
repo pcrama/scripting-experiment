@@ -78,22 +78,20 @@ if __name__ == '__main__':
         # Get form data
         form = cgi.FieldStorage()
         uuid_hex = form.getfirst('uuid_hex', default='')
+        if not uuid_hex:
+            redirect_to_event()
+            assert uuid_hex
 
         db_connection = create_db(CONFIGURATION)
-        reservation = None
-        try:
-            reservation = next(Reservation.select(
-                db_connection,
-                filtering=[('uuid', uuid_hex)],
-                limit=1))
-        except StopIteration:
+        reservation = Reservation.find_by_uuid(db_connection, uuid_hex)
+        if not reservation:
             redirect_to_event()
+            assert reservation is not None
 
         if print_content_type('text/html; charset=utf-8'):
             print('Content-Language: en')
             print()
 
-        assert reservation is not None
         commandes = [x for x in (commande('Entrée',
                                           reservation.outside.main_starter + reservation.inside.main_starter,
                                           [MAIN_STARTER_NAME, MAIN_STARTER_NAME_PLURAL],
@@ -135,7 +133,7 @@ if __name__ == '__main__':
                     cents_to_euro(remaining_due), ' € sont encore dûs.  ',
                     "Nous vous saurions gré de déjà verser cette somme avec la communication ",
                     "structurée ", ("code", format_bank_id(reservation.bank_id)), " sur le compte ",
-                    BANK_ACCOUNT, " (bénéficiaire '", ORGANIZER_NAME, "') pour confirmer votre réservation, p.ex. en scannant ce code QR avec votre application bancaire mobile: ",
+                    BANK_ACCOUNT, " (bénéficiaire '", ORGANIZER_NAME, "') pour confirmer votre réservation, p.ex. en scannant ce code QR avec votre application bancaire mobile (compatible avec Argenta, Belfius Mobile, BNP Paribas Fortis Easy Banking; incompatible avec Payconiq): ",
                     ('br',),
                     ('raw', qrcode.make(generate_payment_QR_code_content(remaining_due, reservation.bank_id, CONFIGURATION),
                                         image_factory=SvgPathFillImage

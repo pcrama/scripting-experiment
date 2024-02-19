@@ -517,6 +517,14 @@ class Reservation(MiniOrm):
         return Reservation.from_row(row) if row else None
 
     @classmethod
+    def find_by_uuid(cls, connection: Union[sqlite3.Cursor, sqlite3.Connection], uuid: str) -> Union["Reservation", None]:
+        row = connection.execute(
+            f"""SELECT {','.join(col[0] for col in cls.COLUMNS)} FROM {cls.TABLE_NAME}
+                WHERE uuid = :uuid""",
+            {"uuid": uuid}).fetchone()
+        return Reservation.from_row(row) if row else None
+
+    @classmethod
     def list_reservations_for_linking_with_payments(cls, connection, exclude_uuid: str) -> Iterable["Reservation"]:
         return [
             Reservation.from_row(row) for row in connection.execute(
@@ -570,6 +578,7 @@ class Payment(MiniOrm):
         ("status", "TEXT NOT NULL"),
         ("user", "TEXT NOT NULL"),
         ("ip", "TEXT NOT NULL"),
+        ("confirmation_timestamp", "REAL"),
     ]
     CREATION_STATEMENTS = [
         default_creation_statement(TABLE_NAME, COLUMNS),
@@ -594,7 +603,7 @@ class Payment(MiniOrm):
         'other_name': MiniOrm.compare_with_like_lower('other_name'),
     }
 
-    def __init__(self, rowid, timestamp, amount_in_cents, comment, uuid, src_id, other_account, other_name, status, user, ip):
+    def __init__(self, rowid, timestamp, amount_in_cents, comment, uuid, src_id, other_account, other_name, status, user, ip, confirmation_timestamp):
         self.rowid = rowid
         self.timestamp = timestamp
         self.amount_in_cents = amount_in_cents
@@ -606,6 +615,7 @@ class Payment(MiniOrm):
         self.status = status
         self.user = user
         self.ip = ip
+        self.confirmation_timestamp = confirmation_timestamp
 
     @classmethod
     def find_by_src_id(cls, connection: Union[sqlite3.Cursor, sqlite3.Connection], src_id: str) -> Union["Payment", None]:
@@ -634,11 +644,21 @@ class Payment(MiniOrm):
         cursor = connection.cursor()
         cursor.execute(
             f'''INSERT INTO {self.TABLE_NAME} VALUES (
-                 :rowid, :timestamp, :amount_in_cents, :comment, :uuid, :src_id, :other_account, :other_name, :status, :user, :ip)
+                 :rowid, :timestamp, :amount_in_cents, :comment, :uuid, :src_id, :other_account, :other_name, :status, :user, :ip, :confirmation_timestamp)
              ''',
             self.to_dict())
         self.rowid = cursor.lastrowid
         return self
+
+    def update_confirmation_timestamp(self, connection, confirmation_timestamp: Optional[float]) -> "Payment":
+        self.confirmation_timestamp = confirmation_timestamp
+        connection.execute(
+            f'''UPDATE {self.TABLE_NAME} SET confirmation_timestamp = :confirmation_timestamp
+                WHERE rowid = :rowid''',
+            {"confirmation_timestamp": self.confirmation_timestamp,
+             "rowid": self.rowid})
+        return self
+    
 
     def update_uuid(self, connection, uuid: Union[str, None], user: str, ip: str) -> "Payment":
         if not user or not ip:
@@ -648,7 +668,7 @@ class Payment(MiniOrm):
         self.ip = ip
         self.timestamp = time.time()
         connection.execute(
-            f'''UPDATE {self.TABLE_NAME} SET uuid = :uuid,  user = :user,  ip = :ip,  timestamp = :timestamp
+            f'''UPDATE {self.TABLE_NAME} SET uuid = :uuid, user = :user, ip = :ip, timestamp = :timestamp, confirmation_timestamp = NULL
                 WHERE rowid = :rowid''',
             {"uuid": self.uuid if self.uuid else None,
              "user": self.user,
@@ -704,6 +724,10 @@ class Csrf(MiniOrm):
         ("ip", "TEXT NOT NULL"),
     ]
     CREATION_STATEMENTS = [default_creation_statement(TABLE_NAME, COLUMNS)]
+    token: str
+    timestamp: float
+    user: str
+    ip: str
 
     def __init__(self, token=None, timestamp=None, user=None, ip=None):
         self.token = token or uuid.uuid4().hex
@@ -713,12 +737,12 @@ class Csrf(MiniOrm):
 
 
     @classmethod
-    def gc(cls, connection):
+    def gc(cls, connection) -> None:
         connection.execute(
             f'DELETE FROM {cls.TABLE_NAME} WHERE timestamp <= :timestamp',
             {'timestamp': time.time() - 3 * cls.SESSION_IN_SECONDS})
 
-    def save(self, connection):
+    def save(self, connection) -> None:
         with connection:
             connection.execute(
                 f'INSERT OR REPLACE INTO {self.TABLE_NAME} VALUES '
@@ -731,14 +755,14 @@ class Csrf(MiniOrm):
 
 
     @classmethod
-    def new(cls, connection):
+    def new(cls, connection) -> "Csrf":
         result = cls()
         result.save(connection)
         return result
 
 
     @classmethod
-    def validate_and_update(cls, connection, token, user, ip):
+    def validate_and_update(cls, connection, token: str, user: str, ip: str) -> "Csrf":
         try:
             data = connection.execute(
                 f'SELECT * from {cls.TABLE_NAME} '
@@ -756,7 +780,7 @@ class Csrf(MiniOrm):
 
 
     @classmethod
-    def get_by_user_and_ip(cls, connection, user, ip):
+    def get_by_user_and_ip(cls, connection, user: str, ip: str) -> "Csrf":
         try:
             data = connection.execute(
                 f'SELECT * from {cls.TABLE_NAME} '

@@ -13,17 +13,17 @@ from htmlgen import (
     redirect,
     respond_html,
 )
+from python.italsdf.app.htmlgen import redirect_to_event
 from storage import(
     Reservation,
     create_db,
 )
 
-CONCERT_PAGE = 'https://www.srhbraine.be/concert-de-gala-2022/'
 
 if __name__ == '__main__':
     
     if os.getenv('REQUEST_METHOD') != 'GET':
-        redirect(CONCERT_PAGE)
+        redirect_to_event()
     CONFIGURATION = config.get_configuration()
 
     cgitb.enable(display=CONFIGURATION['cgitb_display'], logdir=CONFIGURATION['logdir'])
@@ -41,7 +41,7 @@ if __name__ == '__main__':
             filtering=[('bank_id', bank_id), ('uuid', uuid_hex)],
             limit=1))
     except StopIteration:
-        redirect(CONCERT_PAGE)
+        redirect_to_event()
 
     if print_content_type('text/html; charset=utf-8'):
         print('Content-Language: en')

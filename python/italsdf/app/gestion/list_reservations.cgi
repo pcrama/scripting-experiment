@@ -183,7 +183,8 @@ if __name__ == '__main__':
         table_header_row = tuple(
             ('th', make_navigation_a_elt(update_sort_order(column, sort_order), limit, offset,
                                          header + sort_direction(column, sort_order)))
-            for column, header in COLUMNS)
+            for column, header in COLUMNS
+            if column not in {"kids_extra_dish", "kids_third_dish"})
         total_bookings = Reservation.length(connection)
         (active_reservations,
          total_main_starter,
@@ -255,8 +256,8 @@ if __name__ == '__main__':
                       ('td', r.outside.extra_dish + r.inside.extra_dish),
                       ('td', r.outside.third_dish + r.inside.third_dish),
                       ('td', r.kids.main_dish),
-                      ('td', r.kids.extra_dish),
-                      ('td', r.kids.third_dish),
+                      # ('td', r.kids.extra_dish),
+                      # ('td', r.kids.third_dish),
                       ('td', r.outside.main_dessert + r.inside.main_dessert + r.kids.main_dessert),
                       ('td', r.outside.extra_dessert + r.inside.extra_dessert + r.kids.extra_dessert),
                       ('td', format_bank_id(r.bank_id)),
