@@ -92,32 +92,34 @@ if __name__ == '__main__':
             print('Content-Language: en')
             print()
 
-        commandes = [x for x in (commande('Entrée',
-                                          reservation.outside.main_starter + reservation.inside.main_starter,
-                                          [MAIN_STARTER_NAME, MAIN_STARTER_NAME_PLURAL],
-                                          reservation.outside.extra_starter + reservation.inside.extra_starter,
-                                          [EXTRA_STARTER_NAME, EXTRA_STARTER_NAME_PLURAL]),
-                                 commande('Plat',
-                                          reservation.outside.main_dish + reservation.inside.main_dish,
-                                          [MAIN_DISH_NAME, MAIN_DISH_NAME_PLURAL],
-                                          reservation.outside.extra_dish + reservation.inside.extra_dish,
-                                          [EXTRA_DISH_NAME, EXTRA_DISH_NAME_PLURAL],
-                                          reservation.outside.third_dish + reservation.inside.third_dish,
-                                          [THIRD_DISH_NAME, THIRD_DISH_NAME_PLURAL]),
-                                 commande('Plat enfants',
-                                          reservation.kids.main_dish,
-                                          [KIDS_MAIN_DISH_NAME, KIDS_MAIN_DISH_NAME_PLURAL],
-                                          reservation.kids.extra_dish,
-                                          [KIDS_EXTRA_DISH_NAME, KIDS_EXTRA_DISH_NAME_PLURAL],
-                                          reservation.kids.third_dish,
-                                          [KIDS_THIRD_DISH_NAME, KIDS_THIRD_DISH_NAME_PLURAL]),
-                                 commande('Dessert',
-                                          reservation.outside.main_dessert + reservation.inside.main_dessert + reservation.kids.main_dessert,
-                                          [MAIN_DESSERT_NAME, MAIN_DESSERT_NAME_PLURAL],
-                                          reservation.outside.extra_dessert + reservation.inside.extra_dessert + reservation.kids.extra_dessert,
-                                          [EXTRA_DESSERT_NAME, EXTRA_DESSERT_NAME_PLURAL]))
+        human_date = '/'.join(reversed(reservation.date.split('-')))
+        commandes_data = [
+            x for x in (commande('Entrée',
+                                 reservation.outside.main_starter + reservation.inside.main_starter,
+                                 [MAIN_STARTER_NAME, MAIN_STARTER_NAME_PLURAL],
+                                 reservation.outside.extra_starter + reservation.inside.extra_starter,
+                                 [EXTRA_STARTER_NAME, EXTRA_STARTER_NAME_PLURAL]),
+                        commande('Plat',
+                                 reservation.outside.main_dish + reservation.inside.main_dish,
+                                 [MAIN_DISH_NAME, MAIN_DISH_NAME_PLURAL],
+                                 reservation.outside.extra_dish + reservation.inside.extra_dish,
+                                 [EXTRA_DISH_NAME, EXTRA_DISH_NAME_PLURAL],
+                                 reservation.outside.third_dish + reservation.inside.third_dish,
+                                 [THIRD_DISH_NAME, THIRD_DISH_NAME_PLURAL]),
+                        commande('Plat enfants',
+                                 reservation.kids.main_dish,
+                                 [KIDS_MAIN_DISH_NAME, KIDS_MAIN_DISH_NAME_PLURAL],
+                                 reservation.kids.extra_dish,
+                                 [KIDS_EXTRA_DISH_NAME, KIDS_EXTRA_DISH_NAME_PLURAL],
+                                 reservation.kids.third_dish,
+                                 [KIDS_THIRD_DISH_NAME, KIDS_THIRD_DISH_NAME_PLURAL]),
+                        commande('Dessert',
+                                 reservation.outside.main_dessert + reservation.inside.main_dessert + reservation.kids.main_dessert,
+                                 [MAIN_DESSERT_NAME, MAIN_DESSERT_NAME_PLURAL],
+                                 reservation.outside.extra_dessert + reservation.inside.extra_dessert + reservation.kids.extra_dessert,
+                                 [EXTRA_DESSERT_NAME, EXTRA_DESSERT_NAME_PLURAL]))
                      if x]
-        if commandes:
+        if commandes_data:
             remaining_due = reservation.remaining_amount_due_in_cents(db_connection)
             last_payment_update_timestamp = time.localtime(Payment.max_timestamp(db_connection))
             last_payment_update = time.strftime(
@@ -129,11 +131,11 @@ if __name__ == '__main__':
                     last_payment_update)
             else:
                 due_amount_info = (
-                    'Le prix total est de ', cents_to_euro(reservation.cents_due), ' € pour le repas dont ',
-                    cents_to_euro(remaining_due), ' € sont encore dûs.  ',
+                    'Le prix total est de ', cents_to_euro(reservation.cents_due), ' € pour le repas',
+                    *((' dont ', cents_to_euro(remaining_due), ' € sont encore dûs') if remaining_due != reservation.cents_due else ()),'.  ',
                     "Nous vous saurions gré de déjà verser cette somme avec la communication ",
                     "structurée ", ("code", format_bank_id(reservation.bank_id)), " sur le compte ",
-                    BANK_ACCOUNT, " (bénéficiaire '", ORGANIZER_NAME, "') pour confirmer votre réservation, p.ex. en scannant ce code QR avec votre application bancaire mobile (compatible avec Argenta, Belfius Mobile, BNP Paribas Fortis Easy Banking; incompatible avec Payconiq): ",
+                    BANK_ACCOUNT, " (bénéficiaire '", ORGANIZER_NAME, "') pour votre réservation, p.ex. en scannant ce code QR avec votre application bancaire mobile (testé avec Argenta, Belfius Mobile et BNP Paribas Fortis Easy Banking; incompatible avec Payconiq): ",
                     ('br',),
                     ('raw', qrcode.make(generate_payment_QR_code_content(remaining_due, reservation.bank_id, CONFIGURATION),
                                         image_factory=SvgPathFillImage
@@ -141,30 +143,29 @@ if __name__ == '__main__':
                     ('br',),
                     last_payment_update,
                 )
-            commandes = (('p', "Merci de nous avoir informé à l'avance de votre commande.  ",
-                          "Nous préparerons vos tickets à l'entrée pour faciliter votre commande.  ",
-                          *due_amount_info),
-                         (('ul', ), *((('li',), *x) for x in commandes)))
+            commandes = ((('ul', ), *((('li',), *x) for x in commandes_data)),
+                         ('p', "Merci de nous avoir informés à l'avance de votre commande.  ",
+                          "Les tickets correspondant à votre commande seront à votre disposition à l'entrée le ", human_date, ".  ",
+                          *due_amount_info))
         else:
             commandes = (('p', "La commande des repas se fera à l'entrée: nous préférons le paiement mobile "
                           "mais accepterons aussi le paiement en liquide."),)
-        qr_server_template = ParseResult(scheme='https', netloc='api.qrserver.com', path='/v1/create-qr-code/', params='', query='', fragment='')
+        self_url = make_show_reservation_url(uuid_hex, script_name=SCRIPT_NAME, server_name=SERVER_NAME)
         respond_html(html_document(
             'Réservation effectuée',
-            (('p', 'Votre réservation au nom de ', reservation.name,
+            (('p', 'Votre ', 'commande' if commandes_data else 'réservation', ' au nom de ', reservation.name,
               ' pour ', pluriel_naif(reservation.places, 'place'), " a été enregistrée.  Vous pouvez garder cette page dans vos favoris ou l'imprimer comme preuve de réservation."),
              *commandes,
              ('p',
               (('a', 'href', f"mailto:{CONFIGURATION['info_email']}"), 'Contactez-nous'),
               ' si vous avez encore des questions.'),
-             ('p', 'Un tout grand merci pour votre présence le ', reservation.date,
+             ('p', 'Un tout grand merci pour votre présence le ', human_date,
               ': le soutien de nos auditeurs nous est indispensable!'),
              ('hr',),
              ('p',
-              "Scannez ce code QR pour suivre l'état actuel de votre réservation:",
+              'Ajoutez ', (('a', 'href', self_url), 'cette page'), " à vos favoris ou scannez ce code QR pour suivre l'état actuel de votre réservation:",
               ("br",),
-              ('raw', qrcode.make(make_show_reservation_url(uuid_hex, script_name=SCRIPT_NAME, server_name=SERVER_NAME),
-                                  image_factory=SvgPathFillImage).to_string().decode('utf8'))))))
+              ('raw', qrcode.make(self_url, image_factory=SvgPathFillImage).to_string().decode('utf8'))))))
     except Exception:
         # cgitb needs the content-type header
         if print_content_type('text/html; charset=utf-8'):
