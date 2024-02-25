@@ -168,7 +168,7 @@ class MiniOrm:
 
 
     @classmethod
-    def where_clause(cls, filtering):
+    def where_clause(cls, filtering, table_id_prefix=""):
         params = dict()
         clauses = []
         for (col, val) in filtering:
@@ -180,7 +180,7 @@ class MiniOrm:
             col_value, operator, target_value = cls.encode_column_value_for_search(
                 col, val, info)
             params[var_name] = target_value
-            clauses.append(f'{col_value} {operator} :{var_name}')
+            clauses.append(f'{table_id_prefix}{col_value} {operator} :{var_name}')
         if clauses:
             return ('(' + ' AND '.join(clauses) + ')', params)
         else:
@@ -579,6 +579,7 @@ class Payment(MiniOrm):
         ("user", "TEXT NOT NULL"),
         ("ip", "TEXT NOT NULL"),
         ("confirmation_timestamp", "REAL"),
+        ("active", "INTEGER"),
     ]
     CREATION_STATEMENTS = [
         default_creation_statement(TABLE_NAME, COLUMNS),
@@ -601,9 +602,10 @@ class Payment(MiniOrm):
         'comment': MiniOrm.compare_with_like_lower('comment'),
         'other_account': MiniOrm.compare_with_like_lower('other_account'),
         'other_name': MiniOrm.compare_with_like_lower('other_name'),
+        'active': MiniOrm.compare_as_bool('active'),
     }
 
-    def __init__(self, rowid, timestamp, amount_in_cents, comment, uuid, src_id, other_account, other_name, status, user, ip, confirmation_timestamp):
+    def __init__(self, rowid, timestamp, amount_in_cents, comment, uuid, src_id, other_account, other_name, status, user, ip, confirmation_timestamp, active):
         self.rowid = rowid
         self.timestamp = timestamp
         self.amount_in_cents = amount_in_cents
@@ -616,6 +618,7 @@ class Payment(MiniOrm):
         self.user = user
         self.ip = ip
         self.confirmation_timestamp = confirmation_timestamp
+        self.active = active
 
     @classmethod
     def find_by_src_id(cls, connection: Union[sqlite3.Cursor, sqlite3.Connection], src_id: str) -> Union["Payment", None]:
@@ -644,7 +647,7 @@ class Payment(MiniOrm):
         cursor = connection.cursor()
         cursor.execute(
             f'''INSERT INTO {self.TABLE_NAME} VALUES (
-                 :rowid, :timestamp, :amount_in_cents, :comment, :uuid, :src_id, :other_account, :other_name, :status, :user, :ip, :confirmation_timestamp)
+                 :rowid, :timestamp, :amount_in_cents, :comment, :uuid, :src_id, :other_account, :other_name, :status, :user, :ip, :confirmation_timestamp, :active)
              ''',
             self.to_dict())
         self.rowid = cursor.lastrowid
@@ -677,6 +680,22 @@ class Payment(MiniOrm):
              "rowid": self.rowid})
         return self
 
+    def hide(self, connection, user: str, ip: str) -> "Payment":
+        if not user or not ip:
+            raise ValueError(f"{user=} and {ip=} are mandatory")
+        self.active = False
+        self.user = user
+        self.ip = ip
+        self.timestamp = time.time()
+        connection.execute(
+            f'''UPDATE {self.TABLE_NAME} SET active = 0, user = :user, ip = :ip, timestamp = :timestamp
+                WHERE rowid = :rowid''',
+            {"user": self.user,
+             "ip": self.ip,
+             "timestamp": self.timestamp,
+             "rowid": self.rowid})
+        return self
+
     def money_received(self) -> bool:
         return self.status == "Accepté" and self.amount_in_cents is not None and self.amount_in_cents > 0
 
@@ -686,7 +705,7 @@ class Payment(MiniOrm):
         params = dict()
         query = [f'SELECT {",".join(f"pys.{col[0]}" for col in cls.COLUMNS)}, {",".join(f"res.{col[0]}" for col in Reservation.COLUMNS)} FROM {cls.TABLE_NAME} as pys LEFT OUTER JOIN {Reservation.TABLE_NAME} as res ON pys.uuid = res.uuid']
         if filtering is not None:
-            clauses, extra_params = cls.where_clause(filtering)
+            clauses, extra_params = cls.where_clause(filtering, table_id_prefix="pys.")
             query.append(f'WHERE {clauses}')
             params.update(extra_params)
         if order_columns is not None:

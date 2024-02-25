@@ -59,7 +59,8 @@ class MakePaymentBuilder(unittest.TestCase):
                                 status="Accepté",
                                 user="unit-test-user",
                                 ip="1.2.3.4",
-                                confirmation_timestamp=None)
+                                confirmation_timestamp=None,
+                                active=False)
 
         def sub_test(data_row, with_proto, byte_order_mark, expected_dict):
             builder = lib_payments.make_payment_builder(
@@ -79,6 +80,7 @@ class MakePaymentBuilder(unittest.TestCase):
                                  'other_account': 'BE00020002000202',
                                  'other_name': 'ccccc-ccccccccc',
                                  'status': 'Accepté',
+                                 'active': True,
                                  'user': None,
                                  'ip': None})
         sub_test(0, True, '\ufeff', { 'rowid': None,
@@ -91,6 +93,7 @@ class MakePaymentBuilder(unittest.TestCase):
                                       'other_account': 'BE00020002000202',
                                       'other_name': 'ccccc-ccccccccc',
                                       'status': 'Accepté',
+                                      'active': False,
                                       'user': "unit-test-user",
                                       'ip': "1.2.3.4"})
         sub_test(1, False, '', { 'rowid': None,
@@ -103,6 +106,7 @@ class MakePaymentBuilder(unittest.TestCase):
                                  'other_account': 'BE00030003000303',
                                  'other_name': 'HHHHHHH SSSSSSSS',
                                  'status': 'Accepté',
+                                 'active': True,
                                  'user': None,
                                  'ip': None})
 
@@ -182,7 +186,7 @@ class GetListPaymentsRow(unittest.TestCase):
             with self.subTest(uuid=uuid):
                 src_id += "0"
                 with connection:
-                    payment = conftest.make_payment(src_id=src_id, comment=uuid).insert_data(connection)
+                    payment = conftest.make_payment(src_id=src_id, comment=uuid, uuid=None).insert_data(connection)
                 html_row = lib_payments.get_list_payments_row(connection, payment, None, 'example.com', 'italsdf2024/gestion/list_payments.cgi', 'csrf_token_value')
 
                 self.assertEqual(html_row, (('td', src_id),
@@ -192,14 +196,20 @@ class GetListPaymentsRow(unittest.TestCase):
                                             ('td', 'Accepté'),
                                             ('td', uuid),
                                             ('td', '30.00'),
-                                            ('td', (('form', 'method', 'POST',
-                                                     'action', 'italsdf2024/gestion/link_payment_and_reservation.cgi'),
-                                                    (('input', 'type', 'hidden', 'name', 'csrf_token', 'value', 'csrf_token_value'),),
-                                                    (('input', 'type', 'hidden', 'name', 'src_id', 'value', src_id),),
-                                                    (('select', 'name', 'reservation_uuid'),
-                                                     (('option', 'value', ''), '--- Choisir la réservation correspondante ---'),
-                                                     (('option', 'value', 'deadbeef'), '12349876', ' ', 'testing test@example.com')),
-                                                    (('input', 'type', 'submit', 'value', 'OK'),)))))
+                                            ('td', ('div',
+                                                    (('form', 'style', 'display: inline', 'method', 'POST',
+                                                      'action', 'italsdf2024/gestion/link_payment_and_reservation.cgi'),
+                                                     (('input', 'type', 'hidden', 'name', 'csrf_token', 'value', 'csrf_token_value'),),
+                                                     (('input', 'type', 'hidden', 'name', 'src_id', 'value', src_id),),
+                                                     (('select', 'name', 'reservation_uuid'),
+                                                      (('option', 'value', ''), '--- Choisir la réservation correspondante ---'),
+                                                      (('option', 'value', 'deadbeef'), '12349876', ' ', 'testing test@example.com')),
+                                                     (('input', 'type', 'submit', 'value', 'OK'),)),
+                                                    (('form', 'style', 'display: inline', 'method', 'POST',
+                                                      'action', 'italsdf2024/gestion/hide_payment.cgi'),
+                                                     (('input', 'type', 'hidden', 'name', 'csrf_token', 'value', 'csrf_token_value'),),
+                                                     (('input', 'type', 'hidden', 'name', 'src_id', 'value', src_id),),
+                                                     (('input', 'type', 'submit', 'value', 'hide'),))))))
 
     def test_payment_possible_bankid_but_no_reservations_yet(self):
         configuration = {"dbdir": ":memory:"}
@@ -236,7 +246,7 @@ class GetListPaymentsRow(unittest.TestCase):
                                     (('td', 'class', 'payment-not-ok'), 'Accepté'),
                                     ('td', 'unit test comment'),
                                     (('td', 'class', 'payment-not-ok'), '-0.34'),
-                                    ('td', (('form', 'method', 'POST',
+                                    ('td', (('form', 'style', 'display: inline', 'method', 'POST',
                                              'action', '/gestion/link_payment_and_reservation.cgi'),
                                             (('input', 'type', 'hidden', 'name', 'csrf_token', 'value', 'csrf_token_value'),),
                                             (('input', 'type', 'hidden', 'name', 'src_id', 'value', '2023-1000'),),
@@ -304,7 +314,7 @@ class GetListPaymentsRow(unittest.TestCase):
                                ('td', uuid),
                                ('td', '30.00'),
                                ('td',
-                                (('form', 'method', 'POST',
+                                (('form', 'style', 'display: inline', 'method', 'POST',
                                   'action', 'italsdf2024/gestion/link_payment_and_reservation.cgi'),
                                  (('input', 'type', 'hidden', 'name', 'csrf_token', 'value', 'csrf_token_value'),),
                                  (('input', 'type', 'hidden', 'name', 'src_id', 'value', src_id),),

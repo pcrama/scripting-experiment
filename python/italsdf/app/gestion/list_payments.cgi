@@ -18,8 +18,6 @@ sys.path.append('..')
 import config
 from htmlgen import (
     html_document,
-    format_bank_id,
-    pluriel_naif,
     print_content_type,
     redirect_to_event,
     respond_html,
@@ -43,10 +41,11 @@ def update_sort_order(new_col_name: str, sort_order: list[str]) -> list[str]:
         return [new_col_name]
 
 
-def make_url(sort_order: list[str], limit: Optional[int], offset: Optional[int], base_url: str) -> str:
+def make_url(sort_order: list[str], limit: Optional[int], offset: Optional[int], show_active: bool, base_url: str) -> str:
     params = list((k, v) for k, v in itertools.chain(
         (('limit', limit),
-         ('offset', offset)),
+         ('offset', offset),
+         ('show_active', 1 if show_active else 0)),
         (('sort_order', s) for s in sort_order))
                   if v is not None)
     split_result = urllib.parse.urlsplit(base_url)
@@ -58,10 +57,10 @@ def make_url(sort_order: list[str], limit: Optional[int], offset: Optional[int],
         split_result.fragment))
 
 
-def make_navigation_a_elt(sort_order: list[str], limit: Optional[int], offset: Optional[int], text: str, base_url: str) -> tuple[tuple[str, str, str, str, str], str]:
+def make_navigation_a_elt(sort_order: list[str], limit: Optional[int], offset: Optional[int], show_active: bool, text: str, base_url: str) -> tuple[tuple[str, str, str, str, str], str]:
     return (('a',
              'class', 'navigation',
-             'href', make_url(sort_order, limit, offset, base_url)),
+             'href', make_url(sort_order, limit, offset, show_active, base_url)),
             text)
 
 
@@ -95,6 +94,9 @@ if __name__ == '__main__':
     try:
         script_name = os.getenv('SCRIPT_NAME')
         server_name = os.getenv('SERVER_NAME')
+        remote_user = os.getenv('REMOTE_USER')
+        remote_addr = os.getenv('REMOTE_ADDR')
+        assert script_name is not None and server_name is not None and remote_user is not None and remote_addr is not None
         base_url = urllib.parse.urljoin(f'https://{server_name}', script_name)
         params = cgi.parse()
         sort_order = params.get('sort_order', ["SRC_ID"])
@@ -106,9 +108,12 @@ if __name__ == '__main__':
             offset = max(int(get_first(params, 'offset') or 0), 0)
         except Exception:
             offset = 0
+        try:
+            show_active = bool(int(get_first(params, 'show_active') or 1))
+        except Exception:
+            show_active = True
         connection = create_db(CONFIGURATION)
-        csrf_token = Csrf.get_by_user_and_ip(
-            connection, os.getenv('REMOTE_USER'), os.getenv('REMOTE_ADDR'))
+        csrf_token = Csrf.get_by_user_and_ip(connection, remote_user, remote_addr)
 
         COLUMNS = [('src_id', 'N° séquence'),
                    ('timestamp', 'Date exécution'),
@@ -119,23 +124,25 @@ if __name__ == '__main__':
                    ('amount_in_cents', 'Montant'),
                    ]
         table_header_row = tuple(
-            ('th', make_navigation_a_elt(update_sort_order(column, sort_order), limit, offset,
+            ('th', make_navigation_a_elt(update_sort_order(column, sort_order), limit, offset, show_active,
                                          header + sort_direction(column, sort_order), base_url))
             for column, header in COLUMNS) + (('th', 'Réservation'),)
-        payment_count = Payment.length(connection)
+        payment_count = Payment.length(connection, filtering=[('active', True)] if show_active else None)
         pagination_links = tuple((
             x for x in
-            [('li', make_navigation_a_elt(sort_order, limit, 0, 'Début', base_url))
+            [('li', make_navigation_a_elt(sort_order, limit, 0, show_active, 'Début', base_url))
              if offset > 0
              else None,
              ('li',
-              make_navigation_a_elt(sort_order, limit, offset - limit, 'Précédent', base_url))
+              make_navigation_a_elt(sort_order, limit, offset - limit, show_active, 'Précédent', base_url))
              if offset > limit else
              None,
              ('li',
-              make_navigation_a_elt(sort_order, limit, offset + limit, 'Suivant', base_url))
+              make_navigation_a_elt(sort_order, limit, offset + limit, show_active, 'Suivant', base_url))
              if offset + limit < payment_count else
-             None]
+             None,
+             ('li',
+              make_navigation_a_elt(sort_order, limit, 0, not show_active, f'{"Inclure" if show_active else "Cacher"} paiements inintéressants', base_url))]
             if x is not None))
         respond_html(html_document(
             'List of payments',
@@ -156,6 +163,7 @@ if __name__ == '__main__':
               ('tr', *table_header_row),
               *tuple(('tr', *get_list_payments_row(connection, pmnt, res, server_name, script_name, csrf_token.token))
                      for pmnt, res in Payment.join_reservations(connection,
+                                                                filtering=[('active', True)] if show_active else None,
                                                                 order_columns=sort_order,
                                                                 limit=limit,
                                                                 offset=offset))),

@@ -77,6 +77,7 @@ def make_payment_builder(header_row: list[str]) -> Callable[[list[str], Optional
             user=None if proto is None else proto.user,
             ip=None if proto is None else proto.ip,
             confirmation_timestamp=None if proto is None else proto.confirmation_timestamp,
+            active=True if proto is None else proto.active,
         )
 
     return payment_builder
@@ -86,7 +87,7 @@ def import_bank_statements(connection, bank_statements_csv: str, user:str, ip: s
     csv_reader = csv.reader(io.StringIO(bank_statements_csv), delimiter=';')
     builder = make_payment_builder(next(csv_reader))
     proto = Payment(
-        rowid=None, timestamp=None, amount_in_cents=None, comment=None, uuid=None, src_id=None, other_account=None, other_name=None, status=None, user=user, ip=ip, confirmation_timestamp=None,
+        rowid=None, timestamp=None, amount_in_cents=None, comment=None, uuid=None, src_id=None, other_account=None, other_name=None, status=None, user=user, ip=ip, confirmation_timestamp=None, active=True,
     )
     exceptions = []
     src_id_limit = time.strftime("%Y-000")
@@ -176,13 +177,17 @@ def maybe_link_to_reservation(
     if matching_reservation is None:
         return _maybe_link__make_form_when_no_reservation_matches_well(connection, pmnt, csrf_token, script_dir)
 
-    return (('form', 'method', 'POST', 'action', os.path.join(script_dir, 'link_payment_and_reservation.cgi')),
-            (('input', 'type', 'hidden', 'name', 'csrf_token', 'value', csrf_token),),
-            (('input', 'type', 'hidden', 'name', 'src_id', 'value', pmnt.src_id),),
-            (('select', 'name', 'reservation_uuid'),
-             _maybe_link__make_option(matching_reservation, bank_id),
-             *(_maybe_link__make_option(res) for res in Reservation.list_reservations_for_linking_with_payments(connection, matching_reservation.uuid))),
-            (('input', 'type', 'submit', 'value', 'OK'),))
+    return _maybe_add_hide_button(
+        pmnt,
+        csrf_token,
+        script_dir,
+        (('form', 'style', 'display: inline', 'method', 'POST', 'action', os.path.join(script_dir, 'link_payment_and_reservation.cgi')),
+         (('input', 'type', 'hidden', 'name', 'csrf_token', 'value', csrf_token),),
+         (('input', 'type', 'hidden', 'name', 'src_id', 'value', pmnt.src_id),),
+         (('select', 'name', 'reservation_uuid'),
+          _maybe_link__make_option(matching_reservation, bank_id),
+          *(_maybe_link__make_option(res) for res in Reservation.list_reservations_for_linking_with_payments(connection, matching_reservation.uuid))),
+         (('input', 'type', 'submit', 'value', 'OK'),)))
 
 
 def _maybe_link__make_option(res: Reservation, bank_id: Union[str, None]=None) -> Iterable[Any]:
@@ -191,19 +196,39 @@ def _maybe_link__make_option(res: Reservation, bank_id: Union[str, None]=None) -
 
 def _maybe_link__make_form_when_no_reservation_matches_well(connection, pmnt: Payment, csrf_token: str, script_dir: str) -> Union[str, Iterable[Any]]:
     options = [_maybe_link__make_option(res) for res in Reservation.list_reservations_for_linking_with_payments(connection, '')]
-    if options:
-        return (('form', 'method', 'POST', 'action', os.path.join(script_dir, 'link_payment_and_reservation.cgi')),
-                (('input', 'type', 'hidden', 'name', 'csrf_token', 'value', csrf_token),),
-                (('input', 'type', 'hidden', 'name', 'src_id', 'value', pmnt.src_id),),
-                (('select', 'name', 'reservation_uuid'),
-                 (('option', 'value', ''), '--- Choisir la réservation correspondante ---'),
-                 *options),
-                (('input', 'type', 'submit', 'value', 'OK'),))
+    return _maybe_add_hide_button(
+        pmnt,
+        csrf_token,
+        script_dir,
+        (('form', 'style', 'display: inline', 'method', 'POST', 'action', os.path.join(script_dir, 'link_payment_and_reservation.cgi')),
+         (('input', 'type', 'hidden', 'name', 'csrf_token', 'value', csrf_token),),
+         (('input', 'type', 'hidden', 'name', 'src_id', 'value', pmnt.src_id),),
+         (('select', 'name', 'reservation_uuid'),
+          (('option', 'value', ''), '--- Choisir la réservation correspondante ---'),
+          *options),
+         (('input', 'type', 'submit', 'value', 'OK'),))
+            if options
+            else "#N/A")
+
+
+def _maybe_add_hide_button(pmnt: Payment, csrf_token: str, script_dir: str, form: Union[str, Iterable[Any]]) -> Union[str, Iterable[Any]]:
+    if pmnt.uuid or not pmnt.active:
+        return form
+    hide_button = (('form', 'style', 'display: inline', 'method', 'POST', 'action', os.path.join(script_dir, 'hide_payment.cgi')),
+                   (('input', 'type', 'hidden', 'name', 'csrf_token', 'value', csrf_token),),
+                   (('input', 'type', 'hidden', 'name', 'src_id', 'value', pmnt.src_id),),
+                   (('input', 'type', 'submit', 'value', 'hide'),))
+    if form == "#N/A":
+        return hide_button
     else:
-        return "#N/A"
+        return ('div', form, hide_button)
 
 
 def fail_link_payment_and_reservation():
+    redirect_to_event()
+
+
+def fail_hide_payment():
     redirect_to_event()
 
 
@@ -269,3 +294,46 @@ def link_payment_and_reservation(db_connection, server_name: str, script_name: s
         urlencode((('uuid_hex', reservation_uuid), ('src_id', src_id))),
         ''))
     redirect(send_email)
+
+
+def hide_payment(db_connection, server_name: str, script_name: str, user: str, ip: str) -> None:
+    list_payments = f"https://{server_name}{os.path.join(os.path.dirname(script_name), 'list_payments.cgi')}"
+    # Get form data
+    form = cgi.FieldStorage()
+    csrf_token = form.getfirst('csrf_token')
+    if csrf_token is None:
+        fail_hide_payment()
+        return None
+    else:
+        try:
+            Csrf.validate_and_update(db_connection, csrf_token, user, ip)
+        except KeyError:
+            fail_hide_payment()
+            return None
+
+    src_id = form.getfirst('src_id')
+    if not src_id:
+        fail_hide_payment()
+        return
+
+    try:
+        payment = Payment.find_by_src_id(db_connection, src_id)
+    except Exception as exc:
+        fail_hide_payment()
+        return
+
+    if payment is None:
+        fail_hide_payment()
+        return
+
+    try:
+        with db_connection:
+            payment.hide(db_connection, user, ip)
+    except Exception as exc:
+        respond_link_payment_and_reservation_error(
+            "Erreur d'écriture",
+            (("p", "Le paiement '", str(src_id), "' n'a pas pu être mis à jour: ", repr(exc)),),
+            list_payments)
+        return
+
+    redirect(list_payments)

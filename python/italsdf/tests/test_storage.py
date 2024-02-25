@@ -166,36 +166,37 @@ class TestPayments(unittest.TestCase):
     CONFIGURATION = {}
     UUID_WITH_TWO_PAYMENTS = "c0ffee00beef1234"
 
-    @classmethod
-    def setUpClass(cls):
-        cls.CONFIGURATION = {"dbdir": ":memory:"}
-        cls.CONNECTION = storage.ensure_connection(cls.CONFIGURATION)
+    def setUp(self):
+        self.CONFIGURATION = {"dbdir": ":memory:"}
+        self.CONNECTION = storage.ensure_connection(self.CONFIGURATION)
         payments = [storage.Payment(
                         rowid=1,
                         timestamp=2.5,
                         amount_in_cents=3,
                         comment="unit test comment",
-                        uuid=cls.UUID_WITH_TWO_PAYMENTS,
+                        uuid=self.UUID_WITH_TWO_PAYMENTS,
                         src_id='src_id_0',
                         other_account='BE515300',
                         other_name='name 0',
                         status='Accepté',
-                        user="unit-test-user",
                         confirmation_timestamp=864060.3,
+                        active=True,
+                        user="unit-test-user",
                         ip="1.2.3.4"),
                     storage.Payment(
                         rowid=2,
                         timestamp=3.0,
                         amount_in_cents=4,
                         comment="second payment for same uuid",
-                        uuid=cls.UUID_WITH_TWO_PAYMENTS,
+                        uuid=self.UUID_WITH_TWO_PAYMENTS,
                         src_id='src_id_1',
                         other_account='BE515401',
                         other_name='name 1',
                         status='Accepté',
                         user="unit-test-user",
                         ip="1.2.3.4",
-                        confirmation_timestamp=None),
+                        confirmation_timestamp=None,
+                        active=True),
                     storage.Payment(
                         rowid=3,
                         timestamp=5.0,
@@ -208,7 +209,8 @@ class TestPayments(unittest.TestCase):
                         status='Accepté',
                         user="unit-test-user",
                         ip="2.1.4.3",
-                        confirmation_timestamp=None)] + [
+                        confirmation_timestamp=None,
+                        active=True)] + [
                             storage.Payment(
                                 rowid=x + (53 if x % 3 == 0 else 28),
                                 timestamp = (104.5 if x % 2 == 0 else 99) - x,
@@ -222,19 +224,19 @@ class TestPayments(unittest.TestCase):
                                 user="other-test-user" if x % 7 == 0 else "unit-test-user",
                                 ip=f"1.{x}.3.{x}",
                                 confirmation_timestamp=None,
+                                active=True,
                             )
                             for x in range(10)
                         ]
-        with cls.CONNECTION:
+        with self.CONNECTION:
             for pmnt in payments:
-                pmnt.insert_data(cls.CONNECTION)
-            make_reservation(name="name1", email="one@example.com", places=3, outside_main_dessert=1, inside_main_dish=1, inside_main_starter=1, inside_extra_dessert=1, cents_due=12345, bank_id="bank_id_1", uuid=cls.UUID_WITH_TWO_PAYMENTS).insert_data(cls.CONNECTION)
-            make_reservation(name="name2", email="two@example.com", places=2, outside_main_dessert=1, inside_main_dish=1, inside_third_dish=1, inside_main_starter=2, inside_extra_dessert=1, inside_main_dessert=1, cents_due=34512, bank_id="bank_id_2", uuid="beef12346789fedc").insert_data(cls.CONNECTION)
+                pmnt.insert_data(self.CONNECTION)
+            make_reservation(name="name1", email="one@example.com", places=3, outside_main_dessert=1, inside_main_dish=1, inside_main_starter=1, inside_extra_dessert=1, cents_due=12345, bank_id="bank_id_1", uuid=self.UUID_WITH_TWO_PAYMENTS).insert_data(self.CONNECTION)
+            make_reservation(name="name2", email="two@example.com", places=2, outside_main_dessert=1, inside_main_dish=1, inside_third_dish=1, inside_main_starter=2, inside_extra_dessert=1, inside_main_dessert=1, cents_due=34512, bank_id="bank_id_2", uuid="beef12346789fedc").insert_data(self.CONNECTION)
 
-    @classmethod
-    def tearDownClass(cls):
-        if cls.CONNECTION:
-            cls.CONNECTION.close()
+    def tearDown(self):
+        if self.CONNECTION:
+            self.CONNECTION.close()
 
     def test_sum_of_two_payments(self):
         self.assertEqual(storage.Payment.sum_payments(self.CONNECTION, self.UUID_WITH_TWO_PAYMENTS), 7)
@@ -273,7 +275,31 @@ class TestPayments(unittest.TestCase):
 
         p2_after = storage.Payment.find_by_src_id(self.CONNECTION, p2.src_id)
         self.assertEqual(p2_after.confirmation_timestamp, 987654.32)
-            
+
+    def test_hide_payment_associated_with_reservation_fails(self):
+        p1 = storage.Payment.find_by_src_id(self.CONNECTION, "src_id_0")
+        assert p1 is not None
+        self.assertTrue(p1.active)
+
+        with self.assertRaises(Exception):
+            with self.CONNECTION:
+                p1.hide(self.CONNECTION)
+
+        new_p1 = storage.Payment.find_by_src_id(self.CONNECTION, p1.src_id)
+        self.assertTrue(new_p1.active)
+
+    def test_hide_payment_without_reservation_association_succeeds(self):
+        p1 = storage.Payment.find_by_src_id(self.CONNECTION, "src_id_0")
+        with self.CONNECTION:
+            p1.update_uuid(self.CONNECTION, None, "unit-test-user", "1.2.3.6")
+
+        with self.CONNECTION:
+            p1.hide(self.CONNECTION, 'deactivating-user', '9.8.7.6')
+
+        new_p1 = storage.Payment.find_by_src_id(self.CONNECTION, p1.src_id)
+        self.assertFalse(new_p1.active)
+        self.assertEqual(new_p1.user, 'deactivating-user')
+        self.assertEqual(new_p1.ip, "9.8.7.6")
 
 
 class TestPayments_max_timestamp(unittest.TestCase):
