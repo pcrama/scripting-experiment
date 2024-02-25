@@ -553,7 +553,7 @@ function test_11_locally_reservation_example
                              "Nous vous saurions gré de déjà verser cette somme avec la communication structurée" \
                              "code QR[^<>]*bancaire[^<>]*<br><svg"
 
-        sql_query 'INSERT INTO payments VALUES (NULL, 2.3, 350, "partial payment", "'"$uuid_hex"'", "src_id_0", "BE001100", "realperson", "Accepté", "unit test admin user", "1.2.3.4", NULL)'
+        sql_query 'INSERT INTO payments VALUES (NULL, 2.3, 350, "partial payment", "'"$uuid_hex"'", "src_id_0", "BE001100", "realperson", "Accepté", "unit test admin user", "1.2.3.4", NULL, 1)'
         test_output="$(capture_cgi_output "$test_name" GET show_reservation.cgi "uuid_hex=$uuid_hex")"
         assert_html_response "$test_name" "$test_output" \
                              "Le prix total est de 68.00 € pour le repas dont 64.50 € sont encore dûs" \
@@ -567,7 +567,7 @@ function test_11_locally_reservation_example
                              "code QR[^<>]*bancaire[^<>]*<br><svg"
 
         timestamp_epoch=86460
-        sql_query 'INSERT INTO payments VALUES (NULL, '"$timestamp_epoch"', 6450, "partial payment", "'"$uuid_hex"'", "src_id_1", "BE001100", "realperson", "Accepté", "unit test admin user", "1.2.3.4", NULL)'
+        sql_query 'INSERT INTO payments VALUES (NULL, '"$timestamp_epoch"', 6450, "partial payment", "'"$uuid_hex"'", "src_id_1", "BE001100", "realperson", "Accepté", "unit test admin user", "1.2.3.4", NULL, 1)'
         test_output="$(capture_cgi_output "$test_name" GET show_reservation.cgi "uuid_hex=$uuid_hex")"
         assert_html_response "$test_name" "$test_output" \
                              "Merci d'avoir déjà réglé l'entièreté des 68.00 € dûs" \
@@ -616,7 +616,7 @@ function test_13_locally_list_2_payments
 
 function test_14_locally_upload_payments
 {
-    local test_name test_output uuid_hex content_boundary row_count bank_transaction_number csrf_token
+    local test_name test_output uuid_hex content_boundary row_count bank_transaction_number csrf_token year_prefix
     test_name="test_14_locally_upload_payments"
     csrf_token="$(get_csrf_token_of_user "$admin_user")"
     if [ -z "$csrf_token" ]; then
@@ -630,6 +630,7 @@ function test_14_locally_upload_payments
     if [ -z "$bank_transaction_number" ]; then
         die "$test_name Unable to find bank transaction number"
     fi
+    year_prefix="$(date +%Y)"
     content_boundary='95173680fbda20e37a8df066f0d77cc4'
     export CONTENT_STDIN="--${content_boundary}
 Content-Disposition: form-data; name=\"csrf_token\"
@@ -640,8 +641,8 @@ Content-Disposition: form-data; name=\"csv_file\"; filename=\"test.csv\"
 Content-Type: text/csv
 
 Nº de séquence;Date d'exécution;Date valeur;Montant;Devise du compte;Numéro de compte;Type de transaction;Contrepartie;Nom de la contrepartie;Communication;Détails;Statut;Motif du refus
-2023-00127;28/03/2023;28/03/2023;18;EUR;BE00010001000101;Virement en euros;BE00020002000202;ccccc-ccccccccc;reprise marchandise;VIREMENT EN EUROS DU COMPTE BE00020002000202 BIC GABBBEBB CCCCC-CCCCCCCCC AV DE LA GARE 76 9999 WAGADOUGOU COMMUNICATION : REPRISE MARCHANDISE REFERENCE BANQUE : 2303244501612 DATE VALEUR : 28/03/2023;Accepté;
-2023-00119;25/03/2023;24/03/2023;27;EUR;BE00010001000101;Virement instantané en euros;BE100010001010;SSSSSS GGGGGGGG;${bank_transaction_number};VIREMENT INSTANTANE EN EUROS BE10 0010 0010 10 BIC GABBBEBBXXX SSSSSS GGGGGGGG RUE MARIGNON 43/5 8888 BANDARLOG COMMUNICATION : xxx EXECUTE LE 24/03 REFERENCE BANQUE : 2303244502842 DATE VALEUR : 24/03/2023;Accepté;
+${year_prefix}-00127;28/03/2023;28/03/2023;18;EUR;BE00010001000101;Virement en euros;BE00020002000202;ccccc-ccccccccc;reprise marchandise;VIREMENT EN EUROS DU COMPTE BE00020002000202 BIC GABBBEBB CCCCC-CCCCCCCCC AV DE LA GARE 76 9999 WAGADOUGOU COMMUNICATION : REPRISE MARCHANDISE REFERENCE BANQUE : 2303244501612 DATE VALEUR : 28/03/2023;Accepté;
+${year_prefix}-00119;25/03/2023;24/03/2023;27;EUR;BE00010001000101;Virement instantané en euros;BE100010001010;SSSSSS GGGGGGGG;${bank_transaction_number};VIREMENT INSTANTANE EN EUROS BE10 0010 0010 10 BIC GABBBEBBXXX SSSSSS GGGGGGGG RUE MARIGNON 43/5 8888 BANDARLOG COMMUNICATION : xxx EXECUTE LE 24/03 REFERENCE BANQUE : 2303244502842 DATE VALEUR : 24/03/2023;Accepté;
 
 
 --${content_boundary}
@@ -664,7 +665,7 @@ Importer les extraits de compte
 
 function test_15_locally_list_4_payments
 {
-    local test_name test_output uuid_hex_p1_and_p2 uuid_hex_p4 csrf_token
+    local test_name test_output uuid_hex_p1_and_p2 uuid_hex_p4 csrf_token year_prefix
     test_name="test_15_locally_list_4_payments"
     test_output="$(capture_admin_cgi_output "${test_name}" GET list_payments.cgi "limit=20")"
     uuid_hex_p1_and_p2="$(sql_query 'select uuid from reservations where name="realperson" limit 1')"
@@ -679,20 +680,21 @@ function test_15_locally_list_4_payments
     if [ -z "$csrf_token" ]; then
        die "$test_name no CSRF token generated for $admin_user"
     fi
+    year_prefix="$(date +%Y)"
     assert_html_response "$test_name" "$test_output" \
                          '<input type="hidden" id="csrf_token" name="csrf_token" value="'"$csrf_token"'">' \
                          '<input type="file" id="csv_file" name="csv_file">' \
                          '<tr><td>src_id_0</td><td>01/01/1970</td><td>BE001100</td><td>realperson</td><td>Accepté</td><td>partial payment</td><td>3.50</td><td><div><form style="display: inline" method="POST" action="/gestion/link_payment_and_reservation.cgi"><a href="https://example.com/show_reservation.cgi?uuid_hex='"$uuid_hex_p1_and_p2"'">realperson i@gmail.com</a> <input type="hidden" name="csrf_token" value="'"$csrf_token"'"><input type="hidden" name="src_id" value="src_id_0"><input type="hidden" name="reservation_uuid" value=""><input type="submit" value="X"></form><a href=[^<>]*>[^<>]*</a></div></td></tr>' \
                          '<tr><td>src_id_1</td><td>02/01/1970</td><td>BE001100</td><td>realperson</td><td>Accepté</td><td>partial payment</td><td>64.50</td><td><div><form style="display: inline" method="POST" action="/gestion/link_payment_and_reservation.cgi"><a href="https://example.com/show_reservation.cgi?uuid_hex='"$uuid_hex_p1_and_p2"'">realperson i@gmail.com</a> <input type="hidden" name="csrf_token" value="'"$csrf_token"'"><input type="hidden" name="src_id" value="src_id_1"><input type="hidden" name="reservation_uuid" value=""><input type="submit" value="X"></form><a href=[^<>]*>[^<>]*</a></div></td></tr>' \
-                         "<tr><td>2023-00127</td><td>28/03/2023</td><td>BE00020002000202</td><td>ccccc-ccccccccc</td><td>Accepté</td><td>reprise marchandise</td><td>18.00</td><td><form method=\"POST\" action=\"/gestion/link_payment_and_reservation.cgi\"><input type=\"hidden\" name=\"csrf_token\" value=\"$csrf_token\"><input type=\"hidden\" name=\"src_id\" value=\"2023-00127\"><select name=\"reservation_uuid\"><option value=\"\">--- Choisir la réservation correspondante ---</option>.*</select>.*</form></td></tr><tr><td>2023-00119</td>" \
-                         "<tr><td>2023-00119</td><td>25/03/2023</td><td>BE100010001010</td><td>SSSSSS GGGGGGGG</td><td>Accepté</td><td>[0-9+/]*</td><td>27.00</td><td><form method=\"POST\" action=\"/gestion/link_payment_and_reservation.cgi\"><input type=\"hidden\" name=\"csrf_token\" value=\"$csrf_token\"><input type=\"hidden\" name=\"src_id\" value=\"2023-00119\"><select name=\"reservation_uuid\"><option value=\"$uuid_hex_p4\" selected=\"selected\">[0-9+/]* test i@example.com</option><option value"
+                         "<tr><td>${year_prefix}-00127</td><td>28/03/2023</td><td>BE00020002000202</td><td>ccccc-ccccccccc</td><td>Accepté</td><td>reprise marchandise</td><td>18.00</td><td><div><form style=\"display: inline\" method=\"POST\" action=\"/gestion/link_payment_and_reservation.cgi\"><input type=\"hidden\" name=\"csrf_token\" value=\"$csrf_token\"><input type=\"hidden\" name=\"src_id\" value=\"${year_prefix}-00127\"><select name=\"reservation_uuid\"><option value=\"\">--- Choisir la réservation correspondante ---</option>.*</select>.*</form></div></td></tr><tr><td>${year_prefix}-00119</td>" \
+                         "<tr><td>${year_prefix}-00119</td><td>25/03/2023</td><td>BE100010001010</td><td>SSSSSS GGGGGGGG</td><td>Accepté</td><td>[0-9+/]*</td><td>27.00</td><td><div><form style=\"display: inline\" method=\"POST\" action=\"/gestion/link_payment_and_reservation.cgi\"><input type=\"hidden\" name=\"csrf_token\" value=\"$csrf_token\"><input type=\"hidden\" name=\"src_id\" value=\"${year_prefix}-00119\"><select name=\"reservation_uuid\"><option value=\"$uuid_hex_p4\" selected=\"selected\">[0-9+/]* test i@example.com</option><option value"
 }
 
 function test_16_link_payment_and_reservation
 {
     local test_name test_output uuid_hex_p4 csrf_token content_boundary payment_uuid src_id
     test_name="test_16_link_payment_and_reservation"
-    src_id="2023-00119"
+    src_id="$(date +%Y)-00119"
     uuid_hex_p4="$(sql_query 'select uuid from reservations where name="test" limit 1')"
     if [ -z "$uuid_hex_p4" ]; then
         die "$test_name Unable to find reservation uuid"

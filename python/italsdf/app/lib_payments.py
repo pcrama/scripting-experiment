@@ -89,9 +89,13 @@ def import_bank_statements(connection, bank_statements_csv: str, user:str, ip: s
         rowid=None, timestamp=None, amount_in_cents=None, comment=None, uuid=None, src_id=None, other_account=None, other_name=None, status=None, user=user, ip=ip, confirmation_timestamp=None,
     )
     exceptions = []
+    src_id_limit = time.strftime("%Y-000")
     with connection:
         for row in csv_reader:
             pmnt = builder(row, proto)
+            if not pmnt.src_id or pmnt.src_id < src_id_limit:
+                exceptions.append((RuntimeError(f"Bank statement {pmnt.src_id!r} is too old"), pmnt))
+                continue
             try:
                 pmnt.insert_data(connection)
             except sqlite3.IntegrityError as exc:
