@@ -55,8 +55,7 @@ def validate_data(
         raise ValidationException('Vos données de contact sont incomplètes')
     INVALID_EMAIL = "L'adresse email renseignée n'a pas le format requis"
     try:
-        email_match = re.fullmatch(
-            '[^@]+@(\\w+\\.)+\\w\\w+', email, flags=re.IGNORECASE | re.UNICODE)
+        email_match = re.fullmatch('[^@]+@([\\w-]+\\.)+\\w\\w+', email, flags=re.IGNORECASE | re.UNICODE)
     except Exception:
         raise ValidationException(INVALID_EMAIL)
     else:
