@@ -11,27 +11,27 @@ with sys_path_hack.app_in_path():
 
 
 EXTRA_STARTER = ((('div', 'class', 'ticket-left-col'),
-                  ('div', 'table n°'), ('div', 'serveur'), ('div', 'entrée:'), ('div', 'extra_starter')),
+                  ('div', 'table n°'), ('div', 'serveur'), ('div', 'entrée:'), ('div', 'extra_starter_ticket')),
                  ('div', (('img', 'src', 'extra_starter_image'),)))
 
 MAIN_STARTER = ((('div', 'class', 'ticket-left-col'),
-                 ('div', 'table n°'), ('div', 'serveur'), ('div', 'entrée:'), ('div', 'main_starter')),
+                 ('div', 'table n°'), ('div', 'serveur'), ('div', 'entrée:'), ('div', 'main_starter_ticket')),
                 ('div', (('img', 'src', 'main_starter_image'),)))
 
 MAIN_DISH = ((('div', 'class', 'ticket-left-col'),
-              ('div', 'table n°'), ('div', 'serveur'), ('div', 'plat:'), ('div', 'bolo')),
+              ('div', 'table n°'), ('div', 'serveur'), ('div', 'plat:'), ('div', 'bolo_ticket')),
              ('div', (('img', 'src', 'main_dish_image'),)))
 
 EXTRA_DISH = ((('div', 'class', 'ticket-left-col'),
-               ('div', 'table n°'), ('div', 'serveur'), ('div', 'plat:'), ('div', 'extra_dish')),
+               ('div', 'table n°'), ('div', 'serveur'), ('div', 'plat:'), ('div', 'extra_dish_ticket')),
               ('div', (('img', 'src', 'extra_dish_image'),)))
 
 THIRD_DISH = ((('div', 'class', 'ticket-left-col'),
-               ('div', 'table n°'), ('div', 'serveur'), ('div', 'plat:'), ('div', 'third_dish')),
+               ('div', 'table n°'), ('div', 'serveur'), ('div', 'plat:'), ('div', 'third_dish_ticket')),
               ('div', (('img', 'src', 'third_dish_image'),)))
 
 KIDS_MAIN_DISH = ((('div', 'class', 'ticket-left-col'),
-                   ('div', 'table n°'), ('div', 'serveur'), ('div', 'plat enfant:'), ('div', 'kids_main_dish')),
+                   ('div', 'table n°'), ('div', 'serveur'), ('div', 'plat enfant:'), ('div', 'kids_main_dish_ticket')),
                   ('div', (('img', 'src', 'kids_main_dish_image'),)))
 
 # KIDS_EXTRA_DISH = ((('div', 'class', 'ticket-left-col'),
@@ -43,11 +43,11 @@ KIDS_MAIN_DISH = ((('div', 'class', 'ticket-left-col'),
 #                    ('div', (('img', 'src', 'kids_third_dish_image'),)))
 
 MAIN_DESSERT = ((('div', 'class', 'ticket-left-col'),
-                 ('div', 'table n°'), ('div', 'serveur'), ('div', 'dessert:'), ('div', 'main_dessert')),
+                 ('div', 'table n°'), ('div', 'serveur'), ('div', 'dessert:'), ('div', 'main_dessert_ticket')),
                 ('div', (('img', 'src', 'main_dessert_image'),)))
 
 EXTRA_DESSERT = ((('div', 'class', 'ticket-left-col'),
-                  ('div', 'table n°'), ('div', 'serveur'), ('div', 'dessert:'), ('div', 'extra_dessert')),
+                  ('div', 'table n°'), ('div', 'serveur'), ('div', 'dessert:'), ('div', 'extra_dessert_ticket')),
                  ('div', (('img', 'src', 'extra_dessert_image'),)))
 
 
@@ -77,24 +77,34 @@ class ConfiguredTestCase(unittest.TestCase):
     def setUpClass(cls):
         cls.maxDiff = None
         create_tickets.MAIN_STARTER_NAME = "main_starter"
+        create_tickets.MAIN_STARTER_TICKET = "main_starter_ticket"
         create_tickets.MAIN_STARTER_NAME_PLURAL = "main_starter_plural"
         create_tickets.EXTRA_STARTER_NAME = "extra_starter"
+        create_tickets.EXTRA_STARTER_TICKET = "extra_starter_ticket"
         create_tickets.EXTRA_STARTER_NAME_PLURAL = "extra_starter_plural"
         create_tickets.MAIN_DISH_NAME = "bolo"
+        create_tickets.MAIN_DISH_TICKET = "bolo_ticket"
         create_tickets.MAIN_DISH_NAME_PLURAL = "main_dish_plural"
         create_tickets.EXTRA_DISH_NAME = "extra_dish"
+        create_tickets.EXTRA_DISH_TICKET = "extra_dish_ticket"
         create_tickets.EXTRA_DISH_NAME_PLURAL = "extra_dish_plural"
         create_tickets.THIRD_DISH_NAME = "third_dish"
+        create_tickets.THIRD_DISH_TICKET = "third_dish_ticket"
         create_tickets.THIRD_DISH_NAME_PLURAL = "third_dish_plural"
         create_tickets.MAIN_DESSERT_NAME = "main_dessert"
+        create_tickets.MAIN_DESSERT_TICKET = "main_dessert_ticket"
         create_tickets.MAIN_DESSERT_NAME_PLURAL = "main_dessert_plural"
         create_tickets.EXTRA_DESSERT_NAME = "extra_dessert"
+        create_tickets.EXTRA_DESSERT_TICKET = "extra_dessert_ticket"
         create_tickets.EXTRA_DESSERT_NAME_PLURAL = "extra_dessert_plural"
         create_tickets.KIDS_MAIN_DISH_NAME = "kids_main_dish"
+        create_tickets.KIDS_MAIN_DISH_TICKET = "kids_main_dish_ticket"
         create_tickets.KIDS_MAIN_DISH_NAME_PLURAL = "kids_main_dish_plural"
         create_tickets.KIDS_EXTRA_DISH_NAME = "kids_extra_dish"
+        create_tickets.KIDS_EXTRA_DISH_TICKET = "kids_extra_dish_ticket"
         create_tickets.KIDS_EXTRA_DISH_NAME_PLURAL = "kids_extra_dish_plural"
         create_tickets.KIDS_THIRD_DISH_NAME = "kids_third_dish"
+        create_tickets.KIDS_THIRD_DISH_TICKET = "kids_third_dish_ticket"
         create_tickets.KIDS_THIRD_DISH_NAME_PLURAL = "kids_third_dish_plural"
         create_tickets.MAIN_STARTER_IMAGE = "main_starter_image"
         create_tickets.EXTRA_STARTER_IMAGE = "extra_starter_image"
@@ -264,18 +274,25 @@ class UlForMenuDataTests(unittest.TestCase):
     def setUpClass(cls):
         cls.maxDiff = None
         create_tickets.MAIN_STARTER_NAME = "main_starter"
+        create_tickets.MAIN_STARTER_TICKET = "main_starter_ticket"
         create_tickets.MAIN_STARTER_NAME_PLURAL = "main_starter_plural"
         create_tickets.EXTRA_STARTER_NAME = "extra_starter"
+        create_tickets.EXTRA_STARTER_TICKET = "extra_starter_ticket"
         create_tickets.EXTRA_STARTER_NAME_PLURAL = "extra_starter_plural"
         create_tickets.MAIN_DISH_NAME = "bolo"
+        create_tickets.MAIN_DISH_TICKET = "bolo_ticket"
         create_tickets.MAIN_DISH_NAME_PLURAL = "main_dish_plural"
         create_tickets.EXTRA_DISH_NAME = "extra_dish"
+        create_tickets.EXTRA_DISH_TICKET = "extra_dish_ticket"
         create_tickets.EXTRA_DISH_NAME_PLURAL = "extra_dish_plural"
         create_tickets.EXTRA_DESSERT_NAME = "extra_dessert"
+        create_tickets.EXTRA_DESSERT_TICKET = "extra_dessert_ticket"
         create_tickets.EXTRA_DESSERT_NAME_PLURAL = "extra_dessert_plural"
         create_tickets.KIDS_MAIN_DISH_NAME = "kids_main_dish"
+        create_tickets.KIDS_MAIN_DISH_TICKET = "kids_main_dish_ticket"
         create_tickets.KIDS_MAIN_DISH_NAME_PLURAL = "kids_main_dish_plural"
         create_tickets.KIDS_EXTRA_DISH_NAME = "kids_extra_dish"
+        create_tickets.KIDS_EXTRA_DISH_TICKET = "kids_extra_dish_ticket"
         create_tickets.KIDS_EXTRA_DISH_NAME_PLURAL = "kids_extra_dish_plural"
         create_tickets.MAIN_STARTER_IMAGE = "main_starter_image"
         create_tickets.EXTRA_STARTER_IMAGE = "extra_starter_image"
