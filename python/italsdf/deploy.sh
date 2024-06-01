@@ -25,7 +25,7 @@ then
     else
         echo
     fi
-    echo "Usage: $(basename "$0") <ssh-host> <user> <group> <https://base_url> <prefix_folder> <deploy_folder> <virtualenv_folder> [<admin-user> <admin-pw>]"
+    echo "Usage: $(basename "$0") <ssh-host> <user> <group> <https://base_url> <prefix_folder> <deploy_folder> <virtualenv_abs_path> [<admin-user> <admin-pw>]"
     exit 1
 else
     folder="$prefix_folder/$deploy_folder"
