@@ -35,7 +35,7 @@ class MiniOrm:
     CREATION_STATEMENTS: Iterable[str]
     COLUMNS: list[tuple[str, str]]
     SORTABLE_COLUMNS: dict[str, str] = {} # override with column info for `select'
-    FILTERABLE_COLUMNS: dict[str, Union[bool, tuple[str, str, Callable[[Any], Any]]]] = {} # override with column info for `select'
+    FILTERABLE_COLUMNS: dict[str, Union[tuple[()], tuple[str, str, Callable[[Any], Any]]]] = {} # override with column info for `select'
 
     def __str__(self):
         try:
@@ -94,7 +94,7 @@ class MiniOrm:
 
 
     @staticmethod
-    def compare_as_bool(x):
+    def compare_as_bool(x: str) -> tuple[str, str, Callable[[Any], int]]:
         return (x, '=', lambda val: 1 if val else 0)
 
 
@@ -134,14 +134,14 @@ class MiniOrm:
         return []
 
     @classmethod
-    def from_row(cls, row):
+    def from_row(cls: type[T], row: list[Any]) -> T:
         obj, tail = cls.parse_from_row(row)
         if obj and not tail:
             return obj
         raise RuntimeError(f"Can't turn {row} into a {cls.__name__}")
 
     @classmethod
-    def column_ordering_clause(cls, col):
+    def column_ordering_clause(cls, col: str) -> Union[str, None]:
         try:
             clause = cls.SORTABLE_COLUMNS[col.lower()]
             asc_or_desc = 'DESC' if col[0].isupper() else 'ASC'
@@ -151,7 +151,7 @@ class MiniOrm:
 
 
     @classmethod
-    def encode_column_value_for_search(cls, col, val, info):
+    def encode_column_value_for_search(cls, col: str, val: Any, info: Union[tuple[()], tuple[str, str, Callable]]):
         try:
             col_value = info[0]
         except Exception:
@@ -556,9 +556,9 @@ class Reservation(MiniOrm):
     FILTERABLE_COLUMNS = {'name': MiniOrm.compare_with_like_lower('name'),
                           'email': MiniOrm.compare_with_like_lower('email'),
                           'extra_comment': MiniOrm.compare_with_like_lower('extra_comment'),
-                          'date': True,
-                          'bank_id': True,
-                          'uuid': True,
+                          'date': (),
+                          'bank_id': (),
+                          'uuid': (),
                           'active': MiniOrm.compare_as_bool('active'),
                           # 'origin': ('LOWER(origin)', '=', str.lower),
                           'gdpr_accepts_use': MiniOrm.compare_as_bool('gdpr_accepts_use')}
@@ -751,8 +751,8 @@ class Csrf(MiniOrm):
     def __init__(self, token=None, timestamp=None, user=None, ip=None):
         self.token = token or uuid.uuid4().hex
         self.timestamp = timestamp or time.time()
-        self.user = user or os.getenv('REMOTE_USER')
-        self.ip = ip or os.getenv('REMOTE_ADDR')
+        self.user = user or os.environ['REMOTE_USER']
+        self.ip = ip or os.environ['REMOTE_ADDR']
 
 
     @classmethod

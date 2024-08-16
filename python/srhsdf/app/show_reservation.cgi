@@ -1,5 +1,7 @@
 #!/usr/pkg/bin/python3
 # -*- coding: utf-8 -*-
+#
+# (export SCRIPT_NAME="$PWD/app/show_reservation.cgi"; cd "$(dirname "$SCRIPT_NAME")" && CONFIGURATION_JSON_DIR="$(dirname "$(ls -t /tmp/tmp.*/configuration.json | head -n 1)")" DB_DB="$CONFIGURATION_JSON_DIR/db.db" REQUEST_METHOD=GET REMOTE_USER="" REMOTE_ADDR="127.0.0.1" QUERY_STRING='bank_id='"$(sqlite3 "$DB_DB" 'select bank_id from reservations order by timestamp desc limit 1')"'&uuid_hex='"$(sqlite3 "$DB_DB" "select uuid from reservations order by timestamp desc limit 1")" SERVER_NAME=localhost python3 $SCRIPT_NAME)
 import cgi
 import cgitb
 import os
@@ -10,10 +12,9 @@ from htmlgen import (
     format_bank_id,
     html_document,
     print_content_type,
-    redirect,
     respond_html,
+    redirect_to_event,
 )
-from python.italsdf.app.htmlgen import redirect_to_event
 from storage import(
     Reservation,
     create_db,
@@ -42,6 +43,8 @@ if __name__ == '__main__':
             limit=1))
     except StopIteration:
         redirect_to_event()
+        reservation = None
+    assert reservation is not None
 
     if print_content_type('text/html; charset=utf-8'):
         print('Content-Language: en')

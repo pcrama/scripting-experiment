@@ -831,7 +831,7 @@ test_01_list_empty_reservations
 test_02_valid_reservation_for_test_date
 
 # Clean up
-ssh $destination "rm -r '$host_path_prefix/$folder' '$venv_abs_path'"
+ssh $destination "rm -r '$host_path_prefix/$folder' ; if [ -r '$venv_abs_path/.ssh' ] ; then echo '\"$venv_abs_path\" might be your home directory, not cleaning up' ; else if [ -r '$venv_abs_path/bin/activate' -a -r '$venv_abs_path/pyvenv.cfg' ] ; then rm -r '$venv_abs_path' ; else echo 'I am not comfortable rm -r \"$venv_abs_path\"' ; fi ; fi"
 rm -r "$test_dir"
 
 echo Done

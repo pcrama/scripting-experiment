@@ -1,11 +1,12 @@
 import json
 import os
 
-
-try:
-    SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
-except NameError:
-    SCRIPT_DIR = os.path.realpath(os.getcwd())
+SCRIPT_DIR = os.getenv('CONFIGURATION_JSON_DIR')
+if not SCRIPT_DIR:
+    try:
+        SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+    except NameError:
+        SCRIPT_DIR = os.path.realpath(os.getcwd())
 
 
 def get_configuration():

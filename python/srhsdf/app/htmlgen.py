@@ -87,3 +87,6 @@ def redirect(new_url, and_exit=True):
     print()
     if and_exit:
         sys.exit(0)
+
+def redirect_to_event():
+    redirect('https://www.srhbraine.be/concert-de-gala-2022/')

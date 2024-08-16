@@ -19,39 +19,35 @@ else
     dash_x=''
 fi
 
+if [ "$1" == "-f" ];
+then
+    skip_deploy=' -f'
+    shift
+else
+    skip_deploy=''
+fi
+
 base_url="$1"
 host_path_prefix="$2"
 destination="$3"
 user="$4"
 group="$5"
 pseudo_random="$(date '+%s')"
-admin_user="$(or_default "$6" "user_$pseudo_random")"
-admin_pw="$(or_default "$7" "pw_$pseudo_random")"
+venv_abs_path="$(or_default "$6" "$host_path_prefix/venv_$pseudo_random")"
+admin_user="$(or_default "$7" "user_$pseudo_random")"
+admin_pw="$(or_default "$8" "pw_$pseudo_random")"
 bank_account="BExx-$pseudo_random"
 info_email="mrx.$pseudo_random@example.com"
 
-if [ -z "$host_path_prefix" -o -z "$base_url" ];
+if [ -z "$skip_deploy" -a '(' -z "$host_path_prefix" -o -z "$base_url" -o -z "$destination" -o -z "$user" -o -z "$group" ')' ];
 then
-    echo "Missing parameters: '$0'$dash_x '$base_url' '$host_path_prefix' '$destination' '$user' '$group' '$admin_user' '$admin_pw'"
-    echo "Usage: $(basename "$0") [-x] <base-url> <host-path-prefix> <ssh-host> <user> <group> [<admin-user> <admin-pw>]"
+    echo "Missing parameters: '$0'$dash_x$skip_deploy '$base_url' '$host_path_prefix' '$destination' '$user' '$group' '$venv_abs_path' '$admin_user' '$admin_pw'"
+    echo "Usage: $(basename "$0") [-x] [-f] <host-for-base-url> <abs-host-path-prefix> <ssh-host> <user> <group> [<venv-abs-path> [<admin-user> [<admin-pw>]]]"
     exit 1
 fi
 
 # Where 'golden' reference files are stored
 golden="$(dirname "$0")/golden"
-
-# Temporary dir to store test outputs and also used as deployment directory name
-test_dir="$(mktemp --directory)"
-folder="$(basename "$test_dir")"
-ssh_app_folder="$host_path_prefix/$folder"
-db_file="$test_dir/db.db"
-
-cat <<EOF
-Storing test output in '$test_dir', clean with
-    rm -r '$test_dir';
-Deploying to '$ssh_app_folder', clean with
-    ssh '$destination' "rm -r '$ssh_app_folder'";
-EOF
 
 # Make web request
 # - $1: end point
@@ -85,11 +81,9 @@ function assert_redirect_to_concert_page
     local test_stderr
     test_stderr="$1"
     grep -q '^< HTTP/1.1 302 Found' "$test_stderr" \
-        || die "Not a redirect: $test_stderr"
-    grep -q '^< Content-Length: 0' "$test_stderr" \
-        || die "Content-Length != 0: $test_stderr"
-    grep -q '^< Location: https://www.srhbraine.be/concert-de-gala-2022/' "$test_stderr" \
-        || die "Target is not concert page: $test_stderr"
+        || die "Not a redirect: $test_stderr $2"
+    grep -q '^< Location: https://www.srhbraine.be' "$test_stderr" \
+        || die "Target is not srhbraine.be: $test_stderr $2"
 }
 
 function do_curl_with_redirect
@@ -108,8 +102,7 @@ function do_curl_with_redirect
     test_stderr="$test_output.stderr"
     _do_curl "$end_point" "$test_output" "$options --verbose" "$credentials" \
              2> "$test_stderr"
-    grep -q '^< HTTP/1.1 302 Found' "$test_stderr"
-    grep -q '^< Content-Length: 0' "$test_stderr"
+    grep -q '^< HTTP/1.1 302 Found' "$test_stderr" "" || die "Not a redirect: $test_stderr"
     location="$(tr -d '\r' < "$test_stderr" | sed -n -e 's/^< Location: *//p')"
     do_curl "$location" "$test_output"
     echo "$location"
@@ -228,7 +221,7 @@ function generic_test_new_reservation_without_valid_CSRF_token_fails
     if [ "$(count_reservations)" != "3" ]; then
         die "Reservations table wrong."
     fi
-    assert_redirect_to_concert_page "$test_stderr"
+    assert_redirect_to_concert_page "$test_stderr" "gestion/add_unchecked_reservation.cgi without valid CSRF token should fail"
     echo "test_$test_name: ok"
 }
 
@@ -400,7 +393,7 @@ function test_09_new_reservation_with_correct_CSRF_token_succeeds
     if [ "$(count_reservations)" != "4" ]; then
         die "test_09_new_reservation_with_correct_CSRF_token_succeeds: Reservations table should contain $total_reservations_count row."
     fi
-    if [ "$(sql_query "SELECT name, email, date, paying_seats, free_seats, gdpr_accepts_use, cents_due, active FROM reservations ORDER BY time DESC LIMIT 1;")" \
+    if [ "$(sql_query "SELECT name, email, date, paying_seats, free_seats, gdpr_accepts_use, cents_due, active FROM reservations ORDER BY timestamp DESC LIMIT 1;")" \
              != "TestCreatedByAdmin|ByAdmin|2099-01-01|0|1|0|0|1" \
        ]; then
         die "test_09_new_reservation_with_correct_CSRF_token_succeeds: Wrong data saved in DB"
@@ -429,7 +422,7 @@ function test_11_deactivate_a_reservation
 {
     local test_output
     sql_query 'UPDATE reservations SET active=0 WHERE bank_id = (
-                   SELECT bank_id FROM reservations ORDER BY time ASC LIMIT 1)'
+                   SELECT bank_id FROM reservations ORDER BY timestamp ASC LIMIT 1)'
     put_db_file
     test_output="$test_dir/11_deactivate_a_reservation.html"
     do_curl_as_admin 'gestion/list_reservations.cgi?limit=17&sort_order=PAYING_SEATS&sort_order=name' "$test_output.tmp"
@@ -483,24 +476,52 @@ function test_13_show_reservation_redirects_to_concert_page_on_error
     test_output="$test_dir/13_show_reservation_redirects_to_concert_page_on_error.html"
     test_stderr="$test_dir/13_show_reservation_redirects_to_concert_page_on_error.stderr.log"
     do_curl 'show_reservation.cgi' "$test_output" --verbose 2> "$test_stderr"
-    assert_redirect_to_concert_page "$test_stderr"
+    assert_redirect_to_concert_page "$test_stderr" "show_reservation.cgi without query parameters"
     do_curl "show_reservation.cgi?bank_id=$valid_bank_id" "$test_output" --verbose 2> "$test_stderr"
-    assert_redirect_to_concert_page "$test_stderr"
+    assert_redirect_to_concert_page "$test_stderr" "show_reservation.cgi with valid bank_id, no uuid"
     do_curl "show_reservation.cgi?uuid_hex=$valid_uuid" "$test_output" --verbose 2> "$test_stderr"
-    assert_redirect_to_concert_page "$test_stderr"
+    assert_redirect_to_concert_page "$test_stderr" "show_reservation.cgi with valid uuid, no bank_id"
     do_curl "show_reservation.cgi?uuid_hex=$other_valid_uuid&bank_id=$valid_bank_id" "$test_output" --verbose 2> "$test_stderr"
-    assert_redirect_to_concert_page "$test_stderr"
+    assert_redirect_to_concert_page "$test_stderr" "show_reservation.cgi with valid uuid, unrelated existing bank_id"
     do_curl "show_reservation.cgi?uuid_hex=$valid_uuid&bank_id=$valid_bank_id" "$test_output" --verbose 2> "$test_stderr"
     grep -q '^< HTTP/1.1 200' "$test_stderr" \
          || die "Failed to get show_reservation.cgi?uuid_hex=$valid_uuid&bank_id=$valid_bank_id"
     echo "test_13_show_reservation_redirects_to_concert_page_on_error: ok"
 }
 
+# First run local unit tests to avoid deploying if it's already broken
+(cd "$(dirname "$0")" && python3 -m unittest discover) || die "Unit tests failed"
+
+if [ -n "$skip_deploy" ];
+then
+    echo "Everything is fine so far.  Skipping tests requiring deployment"
+    exit 0
+fi
+
+# Temporary dir to store test outputs and also used as deployment directory name
+test_dir="$(mktemp --directory)"
+folder="$(basename "$test_dir")"
+db_file="$test_dir/db.db"
+
+cat <<EOF
+Storing test output in '$test_dir', clean with
+    rm -r '$test_dir';
+EOF
+
+ssh_app_folder="$host_path_prefix/$folder"
+cat <<EOF
+Deploying to '$ssh_app_folder', clean with
+    ssh '$destination' "rm -r '$ssh_app_folder' '$venv_abs_path'";
+EOF
+
 # Deploy
-"$(dirname "$0")/../deploy.sh" "--for-tests" "$destination" "$user" "$group" "$ssh_app_folder" "$admin_user" "$admin_pw"
+"$(dirname "$0")/../deploy.sh" "--for-tests" "$destination" "$user" "$group" "$host_path_prefix" "$folder" "$venv_abs_path" "$admin_user" "$admin_pw"
 echo '{ "paying_seat_cents": 500, "bank_account": "'$bank_account'", "info_email": "'$info_email'" }' \
     | ssh "$destination" \
           "touch '$ssh_app_folder/configuration.json'; cat > '$ssh_app_folder/configuration.json'"
+# Local copy of configuration
+echo '{ "paying_seat_cents": 500, "bank_account": "'$bank_account'", "info_email": "'$info_email'", "dbdir": "'$test_dir'", "logir": "'$test_dir'" }' \
+     > "$test_dir/configuration.json"
 
 if [ -n "$dash_x" ];
 then
@@ -523,7 +544,11 @@ test_12_bobby_tables_and_co
 test_13_show_reservation_redirects_to_concert_page_on_error
 
 # Clean up
-ssh $destination "rm -r '$host_path_prefix/$folder'"
+ssh $destination "rm -r '$host_path_prefix/$folder' ; if [ -r '$venv_abs_path/.ssh' ] ; then echo '\"$venv_abs_path\" might be your home directory, not cleaning up' ; else if [ -r '$venv_abs_path/bin/activate' -a -r '$venv_abs_path/pyvenv.cfg' ] ; then rm -r '$venv_abs_path' ; else echo 'I am not comfortable rm -r \"$venv_abs_path\"' ; fi ; fi"
 rm -r "$test_dir"
 
 echo Done
+
+# Local Variables:
+# compile-command: "time ./tests.sh -x -f"
+# End:

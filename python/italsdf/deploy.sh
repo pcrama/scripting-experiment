@@ -40,7 +40,7 @@ else
         fi
         setup_password="; /usr/pkg/sbin/htpasswd -nb '$admin_user' '$admin_pw' > '$password_file'"
         access_file="$protected_folder/.htaccess"
-        setup_access="; echo 'AuthUserFILE '\$(readlink -f \"\$(pwd)/$password_file\") > '$access_file'; echo 'AuthGroupFILE /dev/null' >> '$access_file'; echo 'AuthNAME \"SRH\"' >> '$access_file' ; echo 'AuthTYPE Basic' >> '$access_file' ; echo 'require user $admin_user' >> '$access_file'; echo 'allow from all' >> '$access_file'"
+        setup_access="; echo 'AuthUserFILE '\$(readlink -f \"\$(pwd)/$password_file\" || readlink -f \"$password_file\") > '$access_file'; echo 'AuthGroupFILE /dev/null' >> '$access_file'; echo 'AuthNAME \"SRH\"' >> '$access_file' ; echo 'AuthTYPE Basic' >> '$access_file' ; echo 'require user $admin_user' >> '$access_file'; echo 'allow from all' >> '$access_file'"
     else
         setup_password=""
         setup_access=""

@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
+import cgitb
 import os
-import uuid
 import time
 import urllib
+import uuid
 
 from htmlgen import (
     html_document,
@@ -40,7 +41,7 @@ def normalize_data(name, email, date, paying_seats, free_seats, gdpr_accepts_use
 
 
 def save_data_sqlite3(name, email, date, paying_seats, free_seats, gdpr_accepts_use,
-                      cents_due, origin, connection_or_root_dir):
+                      cents_due, origin, connection_or_root_dir) -> Reservation:
     connection = ensure_connection(connection_or_root_dir)
     process_id = os.getpid()
     uuid_hex = uuid.uuid4().hex
@@ -58,7 +59,7 @@ def save_data_sqlite3(name, email, date, paying_seats, free_seats, gdpr_accepts_
                                   gdpr_accepts_use=gdpr_accepts_use,
                                   cents_due=cents_due,
                                   bank_id=append_bank_id_control_number(bank_id),
-                                  uuid_hex=uuid_hex,
+                                  uuid=uuid_hex,
                                   timestamp=timestamp,
                                   active=True,
                                   origin=origin)
@@ -71,6 +72,7 @@ def save_data_sqlite3(name, email, date, paying_seats, free_seats, gdpr_accepts_
                 pass
             else:
                 raise
+    raise RuntimeError(f"Unable to save Reservation for {name} {email}")
 
 
 def to_bits(n):
@@ -88,7 +90,6 @@ def generate_bank_id(time_time, number_of_previous_calls, process_id):
             in ((round(time_time * 100.0), 7),
                 (number_of_previous_calls, 10),
                 (process_id, 16))]
-    bits = 0
     n = 0
     for (x, b) in data:
         n = (n << b) + x
@@ -145,10 +146,10 @@ def respond_with_reservation_confirmation(
     except Exception:
         respond_with_reservation_failed(configuration)
         cgitb.handler()
-
-    redirect(make_show_reservation_url(
-        new_row.bank_id,
-        new_row.uuid_hex,
-        script_name=(os.environ["SCRIPT_NAME"]
-                     if origin is None else
-                     os.path.dirname(os.environ["SCRIPT_NAME"]))))
+    else:
+        redirect(make_show_reservation_url(
+            new_row.bank_id,
+            new_row.uuid,
+            script_name=(os.environ["SCRIPT_NAME"]
+                         if origin is None else
+                         os.path.dirname(os.environ["SCRIPT_NAME"]))))
