@@ -36,7 +36,7 @@ pseudo_random="$(date '+%s')"
 venv_abs_path="$(or_default "$6" "$host_path_prefix/venv_$pseudo_random")"
 admin_user="$(or_default "$7" "user_$pseudo_random")"
 admin_pw="$(or_default "$8" "pw_$pseudo_random")"
-bank_account="BExx-$pseudo_random"
+bank_account="BE5112$pseudo_random"
 info_email="mrx.$pseudo_random@example.com"
 
 if [ -z "$skip_deploy" -a '(' -z "$host_path_prefix" -o -z "$base_url" -o -z "$destination" -o -z "$user" -o -z "$group" ')' ];
@@ -179,6 +179,10 @@ function generic_test_valid_reservation_for_test_date
     fi
     sed -e "s;$formatted_communication;COMMUNICATION;g" \
         -e "s;$bank_account;BANK_ACCOUNT;g" \
+        -e "s;$communication;COMMUNICATION;g" \
+        -e "s;uuid_hex=[a-f0-9]*;uuid_hex=UUID_HEX;g" \
+        -e "s;<svg .*</svg><br/>La;svg<br/>La;" \
+        -e "s;<svg .*</svg></p>;svg</p>;" \
         "$test_output.tmp" \
         > "$test_output"
     do_diff "$test_output"
@@ -318,7 +322,7 @@ function test_04_valid_reservation_for_saturday
 {
     generic_test_valid_reservation_for_test_date 04_valid_reservation_for_saturday \
                                                  Saturday Saturday@gmail.com \
-                                                 2022-12-10 4 1 2000 1 2
+                                                 2024-11-30 4 1 2000 1 2
 }
 
 # 05: Register for Sunday
@@ -329,7 +333,7 @@ function test_05_valid_reservation_for_sunday
 {
     generic_test_valid_reservation_for_test_date 05_valid_reservation_for_sunday \
                                                  Sunday SundayMail@gmx.com \
-                                                 2022-12-11 1 1 500 0 3
+                                                 2024-12-01 1 1 500 0 3
 }
 
 # 06: List reservations with new content, limit & sorting options
@@ -375,16 +379,24 @@ function test_08_new_reservation_with_wrong_CSRF_token_fails
 # - Verify new data created
 function test_09_new_reservation_with_correct_CSRF_token_succeeds
 {
-    local test_output csrf_token communication
+    local test_output csrf_token bank_id formatted_communication uuid_hex
     test_output="$test_dir/09_new_reservation_with_correct_CSRF_token_succeeds.html"
     csrf_token="$(get_csrf_token_of_user "$admin_user")"
     do_curl_with_redirect --admin \
                           'gestion/add_unchecked_reservation.cgi' \
-                          "$test_output" \
+                          "$test_output.tmp" \
                           "-X POST -F name=TestCreatedByAdmin -F comment=ByAdmin -F date=2099-01-01 -F paying_seats=0 -F free_seats=1 -F csrf_token=$csrf_token"
-    communication="$(sed -n -e 's;.*<code>\(+++[0-9][0-9][0-9]/[0-9][0-9][0-9][0-9]/[0-9][0-9][0-9][0-9][0-9]+++\)</code>.*;\1;p' "$test_output")"
-    if [ -n "$communication" ]; then
-       die "test_09_new_reservation_with_correct_CSRF_token_succeeds: bank ID '$communication' in output"
+    formatted_communication="$(sed -n -e 's;.*<code>\(+++[0-9][0-9][0-9]/[0-9][0-9][0-9][0-9]/[0-9][0-9][0-9][0-9][0-9]+++\)</code>.*;\1;p' "$test_output.tmp")"
+    if [ -n "$formatted_communication" ]; then
+       die "test_09_new_reservation_with_correct_CSRF_token_succeeds: bank ID '$formatted_communication' in output"
+    fi
+    bank_id="$(sed -n -e 's;.*show_reservation.cgi[^"]*bank_id=\([0-9]*\).*;\1;p' "$test_output.tmp")"
+    if [ -z "$bank_id" ]; then
+        die "test_09_new_reservation_with_correct_CSRF_token_succeeds: bank ID not in link or link not found"
+    fi
+    uuid_hex="$(sed -n -e 's;.*show_reservation.cgi[^"]*uuid_hex=\([a-f0-9]*\).*;\1;p' "$test_output.tmp")"
+    if [ -z "$uuid_hex" ]; then
+        die "test_09_new_reservation_with_correct_CSRF_token_succeeds: uuid hex not in link or link not found"
     fi
     get_db_file
     if [ "$(count_csrfs)" -gt "1" ]; then
@@ -393,11 +405,18 @@ function test_09_new_reservation_with_correct_CSRF_token_succeeds
     if [ "$(count_reservations)" != "4" ]; then
         die "test_09_new_reservation_with_correct_CSRF_token_succeeds: Reservations table should contain $total_reservations_count row."
     fi
-    if [ "$(sql_query "SELECT name, email, date, paying_seats, free_seats, gdpr_accepts_use, cents_due, active FROM reservations ORDER BY timestamp DESC LIMIT 1;")" \
-             != "TestCreatedByAdmin|ByAdmin|2099-01-01|0|1|0|0|1" \
+    if [ "$(sql_query "SELECT name, email, date, paying_seats, free_seats, gdpr_accepts_use, cents_due, active, bank_id, uuid FROM reservations ORDER BY timestamp DESC LIMIT 1;")" \
+             != "TestCreatedByAdmin|ByAdmin|2099-01-01|0|1|0|0|1|$bank_id|$uuid_hex" \
        ]; then
         die "test_09_new_reservation_with_correct_CSRF_token_succeeds: Wrong data saved in DB"
     fi
+    sed -e "s;$bank_account;BANK_ACCOUNT;g" \
+        -e "s;$bank_id;COMMUNICATION;g" \
+        -e "s;uuid_hex=[a-f0-9]*;uuid_hex=UUID_HEX;g" \
+        -e "s;<svg .*</svg><br/>La;svg<br/>La;" \
+        -e "s;<svg .*</svg></p>;svg</p>;" \
+        "$test_output.tmp" \
+        > "$test_output"
     do_diff "$test_output"
     echo "test_09_new_reservation_with_correct_CSRF_token_succeeds: ok"
 }
@@ -450,7 +469,7 @@ function test_12_bobby_tables_and_co
     generic_test_valid_reservation_for_test_date 12_bobby_tables_and_co \
                                                  "<$reservation_name" \
                                                  "<$reservation_email" \
-                                                 2022-12-11 7 2 3500 0 5
+                                                 2024-11-30 7 2 3500 0 5
     do_curl_as_admin 'gestion/list_reservations.cgi?limit=9' "$test_output.tmp"
     csrf_token="$(sed -n -e 's/.*csrf_token" value="\([a-f0-9A-F]*\)".*/\1/p' "$test_output.tmp")"
     get_db_file

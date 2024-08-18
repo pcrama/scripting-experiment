@@ -231,7 +231,7 @@ class Reservation(MiniOrm):
         return self
 
     @classmethod
-    def count_reservations(cls, connection, name: str, email: str) -> int:
+    def count_reservations(cls, connection: Union[sqlite3.Cursor, sqlite3.Connection], name: str, email: str) -> tuple[int, int]:
         return connection.execute(
             f'''SELECT COUNT(*), SUM(paying_seats + free_seats) FROM {cls.TABLE_NAME}
                 WHERE LOWER(name) = :name OR LOWER(email) = :email''',

@@ -3,13 +3,11 @@
 import cgi
 import cgitb
 import os
-import re
 
 import config
 from htmlgen import (
     html_document,
     print_content_type,
-    redirect,
     redirect_to_event,
     respond_html,
 )
@@ -18,7 +16,8 @@ from storage import(
     create_db,
 )
 from lib_post_reservation import(
-    normalize_data,
+    ValidationException,
+    validate_data,
     respond_with_reservation_confirmation,
     respond_with_reservation_failed,
     save_data_sqlite3
@@ -50,42 +49,6 @@ Save:
 - uuid
 - time
 '''
-
-
-class ValidationException(Exception):
-    pass
-
-
-def is_test_reservation(name, email):
-    return name.lower().startswith('test') and email.lower().endswith('@example.com')
-
-
-def validate_data(name, email, date, paying_seats, free_seats, gdpr_accepts_use, connection):
-    (name, email, date, paying_seats, free_seats, gdpr_accepts_use) = normalize_data(
-        name, email, date, paying_seats, free_seats, gdpr_accepts_use)
-    if not(name and email):
-        raise ValidationException('Vos données de contact sont incomplètes')
-    INVALID_EMAIL = "L'adresse email renseignée n'a pas le format requis"
-    try:
-        email_match = re.fullmatch(
-            '[^@]+@(\\w+\\.)+\\w\\w+', email, flags=re.IGNORECASE | re.UNICODE)
-    except Exception:
-        raise ValidationException(INVALID_EMAIL)
-    else:
-        if email_match is None:
-            raise ValidationException(INVALID_EMAIL)
-    if paying_seats + free_seats < 1:
-        raise ValidationException("Vous n'avez pas indiqué combien de sièges vous vouliez réserver")
-    if date not in (('2099-01-01', '2099-01-02')
-                    if is_test_reservation(name, email)
-                    else ('2022-12-10', '2022-12-11',)):
-        raise ValidationException("Il n'y a pas de concert ̀à cette date")
-    reservations_count, reserved_seats  = Reservation.count_reservations(connection, name, email)
-    if (reservations_count or 0) > 10:
-        raise ValidationException('Il y a déjà trop de réservations à votre nom')
-    if (reserved_seats or 0) + paying_seats + free_seats > 60:
-        raise ValidationException('Vous réservez ou avez réservé trop de sièges')
-    return (name, email, date, paying_seats, free_seats, gdpr_accepts_use)
 
 
 def respond_with_validation_error(form, e, configuration):

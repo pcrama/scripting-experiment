@@ -1,11 +1,15 @@
 # -*- coding: utf-8 -*-
 import cgitb
 import os
+import re
 import time
+from typing import Any, Union
 import urllib
 import uuid
+import sqlite3
 
 from htmlgen import (
+    cents_to_euro,
     html_document,
     redirect,
     respond_html,
@@ -16,32 +20,72 @@ from storage import(
 )
 
 
-def normalize_data(name, email, date, paying_seats, free_seats, gdpr_accepts_use):
-    def safe_strip(x):
+class ValidationException(Exception):
+    pass
+
+
+def is_test_reservation(name: str, email: str) -> bool:
+    return name.lower().startswith('test') and email.lower().endswith('@example.com')
+
+
+def normalize_data(name: str, email: str, date: str, paying_seats: str, free_seats: str, gdpr_accepts_use: str) -> tuple[str, str, str, int, int, bool]:
+    def safe_strip(x: Union[str, None]) -> str:
         if x is None:
             return ''
         else:
             return ' '.join(x.split())[:256]
-    def safe_non_negative_int_less_or_equal_than_50(x):
+    def safe_non_negative_int_less_or_equal_than_50(x: str) -> int:
         try:
-            x = int(x)
-            return max(0, min(x, 50))
+            return max(0, min(int(x), 50))
         except Exception:
             return 0
     name = safe_strip(name)
     email = safe_strip(email)
     date = safe_strip(date)
-    paying_seats = safe_non_negative_int_less_or_equal_than_50(paying_seats)
-    free_seats = safe_non_negative_int_less_or_equal_than_50(free_seats)
     try:
-        gdpr_accepts_use = gdpr_accepts_use.lower() in ['yes', 'oui', '1', 'true', 'vrai']
+        gdpr_accepts_use_bool = gdpr_accepts_use.lower() in ['yes', 'oui', '1', 'true', 'vrai']
     except Exception:
-        gdpr_accepts_use = gdpr_accepts_use and gdpr_accepts_use not in [0, False]
+        gdpr_accepts_use_bool = bool(gdpr_accepts_use) and gdpr_accepts_use not in [0, False]
+    return (
+        name,
+        email,
+        date,
+        safe_non_negative_int_less_or_equal_than_50(paying_seats),
+        safe_non_negative_int_less_or_equal_than_50(free_seats),
+        gdpr_accepts_use_bool)
+
+
+def validate_data(name, email, date, paying_seats, free_seats, gdpr_accepts_use, connection):
+    (name, email, date, paying_seats, free_seats, gdpr_accepts_use) = normalize_data(
+        name, email, date, paying_seats, free_seats, gdpr_accepts_use)
+    if not(name and email):
+        raise ValidationException('Vos données de contact sont incomplètes')
+    INVALID_EMAIL = "L'adresse email renseignée n'a pas le format requis"
+    try:
+        email_match = re.fullmatch('[^@]+@([\\w-]+\\.)+\\w\\w+', email, flags=re.IGNORECASE | re.UNICODE)
+    except Exception:
+        raise ValidationException(INVALID_EMAIL)
+    else:
+        if email_match is None:
+            raise ValidationException(INVALID_EMAIL)
+    if paying_seats + free_seats < 1:
+        raise ValidationException("Vous n'avez pas indiqué combien de sièges vous vouliez réserver")
+    if date not in (('2099-01-01', '2099-01-02')
+                    if is_test_reservation(name, email)
+                    else ('2024-11-30', '2024-12-01',)):
+        raise ValidationException(f"Il n'y a pas de concert le {date!r}")
+    reservations_count, reserved_seats  = Reservation.count_reservations(connection, name, email)
+    if (reservations_count or 0) > 10:
+        raise ValidationException('Il y a déjà trop de réservations à votre nom')
+    if (reserved_seats or 0) + paying_seats + free_seats > 60:
+        raise ValidationException('Vous réservez ou avez réservé trop de sièges')
     return (name, email, date, paying_seats, free_seats, gdpr_accepts_use)
 
 
-def save_data_sqlite3(name, email, date, paying_seats, free_seats, gdpr_accepts_use,
-                      cents_due, origin, connection_or_root_dir) -> Reservation:
+def save_data_sqlite3(
+        name: str, email: str, date: str, paying_seats: int, free_seats: int, gdpr_accepts_use: bool,
+        cents_due: int, origin: Union[str, None], connection_or_root_dir: Union[sqlite3.Connection, dict[str, Any]]
+) -> Reservation:
     connection = ensure_connection(connection_or_root_dir)
     process_id = os.getpid()
     uuid_hex = uuid.uuid4().hex
@@ -126,9 +170,6 @@ def respond_with_reservation_failed(configuration):
 def make_show_reservation_url(bank_id, uuid_hex, server_name=None, script_name=None):
     server_name = os.environ["SERVER_NAME"] if server_name is None else server_name
     script_name = os.environ["SCRIPT_NAME"] if script_name is None else script_name
-    base_url = urllib.parse.urljoin(
-        f'https://{server_name}{script_name}', 'show_reservation.cgi')
-    split_result = urllib.parse.urlsplit(base_url)
     return urllib.parse.urlunsplit((
         'https',
         server_name,
@@ -153,3 +194,12 @@ def respond_with_reservation_confirmation(
             script_name=(os.environ["SCRIPT_NAME"]
                          if origin is None else
                          os.path.dirname(os.environ["SCRIPT_NAME"]))))
+
+
+def generate_payment_QR_code_content(remaining_due: int, bank_id: str, config: dict[str, Any]) -> str:
+    name = config.get("organizer_name", "Name")
+    bic = config.get("organizer_bic", "BIC")
+    iban = "".join(ch for ch in config.get("bank_account", "BExxxx") if ch in "BE" or ch.isdigit())
+    amount = cents_to_euro(remaining_due)
+    remit = bank_id # apparently both are needed to get the three banks I tested to include the information
+    return ("BCD\n001\n1\nSCT\n" + bic + "\n" + name + "\n" + iban + "\n" + "EUR" + amount + "\nGDDS\n" + remit)

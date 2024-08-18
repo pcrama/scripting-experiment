@@ -16,6 +16,8 @@ def get_configuration():
         'cgitb_display': 1,
         'paying_seat_cents': 500,
         'bank_account': 'BExx XXXX YYYY ZZZZ',
+        'organizer_name': "name of organizer's bank account",
+        "organizer_bic": "GABBBEBB",
         'info_email': 'nobody@example.com',
     }
     try:

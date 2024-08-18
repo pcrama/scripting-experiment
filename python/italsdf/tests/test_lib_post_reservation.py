@@ -141,7 +141,7 @@ class ValidateDate(unittest.TestCase):
 
 
     def test_invalid_email_rejected(self):
-        for email in ("a@", "a @b", "a @ b . com", "a@b", "example.com"):
+        for email in ("a@", "a @b", "a @ b . com", "a@b", "example.com", "bourgmestre@brainelalleud.be-fr"):
             with self.subTest(email=email):
                 with self.assertRaises(lib_post_reservation.ValidationException) as cm:
                     lib_post_reservation.validate_data(
@@ -152,6 +152,20 @@ class ValidateDate(unittest.TestCase):
                         'gdpr_accepts_use', 'connection')
                 message = cm.exception.args[0]
                 self.assertTrue("email" in message and "format" in message)
+
+
+    def test_valid_email_accepted(self):
+        configuration = {"dbdir": ":memory:"}
+        connection = storage.ensure_connection(configuration)
+        for email in ("me-and-you@together.com", "a+test@bcd.az", "bourgmestre@braine-lalleud.be"):
+            with self.subTest(email=email):
+                lib_post_reservation.validate_data(
+                     name='name', email=email, extra_comment="extra_comment", places=3, date='2024-03-23',
+                     outside_main_starter=0, outside_extra_starter=0, outside_main_dish=0, outside_extra_dish=0, outside_third_dish=0, outside_main_dessert=0, outside_extra_dessert=0,
+                     inside_main_starter=1, inside_extra_starter=0, inside_main_dish=1, inside_extra_dish=0, inside_third_dish=0, inside_main_dessert=1, inside_extra_dessert=0,
+                     kids_main_dish=1, kids_extra_dish=0, kids_third_dish=0, kids_main_dessert=0, kids_extra_dessert=1,
+                     gdpr_accepts_use=True,
+                     connection=connection)
 
 
     def test_date_validation_date_is_OK(self):

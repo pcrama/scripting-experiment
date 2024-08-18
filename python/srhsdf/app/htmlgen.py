@@ -2,6 +2,7 @@
 '''Very limited HTML generation utilities.'''
 import html
 import sys
+from typing import NoReturn
 
 
 _html_gen_printed_header = False
@@ -29,7 +30,9 @@ def cents_to_euro(cents):
 def html_gen(data):
     def is_tuple(x):
         return type(x) is tuple
-    if is_tuple(data):
+    if is_tuple(data) and len(data) == 2 and data[0] == 'raw':
+        yield data[1]
+    elif is_tuple(data):
         tag_name = None
         single_elt = len(data) == 1
         for elt in data:
@@ -61,15 +64,45 @@ def html_document(title, body):
                         (('meta', 'charset', 'utf-8'),),
                         (('meta', 'name', 'viewport', 'content', 'width=device-width, initial-scale=1.0'),),
                         ('title', title),
-                        (('link', 'rel', 'stylesheet', 'href', 'styles.css'),)),
+                        (('link', 'rel', 'stylesheet', 'href', 'https://www.srhbraine.be/css/bootstrap.min.css'),),
+                        (('link', 'rel', 'stylesheet', 'href', 'https://cdn.jsdelivr.net/npm/remixicon@4.3.0/fonts/remixicon.css'),),
+                        (('link', 'rel', 'stylesheet', 'href', 'https://www.srhbraine.be/css/app.css'),),
+                        (('style',"""#home {background-image: url(https://www.srhbraine.be/images/fond-accueil--1.jpg); background-position: center; background-size: cover; filter: brightness(90%);}""")),),
                        ('body',
-                        *body,
-                        ('hr', ),
-                        ('p',
-                         'Retour au ',
-                         (('a', 'href', 'https://www.srhbraine.be/'),
-                          "site de la Société Royale d'Harmonie de Braine-l'Alleud"),
-                         '.')))):
+                        ("raw", '<!-- navbar -->'
+                         '<nav id="navbar" class="navbar navbar-expand-lg bg-light fixed-top">'
+                         '<div class="container">'
+                         '<a class="navbar-brand" href="https://www.srhbraine.be/index.php"><img src="https://www.srhbraine.be/images/logo-srh.png" style="width: 90px;" alt="Responsive image">&nbsp;SRH</a>'
+                         '<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>'
+                         '<div class="collapse navbar-collapse" id="navbarNav">'
+                         '<ul class="navbar-nav mx-auto">'
+                         '<li class="nav-item"><a class="nav-link" href="https://www.srhbraine.be/index.php#home">Accueil</a></li>'
+                         '<li class="nav-item"><a class="nav-link" href="https://www.srhbraine.be/index.php#services">Qui sommes-nous ?</a></li>'
+                         '<li class="nav-item"><a class="nav-link" href="https://www.srhbraine.be/index.php#work">Galeries</a></li>'
+                         '<li class="nav-item"><a class="nav-link" href="https://www.srhbraine.be/index.php#sponsors">Sponsors</a></li>'
+                         '<li class="nav-item"><a class="nav-link" href="https://www.srhbraine.be/liens.php">Liens</a></li>'
+                         '<li class="nav-item"><a class="nav-link" href="https://www.srhbraine.be/agenda.php">Agenda</a></li>'
+                         '<li class="nav-item"><a class="nav-link" href="https://www.srhbraine.be/index.php#blog">Blog</a></li>'
+                         '<li class="nav-item"><a class="nav-link" href="https://www.srhbraine.be/index.php#contact">Contact</a></li>'
+                         '</ul>'
+                         '<ul class="navbar-nav flex-row">'
+                         '<li class="nav-item"><a class="social-icon" href="https://www.facebook.com/societeroyaleharmonie/" target="_blank"><i class="ri-facebook-line"></i></a></li>'
+                         '<li class="nav-item"><a class="social-icon" href="https://www.instagram.com/srh_braine/" target="_blank"><i class="ri-instagram-line"></i></a></li>'
+                         '<li class="nav-item"><a class="social-icon" href="https://www.youtube.com/@raphaeldagostino" target="_blank"><i class="ri-youtube-line"></i></a></li>'
+                         '</ul></div></div></nav>'),
+                        (('section', 'class', 'section-padding'),
+                         (('div', 'class', 'container'),
+                          (('div', 'class', 'row col-12'),
+                           *body))),
+                        (('section', 'class', 'section-padding row'),
+                         (('footer', 'class', 'footer-bottom'),
+                          (('div', 'class', 'container'),
+                           (('div', 'class', 'row col-12'),
+                            (('p', 'class', 'mb-0'),
+                             'Retour au ',
+                             (('a', 'href', 'https://www.srhbraine.be/'),
+                              "site de la Société Royale d'Harmonie de Braine-l'Alleud"),
+                             '.')))))))):
         yield x
 
 
@@ -88,5 +121,6 @@ def redirect(new_url, and_exit=True):
     if and_exit:
         sys.exit(0)
 
-def redirect_to_event():
+def redirect_to_event() -> NoReturn:
     redirect('https://www.srhbraine.be/concert-de-gala-2022/')
+    sys.exit(0)
