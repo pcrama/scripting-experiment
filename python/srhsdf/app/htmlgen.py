@@ -24,7 +24,9 @@ def format_bank_id(x):
 
 
 def cents_to_euro(cents):
-    return f'{cents // 100}.{cents % 100:02}'
+    sign = '-' if cents < 0 else ''
+    cents = abs(cents)
+    return f'{sign}{cents // 100}.{cents % 100:02}'
 
 
 def html_gen(data):

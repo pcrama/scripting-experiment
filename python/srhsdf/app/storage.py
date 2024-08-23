@@ -302,7 +302,9 @@ class Payment(MiniOrm):
         ("amount_in_cents", "INTEGER NOT NULL"),
         ("comment", "TEXT"),
         ("uuid", "TEXT"),
-        ("src_id", "TEXT NOT NULL"),
+        # sometimes, payments appear wihtout src_id and it takes hours and a new download to get the real value
+        ("src_id", "TEXT"),
+        ("bank_ref", "TEXT NOT NULL"),
         ("other_account", "TEXT"),
         ("other_name", "TEXT"),
         ("status", "TEXT NOT NULL"),
@@ -314,7 +316,8 @@ class Payment(MiniOrm):
     CREATION_STATEMENTS = [
         default_creation_statement(TABLE_NAME, COLUMNS),
         f"CREATE INDEX index_uuid_{TABLE_NAME} ON {TABLE_NAME} (uuid)",
-        f"CREATE UNIQUE INDEX index_src_id_{TABLE_NAME} ON {TABLE_NAME} (src_id)",
+        f"CREATE INDEX index_src_id_{TABLE_NAME} ON {TABLE_NAME} (src_id)",
+        f"CREATE UNIQUE INDEX index_bank_ref_{TABLE_NAME} ON {TABLE_NAME} (bank_ref)",
     ]
     SORTABLE_COLUMNS = {
         'other_name': 'LOWER(other_name)',
@@ -335,13 +338,14 @@ class Payment(MiniOrm):
         'active': MiniOrm.compare_as_bool('active'),
     }
 
-    def __init__(self, rowid, timestamp, amount_in_cents, comment, uuid, src_id, other_account, other_name, status, user, ip, confirmation_timestamp, active):
+    def __init__(self, rowid, timestamp, amount_in_cents, comment, uuid, src_id, bank_ref, other_account, other_name, status, user, ip, confirmation_timestamp, active):
         self.rowid = rowid
         self.timestamp = timestamp
         self.amount_in_cents = amount_in_cents
         self.comment = comment
         self.uuid = uuid
         self.src_id = src_id
+        self.bank_ref = bank_ref
         self.other_account = other_account
         self.other_name = other_name
         self.status = status
@@ -351,11 +355,10 @@ class Payment(MiniOrm):
         self.active = active
 
     @classmethod
-    def find_by_src_id(cls, connection: Union[sqlite3.Cursor, sqlite3.Connection], src_id: str) -> Union["Payment", None]:
+    def find_by_bank_ref(cls, connection: Union[sqlite3.Cursor, sqlite3.Connection], bank_ref: str) -> Union["Payment", None]:
         row = connection.execute(
-            f"""SELECT {','.join(col[0] for col in cls.COLUMNS)} FROM {cls.TABLE_NAME}
-                WHERE src_id = :src_id""",
-            {"src_id": src_id}).fetchone()
+            f"""SELECT {','.join(col[0] for col in cls.COLUMNS)} FROM {cls.TABLE_NAME} WHERE bank_ref = :bank_ref""",
+            {"bank_ref": bank_ref}).fetchone()
         return Payment(*row) if row else None
 
     EMPTY_DB_TIMESTAMP = 1706215670.0 # Arbitrary
@@ -377,10 +380,17 @@ class Payment(MiniOrm):
         cursor = connection.cursor()
         cursor.execute(
             f'''INSERT INTO {self.TABLE_NAME} VALUES (
-                 :rowid, :timestamp, :amount_in_cents, :comment, :uuid, :src_id, :other_account, :other_name, :status, :user, :ip, :confirmation_timestamp, :active)
+                 :rowid, :timestamp, :amount_in_cents, :comment, :uuid, :src_id, :bank_ref, :other_account, :other_name, :status, :user, :ip, :confirmation_timestamp, :active)
              ''',
             self.to_dict())
         self.rowid = cursor.lastrowid
+        return self
+
+    def update_src_id(self, connection, src_id:str) -> "Payment":
+        self.src_id = src_id
+        connection.execute(
+            f'''UPDATE {self.TABLE_NAME} SET src_id = :src_id WHERE rowid = :rowid''',
+            {"src_id": self.src_id, "rowid": self.rowid})
         return self
 
     def update_confirmation_timestamp(self, connection, confirmation_timestamp: Optional[float]) -> "Payment":
