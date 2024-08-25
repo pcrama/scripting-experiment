@@ -13,6 +13,7 @@ sys.path.append('..')
 import config
 from htmlgen import (
     html_document,
+    pluriel_naif,
     print_content_type,
     redirect_to_event,
     respond_html,
@@ -76,15 +77,16 @@ def sort_direction(col, sort_order):
         return ''
 
 
-def pluriel_naif(x, c):
-    return x if c == 1 else f'{x}s'
-
-
 DEFAULT_LIMIT = 20
 MAX_LIMIT = 500
 
 if __name__ == '__main__':
-    if os.getenv('REQUEST_METHOD') != 'GET' or os.getenv('REMOTE_USER') is None:
+    try:
+        remote_user = os.environ['REMOTE_USER']
+        remote_addr = os.environ['REMOTE_ADDR']
+    except KeyError:
+        redirect_to_event()
+    if os.getenv('REQUEST_METHOD') != 'GET' or not remote_user or not remote_addr:
         redirect_to_event()
 
     CONFIGURATION = config.get_configuration()
@@ -102,8 +104,7 @@ if __name__ == '__main__':
         except Exception:
             offset = 0
         connection = create_db(CONFIGURATION)
-        csrf_token = Csrf.get_by_user_and_ip(
-            connection, os.getenv('REMOTE_USER'), os.getenv('REMOTE_ADDR'))
+        csrf_token = Csrf.get_by_user_and_ip(connection, remote_user, remote_addr)
 
         COLUMNS = [('name', 'Nom'), ('email', 'Email'), ('date', 'Date'),
                    ('paying_seats', 'Payant'), ('free_seats', 'Gratuit'),
@@ -133,14 +134,10 @@ if __name__ == '__main__':
         respond_html(html_document(
             'List of reservations',
             (('p',
-              'Il y a ', str(total_bookings), pluriel_naif(' bulle', total_bookings), ' en tout',
-              *(' dont ', str(active_reservations), ' ',
-                'est active' if active_reservations == 1 else 'sont actives'),
-              '.')
+              'Il y a ', pluriel_naif(total_bookings, 'bulle'), ' en tout dont ', pluriel_naif(active_reservations, ['est active', 'sont actives']), '.')
              if total_bookings > 0
              else '',
-             ('ul', *tuple(('li', row[0], ': ',
-                            str(row[1]), pluriel_naif(' place', row[1]), pluriel_naif(' réservée', row[1]))
+             ('ul', *tuple(('li', row[0], ': ', pluriel_naif(row[1], ['place réservée', 'places réservées']))
                            for row in reservation_summary))
              if total_bookings > 0
              else '',
@@ -202,7 +199,9 @@ if __name__ == '__main__':
               (('label', 'for', 'free_seats'), 'Places gratuites:'),
               (('input', 'id', 'free_seats', 'name', 'free_seats', 'type', 'number', 'min', '0', 'value', '0'),),
               ('br',),
-              (('input', 'type', 'submit', 'value', 'Confirmer'),)))))
+              (('input', 'type', 'submit', 'value', 'Confirmer'),)),
+             ('hr',),
+             ('ul', ('li', (('a', 'href', 'list_payments.cgi'), 'Liste des paiements')),))))
     except Exception:
         if print_content_type('text/html; charset=utf-8'):
             print()

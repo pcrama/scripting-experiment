@@ -5,7 +5,7 @@ import sqlite3
 import os
 import time
 from typing import Any, Callable, Iterable, Optional, Union
-from urllib.parse import urlencode, urljoin, urlunsplit
+from urllib.parse import urlencode, urlunsplit
 
 from storage import Csrf, Payment, Reservation
 from htmlgen import (
@@ -187,14 +187,14 @@ def maybe_link_to_reservation(
                   _concat_name_and_mail(res)),
                  ' ',
                  (('input', 'type', 'hidden', 'name', 'csrf_token', 'value', csrf_token),),
-                 (('input', 'type', 'hidden', 'name', 'src_id', 'value', pmnt.src_id),),
+                 (('input', 'type', 'hidden', 'name', 'bank_ref', 'value', pmnt.bank_ref),),
                  (('input', 'type', 'hidden', 'name', 'reservation_uuid', 'value', ''),),
                  (('input', 'type', 'submit', 'value', 'X'),)),
                 (('a', 'href', urlunsplit((
                     'https',
                     server_name,
                     os.path.join(script_dir, 'confirm_payment.cgi'),
-                    urlencode((('uuid_hex', res.uuid), ('src_id', pmnt.src_id))),
+                    urlencode((('uuid_hex', res.uuid), ('bank_ref', pmnt.bank_ref))),
                     ''))),
                  '🖄' if pmnt.confirmation_timestamp is None else 'send again?'))
 
@@ -212,7 +212,7 @@ def maybe_link_to_reservation(
         script_dir,
         (('form', 'style', 'display: inline', 'method', 'POST', 'action', os.path.join(script_dir, 'link_payment_and_reservation.cgi')),
          (('input', 'type', 'hidden', 'name', 'csrf_token', 'value', csrf_token),),
-         (('input', 'type', 'hidden', 'name', 'src_id', 'value', pmnt.src_id),),
+         (('input', 'type', 'hidden', 'name', 'bank_ref', 'value', pmnt.bank_ref),),
          (('select', 'name', 'reservation_uuid'),
           _maybe_link__make_option(matching_reservation, bank_id),
           *(_maybe_link__make_option(res) for res in Reservation.list_reservations_for_linking_with_payments(connection, matching_reservation.uuid))),
@@ -231,7 +231,7 @@ def _maybe_link__make_form_when_no_reservation_matches_well(connection, pmnt: Pa
         script_dir,
         (('form', 'style', 'display: inline', 'method', 'POST', 'action', os.path.join(script_dir, 'link_payment_and_reservation.cgi')),
          (('input', 'type', 'hidden', 'name', 'csrf_token', 'value', csrf_token),),
-         (('input', 'type', 'hidden', 'name', 'src_id', 'value', pmnt.src_id),),
+         (('input', 'type', 'hidden', 'name', 'bank_ref', 'value', pmnt.bank_ref),),
          (('select', 'name', 'reservation_uuid'),
           (('option', 'value', ''), '--- Choisir la réservation correspondante ---'),
           *options),
@@ -245,7 +245,7 @@ def _maybe_add_hide_button(pmnt: Payment, csrf_token: str, script_dir: str, form
         return form
     hide_button = (('form', 'style', 'display: inline', 'method', 'POST', 'action', os.path.join(script_dir, 'hide_payment.cgi')),
                    (('input', 'type', 'hidden', 'name', 'csrf_token', 'value', csrf_token),),
-                   (('input', 'type', 'hidden', 'name', 'src_id', 'value', pmnt.src_id),),
+                   (('input', 'type', 'hidden', 'name', 'bank_ref', 'value', pmnt.bank_ref),),
                    (('input', 'type', 'submit', 'value', 'hide'),))
     if form == "#N/A":
         return hide_button
@@ -285,24 +285,24 @@ def link_payment_and_reservation(db_connection, server_name: str, script_name: s
 
     reservation_uuid = form.getfirst('reservation_uuid', '')
 
-    src_id = form.getfirst('src_id')
-    if not src_id:
-        respond_link_payment_and_reservation_error('Formulaire incomplet', (('p', "Il n'y avait pas de ", ("code", "src_id"), " dans le formulaire."), ), list_payments)
+    bank_ref = form.getfirst('bank_ref')
+    if not bank_ref:
+        respond_link_payment_and_reservation_error('Formulaire incomplet', (('p', "Il n'y avait pas de ", ("code", "bank_ref"), " dans le formulaire."), ), list_payments)
         return
 
     try:
-        payment = Payment.find_by_src_id(db_connection, src_id)
+        payment = Payment.find_by_bank_ref(db_connection, bank_ref)
     except Exception as exc:
         respond_link_payment_and_reservation_error(
             "Erreur de recherche",
-            (("p", "Le paiement '", str(src_id), "' n'a pas été retrouvé: ", repr(exc)),),
+            (("p", "Le paiement '", str(bank_ref), "' n'a pas été retrouvé: ", repr(exc)),),
             list_payments)
         return
 
     if payment is None:
         respond_link_payment_and_reservation_error(
             "Paiement inconnu",
-            (('p', "Le paiement '", str(src_id), "' n'a pas été retrouvé."),),
+            (('p', "Le paiement '", str(bank_ref), "' n'a pas été retrouvé."),),
             list_payments)
         return
 
@@ -312,18 +312,25 @@ def link_payment_and_reservation(db_connection, server_name: str, script_name: s
     except Exception as exc:
         respond_link_payment_and_reservation_error(
             "Erreur d'écriture",
-            (("p", "Le paiement '", str(src_id), "' n'a pas pu être mis à jour: ", repr(exc)),),
+            (("p", "Le paiement '", str(bank_ref), "' n'a pas pu être mis à jour: ", repr(exc)),),
             list_payments)
         return
 
-    send_email = urlunsplit((
-        'https',
-        server_name,
-        os.path.join(os.path.dirname(script_name), 'confirm_payment.cgi'),
-        urlencode((('uuid_hex', reservation_uuid), ('src_id', src_id))),
-        ''))
-    redirect(send_email)
-
+    if reservation_uuid:
+        next_url = urlunsplit(( # send email
+            'https',
+            server_name,
+            os.path.join(os.path.dirname(script_name), 'confirm_payment.cgi'),
+            urlencode((('uuid_hex', reservation_uuid), ('bank_ref', bank_ref))),
+            ''))
+    else:
+        next_url = urlunsplit(( # list_payments
+            'https',
+            server_name,
+            os.path.join(os.path.dirname(script_name), 'list_payments.cgi'),
+            '',
+            ''))
+    redirect(next_url)
 
 def hide_payment(db_connection, server_name: str, script_name: str, user: str, ip: str) -> None:
     list_payments = f"https://{server_name}{os.path.join(os.path.dirname(script_name), 'list_payments.cgi')}"
@@ -340,13 +347,13 @@ def hide_payment(db_connection, server_name: str, script_name: str, user: str, i
             fail_hide_payment()
             return None
 
-    src_id = form.getfirst('src_id')
-    if not src_id:
+    bank_ref = form.getfirst('bank_ref')
+    if not bank_ref:
         fail_hide_payment()
         return
 
     try:
-        payment = Payment.find_by_src_id(db_connection, src_id)
+        payment = Payment.find_by_bank_ref(db_connection, bank_ref)
     except Exception as exc:
         fail_hide_payment()
         return
@@ -361,7 +368,7 @@ def hide_payment(db_connection, server_name: str, script_name: str, user: str, i
     except Exception as exc:
         respond_link_payment_and_reservation_error(
             "Erreur d'écriture",
-            (("p", "Le paiement '", str(src_id), "' n'a pas pu être mis à jour: ", repr(exc)),),
+            (("p", "Le paiement '", str(bank_ref), "' n'a pas pu être mis à jour: ", repr(exc)),),
             list_payments)
         return
 

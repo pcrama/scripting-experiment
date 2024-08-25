@@ -140,9 +140,20 @@ class MiniOrm:
         raise RuntimeError(f"Can't turn {row} into a {cls.__name__}")
 
     @classmethod
-    def column_ordering_clause(cls, col: str) -> Union[str, None]:
+    def column_ordering_clause(cls, col: str, table_id_prefix: Union[str, None]=None) -> Union[str, None]:
+        if table_id_prefix and not table_id_prefix.endswith('.'):
+            table_id_prefix += '.'
+        else:
+            table_id_prefix = ''
         try:
             clause = cls.SORTABLE_COLUMNS[col.lower()]
+            lower_clause = clause.lower()
+            for known_sql_func in ('upper(', 'lower('):
+                if lower_clause.startswith(known_sql_func):
+                    clause = clause[0:len(known_sql_func)] + table_id_prefix + clause[len(known_sql_func):]
+                    break
+            else:
+                clause = table_id_prefix + clause
             asc_or_desc = 'DESC' if col[0].isupper() else 'ASC'
             return f'{clause} {asc_or_desc}'
         except KeyError:
@@ -449,7 +460,7 @@ class Payment(MiniOrm):
             params.update(extra_params)
         if order_columns is not None:
             ordering = ','.join((y for y in (
-                cls.column_ordering_clause(x) for x in order_columns)
+                cls.column_ordering_clause(x, table_id_prefix='pys') for x in order_columns)
                                 if y is not None))
             if ordering:
                 query.append(f'ORDER BY {ordering}')
@@ -468,7 +479,8 @@ class Payment(MiniOrm):
             else:
                 reservation, tail = Reservation.parse_from_row(reservation_row)
                 if not reservation or tail:
-                    raise RuntimeError(f"Unable to create Reservation from DB data joined to Payment({payment.src_id})")
+                    indic = f"src_id={payment.src_id!r}" if payment.src_id else f"bank_ref={payment.bank_ref!r}"
+                    raise RuntimeError(f"Unable to create Reservation from DB data joined to Payment({indic})")
             yield payment, reservation
 
 

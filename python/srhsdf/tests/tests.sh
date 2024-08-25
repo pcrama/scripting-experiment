@@ -133,13 +133,30 @@ function count_csrfs {
     sql_query "SELECT COUNT(*) FROM csrfs;"
 }
 
+function count_payments {
+    sql_query "SELECT COUNT(*) FROM payments;"
+}
+
+function count_active_payments {
+    sql_query "SELECT COUNT(*) FROM payments WHERE active=1;"
+}
+
 function get_user_of_csrf_token {
     sql_query "SELECT user FROM csrfs WHERE token='$1';"
+}
+
+function get_remote_addr_of_csrf_token {
+    sql_query "SELECT ip FROM csrfs WHERE token='$1';"
 }
 
 function get_csrf_token_of_user {
     # Ignores IP address... but there should be only one anyway.
     sql_query "SELECT token FROM csrfs WHERE user='$1' ORDER BY timestamp DESC LIMIT 1;"
+}
+
+function get_bank_id_from_reservation_uuid {
+    sql_query "SELECT bank_id FROM reservations WHERE uuid='$1';" \
+        | sed -e 's;\(...\)\(....\)\(.....\);+++\1/\2/\3+++;'
 }
 
 function do_diff {
@@ -181,7 +198,7 @@ function generic_test_valid_reservation_for_test_date
         -e "s;$bank_account;BANK_ACCOUNT;g" \
         -e "s;$communication;COMMUNICATION;g" \
         -e "s;uuid_hex=[a-f0-9]*;uuid_hex=UUID_HEX;g" \
-        -e "s;<svg .*</svg><br/>La;svg<br/>La;" \
+        -e "s;<svg .*</svg><br>La;svg<br>La;" \
         -e "s;<svg .*</svg></p>;svg</p>;" \
         "$test_output.tmp" \
         > "$test_output"
@@ -252,6 +269,129 @@ function make_list_reservations_output_deterministic
     fi
 }
 
+app_dir="$(dirname "$0")/../app"
+admin_sub_dir="gestion"
+
+function simulate_cgi_request
+{
+    local method script_name query_string
+    method="$1"
+    script_name="$2"
+    query_string="$3"
+    shift 3
+    echo "${CONTENT_STDIN:-}" | (
+        cd "$app_dir/$(dirname "$script_name")" \
+            && env TEMP="$test_dir" \
+                   REQUEST_METHOD="$method" \
+                   QUERY_STRING="$query_string" \
+                   SERVER_NAME=example.com \
+                   SCRIPT_NAME="/$script_name" \
+                   CONFIGURATION_JSON_DIR="$test_dir" \
+                   "$@" \
+                   python3 "$(basename "$script_name")"
+    )
+}
+
+function capture_cgi_output
+{
+    local ignore_cgitb test_name method script_name query_string test_output
+    if [ "$1" = "--ignore-cgitb" ]; then
+        ignore_cgitb="$1"
+        shift
+    else
+        ignore_cgitb=""
+    fi
+    test_name="$1"
+    method="$2"
+    script_name="$3"
+    query_string="$4"
+    shift 4
+    if [ -z "$5" ]; then
+        test_output="$test_dir/$test_name.log"
+    else
+        test_output="$5"
+        shift
+    fi
+    if ! simulate_cgi_request "$method" "$script_name" "$query_string" "$@" > "$test_output" ; then
+        [ -z "$ignore_cgitb" ] && die "$test_name CGI execution problem, look in $test_output"
+    fi
+    echo "$test_output"
+}
+
+function capture_admin_cgi_output
+{
+    local ignore_cgitb remote_addr test_name method script_name query_string test_output
+    if [ "$1" = "--ignore-cgitb" ]; then
+        ignore_cgitb="$1"
+        shift
+    else
+        ignore_cgitb=""
+    fi
+    if [ "$1" = "--remote-addr" ]; then
+        remote_addr="$2"
+        shift 2
+    else
+        remote_addr="1.2.3.4"
+    fi
+    test_name="$1"
+    method="$2"
+    script_name="$3"
+    query_string="$4"
+    shift 4
+    if [ -z "$5" ]; then
+        test_output="$test_dir/$test_name.log"
+    else
+        test_output="$5"
+        shift
+    fi
+    if ! simulate_cgi_request "$method" "$admin_sub_dir/$script_name" "$query_string" REMOTE_USER="$admin_user" REMOTE_ADDR="$remote_addr" "$@" > "$test_output" ; then
+        [ -z "$ignore_cgitb" ] && die "$test_name admin CGI execution problem, look in $test_output"
+    fi
+
+    echo "$test_output"
+}
+
+function assert_html_response
+{
+    local no_banner test_name test_output pattern
+    if [ "$1" == "--no-banner" ]; then
+        no_banner="$1"
+        shift
+    else
+        no_banner=""
+    fi
+    test_name="$1"
+    test_output="$2"
+    grep -q "Content-Type: text/html; charset=utf-8" "$test_output" || die "$test_name No Content-Type in $test_output"
+    grep -q '<!DOCTYPE HTML><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>' "$test_output" || die "$test_name no HTML preamble boilerplate in $test_output"
+    if [ -z "$no_banner" ]; then
+        grep -q '</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet"[^>]*bootstrap[^>]*></head><body><div id="branding" role="banner"><h1 id="site-title">Société Royale d'\''Harmonie de Braine-l'\''Alleud</h1><img src="https://www.srhbraine.be/wp-content/uploads/2019/10/site-en-tete.jpg" width="940" height="198" alt=""></div>' "$test_output" || die "$test_name no banner in $test_output"
+    else
+        if grep -q '<h1.*Braine.*Alleud</h1><img src' "$test_output"; then
+            die "$test_name banner in $test_output"
+        fi
+    fi
+    shift 2
+    for pattern in "$@" ; do
+        grep -q "$pattern" "$test_output" || die "$test_name \`\`$pattern'' not found in $test_output"
+    done
+}
+
+function assert_not_in_html_response
+{
+    local test_name test_output pattern
+    test_name="$1"
+    test_output="$2"
+    grep -q "Content-Type: text/html; charset=utf-8" "$test_output" || die "$test_name No Content-Type in $test_output"
+    grep -q '<!DOCTYPE HTML><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>' "$test_output" || die "$test_name no HTML preamble boilerplate in $test_output"
+    shift 2
+    for pattern in "$@" ; do
+        if grep -q "$pattern" "$test_output" ; then
+            die "$test_name \`\`$pattern'' should not be in HTML $test_output"
+        fi
+    done
+}
+
 # Test definitions
 
 # 01: List reservations when DB is still empty, then
@@ -283,6 +423,28 @@ function test_01_list_empty_reservations
     echo "test_01_list_empty_reservations: ok"
 }
 
+# 01: Locally list payments when DB is still empty
+function test_01_local_list_empty_payments
+{
+    local test_output csrf_token
+    test_output="$test_dir/01_local_list_empty_payments.html"
+    (cd "$app_dir/gestion" && env CONFIGURATION_JSON_DIR="$test_dir" REQUEST_METHOD=GET REMOTE_USER=secretaire REMOTE_ADDR=1.2.3.4 SERVER_NAME=localhost SCRIPT_NAME=list_payments.cgi python3 list_payments.cgi) > "$test_output.tmp"
+    csrf_token="$(sed -n -e 's/.*csrf_token" value="\([a-f0-9A-F]*\)".*/\1/p' "$test_output.tmp")"
+    if [ -z "$csrf_token" ];
+    then
+        die "No csrf_token in '$test_output.tmp'"
+    else
+        sed -e 's/csrf_token" value="'"$csrf_token"'"/csrf_token" value="CSRF_TOKEN"/g' \
+            "$test_output.tmp" \
+            > "$test_output"
+    fi
+    do_diff "$test_output"
+    if [ "$(count_csrfs)" -ne "2" -o "$(get_user_of_csrf_token "$csrf_token")" != "secretaire" ]; then
+        die "CSRF problem."
+    fi
+    echo "test_01_local_list_empty_payments: ok"
+}
+
 # 02: Attempt to register for an invalid date
 # - Verify output HTML
 # - Verify reservations is still empty
@@ -312,6 +474,109 @@ function test_03_valid_reservation_for_test_date
     generic_test_valid_reservation_for_test_date 03_valid_reservation_for_test_date \
                                                  TestName Test.Email@example.com \
                                                  2099-01-01 3 5 1500 1 1
+}
+
+function test_03_00_locally_upload_payments
+{
+    local test_name test_output uuid_hex content_boundary row_count bank_transaction_number csrf_token remote_addr year_prefix
+    test_name="test_03_00_locally_upload_payments"
+    csrf_token="$(get_csrf_token_of_user "$admin_user")"
+    if [ -z "$csrf_token" ]; then
+       die "$test_name no CSRF token generated for $admin_user"
+    fi
+    remote_addr="$(get_remote_addr_of_csrf_token "$csrf_token")"
+    if [ -z "$remote_addr" ]; then
+       die "$test_name no REMOTE_ADDR generated for $admin_user"
+    fi
+    uuid_hex="$(sql_query 'select uuid from reservations where name="TestName" limit 1')"
+    if [ -z "$uuid_hex" ]; then
+        die "$test_name Unable to find reservation uuid"
+    fi
+    bank_transaction_number="$(get_bank_id_from_reservation_uuid "$uuid_hex")"
+    if [ -z "$bank_transaction_number" ]; then
+        die "$test_name Unable to find bank transaction number"
+    fi
+    year_prefix="$(date +%Y)"
+    content_boundary='95173680fbda20e37a8df066f0d77cc4'
+    export CONTENT_STDIN="--${content_boundary}
+Content-Disposition: form-data; name=\"csrf_token\"
+
+$csrf_token
+--${content_boundary}
+Content-Disposition: form-data; name=\"csv_file\"; filename=\"test.csv\"
+Content-Type: text/csv
+
+Nº de séquence;Date d'exécution;Date valeur;Montant;Devise du compte;Numéro de compte;Type de transaction;Contrepartie;Nom de la contrepartie;Communication;Détails;Statut;Motif du refus
+${year_prefix}-00127;28/03/2023;28/03/2023;18;EUR;BE00010001000101;Virement en euros;BE00020002000202;ccccc-ccccccccc;reprise marchandise;VIREMENT EN EUROS DU COMPTE BE00020002000202 BIC GABBBEBB CCCCC-CCCCCCCCC AV DE LA GARE 76 9999 WAGADOUGOU COMMUNICATION : REPRISE MARCHANDISE REFERENCE BANQUE : 2303244501612 DATE VALEUR : 28/03/2023;Accepté;
+${year_prefix}-00119;25/03/2023;24/03/2023;27;EUR;BE00010001000101;Virement instantané en euros;BE100010001010;SSSSSS GGGGGGGG;${bank_transaction_number};VIREMENT INSTANTANE EN EUROS BE10 0010 0010 10 BIC GABBBEBBXXX SSSSSS GGGGGGGG RUE MARIGNON 43/5 8888 BANDARLOG COMMUNICATION : xxx EXECUTE LE 24/03 REFERENCE BANQUE : 2303244502842 DATE VALEUR : 24/03/2023;Accepté;
+
+
+--${content_boundary}
+Content-Disposition: form-data; name=\"submit\"
+
+Importer les extraits de compte
+--${content_boundary}--
+"
+    test_output="$(capture_admin_cgi_output --remote-addr "${remote_addr}" "${test_name}" POST import_payments.cgi "" CONTENT_TYPE="multipart/form-data; boundary=$content_boundary")"
+    export CONTENT_STDIN=""
+    grep -q "^Status: 302" "$test_output" || die "$test_name No Status: 302 redirect in $test_output"
+    target="gestion/list_payments.cgi"
+    grep -q "^Location: .*$target" "$test_output" || die "$test_name not redirecting to correct target \`\`$target'' in $test_output"
+    if ! row_count="$(count_payments)" ; then
+        die "$test_name Could not count payments"
+    else
+        [ "$row_count" -eq 2 ] || die "$test_name Unexpected row_count=$row_count"
+    fi
+}
+
+function test_03_01_locally_hide_payment
+{
+    local test_name test_output uuid_hex content_boundary row_count bank_ref csrf_token remote_addr year_prefix
+    test_name="test_03_01_locally_hide_payment"
+    csrf_token="$(get_csrf_token_of_user "$admin_user")"
+    if [ -z "$csrf_token" ]; then
+       die "$test_name no CSRF token generated for $admin_user"
+    fi
+    remote_addr="$(get_remote_addr_of_csrf_token "$csrf_token")"
+    if [ -z "$remote_addr" ]; then
+       die "$test_name no REMOTE_ADDR generated for $admin_user"
+    fi
+    uuid_hex="$(sql_query 'select uuid from reservations where name="TestName" limit 1')"
+    if [ -z "$uuid_hex" ]; then
+        die "$test_name Unable to find reservation uuid"
+    fi
+    bank_ref="2303244502842"
+    year_prefix="$(date +%Y)"
+    content_boundary='95173680fbda20e37a8df066f0d77cc4'
+    export CONTENT_STDIN="--${content_boundary}
+Content-Disposition: form-data; name=\"csrf_token\"
+
+$csrf_token
+--${content_boundary}
+Content-Disposition: form-data; name=\"bank_ref\"
+
+${bank_ref}
+--${content_boundary}
+Content-Disposition: form-data; name=\"submit\"
+
+Importer les extraits de compte
+--${content_boundary}--
+"
+    test_output="$(capture_admin_cgi_output --remote-addr "${remote_addr}" "${test_name}" POST hide_payment.cgi "" CONTENT_TYPE="multipart/form-data; boundary=$content_boundary")"
+    export CONTENT_STDIN=""
+    grep -q "^Status: 302" "$test_output" || die "$test_name No Status: 302 redirect in $test_output"
+    target="gestion/list_payments.cgi"
+    grep -q "^Location: .*$target" "$test_output" || die "$test_name not redirecting to correct target \`\`$target'' in $test_output"
+    if ! row_count="$(count_payments)" ; then
+        die "$test_name Could not count payments"
+    else
+        [ "$row_count" -eq 2 ] || die "$test_name Unexpected row_count=$row_count"
+    fi
+    if ! row_count="$(count_active_payments)" ; then
+        die "$test_name Could not count active payments"
+    else
+        [ "$row_count" -eq 1 ] || die "$test_name Unexpected row_count=$row_count"
+    fi
 }
 
 # 04: Register for Saturday
@@ -413,7 +678,7 @@ function test_09_new_reservation_with_correct_CSRF_token_succeeds
     sed -e "s;$bank_account;BANK_ACCOUNT;g" \
         -e "s;$bank_id;COMMUNICATION;g" \
         -e "s;uuid_hex=[a-f0-9]*;uuid_hex=UUID_HEX;g" \
-        -e "s;<svg .*</svg><br/>La;svg<br/>La;" \
+        -e "s;<svg .*</svg><br>La;svg<br>La;" \
         -e "s;<svg .*</svg></p>;svg</p>;" \
         "$test_output.tmp" \
         > "$test_output"
@@ -503,7 +768,7 @@ function test_13_show_reservation_redirects_to_concert_page_on_error
     do_curl "show_reservation.cgi?uuid_hex=$other_valid_uuid&bank_id=$valid_bank_id" "$test_output" --verbose 2> "$test_stderr"
     assert_redirect_to_concert_page "$test_stderr" "show_reservation.cgi with valid uuid, unrelated existing bank_id"
     do_curl "show_reservation.cgi?uuid_hex=$valid_uuid&bank_id=$valid_bank_id" "$test_output" --verbose 2> "$test_stderr"
-    grep -q '^< HTTP/1.1 200' "$test_stderr" \
+    grep -q '< HTTP/1.1 200' "$test_stderr" \
          || die "Failed to get show_reservation.cgi?uuid_hex=$valid_uuid&bank_id=$valid_bank_id"
     echo "test_13_show_reservation_redirects_to_concert_page_on_error: ok"
 }
@@ -549,8 +814,11 @@ fi
 
 # Tests
 test_01_list_empty_reservations
+test_01_local_list_empty_payments
 test_02_invalid_date_for_reservation
 test_03_valid_reservation_for_test_date
+test_03_00_locally_upload_payments
+test_03_01_locally_hide_payment
 test_04_valid_reservation_for_saturday
 test_05_valid_reservation_for_sunday
 test_06_list_reservations

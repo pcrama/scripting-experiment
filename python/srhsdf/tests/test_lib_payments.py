@@ -237,7 +237,7 @@ class GetListPaymentsRow(unittest.TestCase):
                                                     (('form', 'style', 'display: inline', 'method', 'POST',
                                                       'action', 'srhsdf2024/gestion/link_payment_and_reservation.cgi'),
                                                      (('input', 'type', 'hidden', 'name', 'csrf_token', 'value', 'csrf_token_value'),),
-                                                     (('input', 'type', 'hidden', 'name', 'src_id', 'value', src_id),),
+                                                     (('input', 'type', 'hidden', 'name', 'bank_ref', 'value', bank_ref),),
                                                      (('select', 'name', 'reservation_uuid'),
                                                       (('option', 'value', ''), '--- Choisir la réservation correspondante ---'),
                                                       (('option', 'value', 'deadbeef'), '12349876', ' ', 'testing test@example.com')),
@@ -245,7 +245,7 @@ class GetListPaymentsRow(unittest.TestCase):
                                                     (('form', 'style', 'display: inline', 'method', 'POST',
                                                       'action', 'srhsdf2024/gestion/hide_payment.cgi'),
                                                      (('input', 'type', 'hidden', 'name', 'csrf_token', 'value', 'csrf_token_value'),),
-                                                     (('input', 'type', 'hidden', 'name', 'src_id', 'value', src_id),),
+                                                     (('input', 'type', 'hidden', 'name', 'bank_ref', 'value', bank_ref),),
                                                      (('input', 'type', 'submit', 'value', 'hide'),))))))
 
     def test_payment_possible_bankid_but_no_reservations_yet(self):
@@ -289,7 +289,7 @@ class GetListPaymentsRow(unittest.TestCase):
                                     ('td', (('form', 'style', 'display: inline', 'method', 'POST',
                                              'action', '/gestion/link_payment_and_reservation.cgi'),
                                             (('input', 'type', 'hidden', 'name', 'csrf_token', 'value', 'csrf_token_value'),),
-                                            (('input', 'type', 'hidden', 'name', 'src_id', 'value', '2023-1000'),),
+                                            (('input', 'type', 'hidden', 'name', 'bank_ref', 'value', '202308081060'),),
                                             (('select', 'name', 'reservation_uuid'),
                                              (('option', 'value', ''), '--- Choisir la réservation correspondante ---'),
                                              (('option', 'value', 'otheruuid'), '+++123/1231/23123+++', ' ', 'Mr B')),
@@ -326,10 +326,10 @@ class GetListPaymentsRow(unittest.TestCase):
                                                 expected_text),
                                                ' ',
                                                (('input', 'type', 'hidden', 'name', 'csrf_token', 'value', 'csrf_token_value'),),
-                                               (('input', 'type', 'hidden', 'name', 'src_id', 'value', src_id),),
+                                               (('input', 'type', 'hidden', 'name', 'bank_ref', 'value', src_id),),
                                                (('input', 'type', 'hidden', 'name', 'reservation_uuid', 'value', ''),),
                                                (('input', 'type', 'submit', 'value', 'X'),)),
-                                              (('a', 'href', f"https://example.com/srhsdf2024/gestion/confirm_payment.cgi?uuid_hex={uuid_hex}&src_id={src_id}"),
+                                              (('a', 'href', f"https://example.com/srhsdf2024/gestion/confirm_payment.cgi?uuid_hex={uuid_hex}&bank_ref={src_id}"),
                                                'send again?')))))
 
 
@@ -341,12 +341,12 @@ class GetListPaymentsRow(unittest.TestCase):
             conftest.make_reservation(places=1, bank_id='671423558049').insert_data(connection)
         src_id = "1"
         bank_ref = "2"
-        for uuid in ('+++671/4235/58049+++', '671423558049'):
-            with self.subTest(uuid=uuid):
+        for bank_id in ('+++671/4235/58049+++', '671423558049'):
+            with self.subTest(bank_id=bank_id):
                 src_id += "0"
                 bank_ref += "2"
                 with connection:
-                    payment = conftest.make_payment(src_id=src_id, comment=uuid, bank_ref=bank_ref).insert_data(connection)
+                    payment = conftest.make_payment(src_id=src_id, comment=bank_id, bank_ref=bank_ref).insert_data(connection)
                 html_row = lib_payments.get_list_payments_row(connection, payment, None, 'example.com', 'srhsdf2024/gestion/list_payments.cgi', 'csrf_token_value')
 
                 self.assertEqual(
@@ -355,13 +355,13 @@ class GetListPaymentsRow(unittest.TestCase):
                                ('td', 'BE0101'),
                                ('td', 'Ms Abc'),
                                ('td', 'Accepté'),
-                               ('td', uuid),
+                               ('td', bank_id),
                                ('td', '30.00'),
                                ('td',
                                 (('form', 'style', 'display: inline', 'method', 'POST',
                                   'action', 'srhsdf2024/gestion/link_payment_and_reservation.cgi'),
                                  (('input', 'type', 'hidden', 'name', 'csrf_token', 'value', 'csrf_token_value'),),
-                                 (('input', 'type', 'hidden', 'name', 'src_id', 'value', src_id),),
+                                 (('input', 'type', 'hidden', 'name', 'bank_ref', 'value', bank_ref),),
                                  (('select', 'name', 'reservation_uuid'),
                                   (('option', 'value', 'deadbeef', 'selected', 'selected'),
                                    '+++671/4235/58049+++', ' ', 'testing test@example.com'),

@@ -28,7 +28,7 @@ then
     exit 1
 else
     folder="$prefix_folder/$deploy_folder"
-    echo -n "Called as: $0 '$destination' '$user' '$group' '$prefix_folder' '$deploy_folder' '$virtualenv_folder' '$admin_user' '$admin_pw'"
+    echo "Called as: $0 '$destination' '$user' '$group' '$prefix_folder' '$deploy_folder' '$virtualenv_folder' '$admin_user' '$admin_pw'"
     if [ -n "$admin_user" ];
     then
         protected_folder="$folder/gestion"
@@ -49,7 +49,7 @@ else
     (cd "$(dirname "$0")/app/gestion" \
          && emacs --batch \
                   --eval "(progn (find-file \"index.org\") (org-html-export-to-html))")
-    tar cf - --exclude "#*" --exclude "*~" --exclude "*.bak" --exclude "*cache*" --exclude "index.org" --exclude ".dir-locals.el" $excludes \
+    tar cf - --exclude "#*" --exclude "*~" --exclude "*.bak" --exclude "*cache*" --exclude "index.org" --exclude ".dir-locals.el" --exclude "db.db" $excludes \
         -C "$(dirname "$0")/app" \
         . \
         | tar xf - -C "$staging_dir"
