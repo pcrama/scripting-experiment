@@ -282,23 +282,43 @@ class TestPayments_max_timestamp(unittest.TestCase):
     def test_set_bank_id(self):
         configuration = {"dbdir": ":memory:"}
         connection = storage.ensure_connection(configuration)
-        with connection:
-            payment = make_payment(timestamp=3.14).insert_data(connection)
+        for idx, (active, old_uuid, new_uuid) in enumerate([
+                (True, None, "res-uuid"), (False, None, "res-uuid"), (True, "res-uuid", None), (True, "res-uuid", "res-uuid")]):
+            with self.subTest(idx=idx, active=active, old_uuid=old_uuid, new_uuid=new_uuid):
+                with connection:
+                    payment = make_payment(
+                        timestamp=3.14, active=active, bank_ref=f"bank_ref_{idx}",
+                        confirmation_timestamp=6.28, uuid=old_uuid
+                    ).insert_data(connection)
 
-        before_save = time.time()
-        with connection:
-            payment.update_uuid(connection, "new_uuid", "the-new-user", "192.0.0.1")
-        after_save = time.time()
+                self.assertEqual(
+                    payment.active, active, f"Precondition not met: payment.active != {active}")
 
-        reloaded = storage.Payment.find_by_bank_ref(connection, payment.bank_ref)
+                before_save = time.time()
+                with connection:
+                    payment.update_uuid(connection, new_uuid, "the-new-user", "192.0.0.1")
+                after_save = time.time()
 
-        self.assertEqual(reloaded.uuid, "new_uuid")
-        self.assertEqual(reloaded.user, "the-new-user")
-        self.assertEqual(reloaded.ip, "192.0.0.1")
-        self.assertEqual(reloaded.comment, payment.comment)
-        self.assertEqual(reloaded.amount_in_cents, payment.amount_in_cents)
-        self.assertLessEqual(before_save, reloaded.timestamp)
-        self.assertLessEqual(reloaded.timestamp, after_save)
+                reloaded = storage.Payment.find_by_bank_ref(connection, payment.bank_ref)
+
+                if new_uuid is None:
+                    self.assertIsNone(reloaded.uuid)
+                else:
+                    self.assertEqual(reloaded.uuid, new_uuid)
+                self.assertEqual(reloaded.user, "the-new-user")
+                self.assertEqual(reloaded.ip, "192.0.0.1")
+                self.assertEqual(reloaded.comment, payment.comment)
+                self.assertEqual(reloaded.amount_in_cents, payment.amount_in_cents)
+                self.assertLessEqual(before_save, reloaded.timestamp)
+                self.assertLessEqual(reloaded.timestamp, after_save)
+                # linking to a reservation always makes the payment active (again)
+                self.assertEqual(payment.active, True)
+                self.assertEqual(reloaded.active, True)
+                if old_uuid == new_uuid:
+                    self.assertEqual(reloaded.confirmation_timestamp, 6.28)
+                else:
+                    # linking to a different reservation always resets the confirmation timestamp
+                    self.assertIsNone(reloaded.confirmation_timestamp)
 
     def test_clear_bank_id(self):
         configuration = {"dbdir": ":memory:"}

@@ -416,17 +416,22 @@ class Payment(MiniOrm):
     def update_uuid(self, connection, uuid: Union[str, None], user: str, ip: str) -> "Payment":
         if not user or not ip:
             raise ValueError(f"{user=} and {ip=} are mandatory")
-        self.uuid = uuid
         self.user = user
         self.ip = ip
         self.timestamp = time.time()
+        if uuid != self.uuid:
+            self.uuid = uuid
+            self.confirmation_timestamp = None
+        self.active = True
         connection.execute(
-            f'''UPDATE {self.TABLE_NAME} SET uuid = :uuid, user = :user, ip = :ip, timestamp = :timestamp, confirmation_timestamp = NULL
+            f'''UPDATE {self.TABLE_NAME} SET uuid = :uuid, user = :user, ip = :ip, timestamp = :timestamp, active = :active, confirmation_timestamp = :confirmation_timestamp
                 WHERE rowid = :rowid''',
             {"uuid": self.uuid if self.uuid else None,
              "user": self.user,
              "ip": self.ip,
              "timestamp": self.timestamp,
+             "active": self.active,
+             "confirmation_timestamp": self.confirmation_timestamp,
              "rowid": self.rowid})
         return self
 
