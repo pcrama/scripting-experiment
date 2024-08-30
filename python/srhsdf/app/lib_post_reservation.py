@@ -197,9 +197,9 @@ def respond_with_reservation_confirmation(
 
 
 def generate_payment_QR_code_content(remaining_due: int, bank_id: str, config: dict[str, Any]) -> str:
+    # See scan2pay.info
     name = config.get("organizer_name", "Name")
     bic = config.get("organizer_bic", "BIC")
     iban = "".join(ch for ch in config.get("bank_account", "BExxxx") if ch in "BE" or ch.isdigit())
     amount = cents_to_euro(remaining_due)
-    remit = bank_id # apparently both are needed to get the three banks I tested to include the information
-    return ("BCD\n001\n1\nSCT\n" + bic + "\n" + name + "\n" + iban + "\n" + "EUR" + amount + "\nGDDS\n" + remit)
+    return ("BCD\n001\n1\nSCT\n" + bic + "\n" + name + "\n" + iban + "\n" + "EUR" + amount + "\n\n" + bank_id)

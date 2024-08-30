@@ -139,7 +139,7 @@ class ValidateDate(unittest.TestCase):
                 12045, # cents, i.e. 120.45€
                 "483513812577",
                 {"organizer_name": "Music and Food", "organizer_bic": "GABBBEBB", "bank_account": "BE89 3751 0478 0085"}),
-            "BCD\n001\n1\nSCT\nGABBBEBB\nMusic and Food\nBE89375104780085\nEUR120.45\nGDDS\n483513812577",
+            "BCD\n001\n1\nSCT\nGABBBEBB\nMusic and Food\nBE89375104780085\nEUR120.45\n\n483513812577",
         )
 
 

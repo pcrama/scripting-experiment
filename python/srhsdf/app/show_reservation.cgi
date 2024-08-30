@@ -90,7 +90,7 @@ if __name__ == '__main__':
                 " à votre disposition à l'entrée. ",
                 "Afin de réduire les files à l'entrée, nous vous saurions gré de déjà verser cette somme avec la communication ",
                 "structurée ", ("code", format_bank_id(reservation.bank_id)), " sur le compte ",
-                BANK_ACCOUNT, " (bénéficiaire '", ORGANIZER_NAME, "') pour votre réservation, p.ex. en scannant ce code QR avec votre application bancaire mobile (testé avec Belfius Mobile et BNP Paribas Fortis Easy Banking; incompatible avec Payconiq): ",
+                BANK_ACCOUNT, " (bénéficiaire '", ORGANIZER_NAME, "') pour votre réservation, p.ex. en scannant ce code QR avec votre application bancaire mobile (testé avec Argenta, Belfius Mobile et BNP Paribas Fortis Easy Banking; incompatible avec Payconiq): ",
                 ('br',),
                 ('raw', qrcode.make(
                     generate_payment_QR_code_content(remaining_due, reservation.bank_id, CONFIGURATION),
