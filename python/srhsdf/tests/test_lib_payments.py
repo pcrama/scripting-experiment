@@ -276,7 +276,7 @@ class GetListPaymentsRow(unittest.TestCase):
         connection = storage.ensure_connection(configuration)
         with connection:
             payment = conftest.make_payment(amount_in_cents=-34).insert_data(connection)
-            conftest.make_reservation(places=2, email=None, bank_id='123123123123', name='Mr B', uuid='otheruuid').insert_data(connection)
+            conftest.make_reservation(places=2, email=None, bank_id='123123123123', civility='Mr', first_name='B', last_name='C', uuid='otheruuid').insert_data(connection)
         html_row = lib_payments.get_list_payments_row(connection, payment, None, 'example.com', '/gestion/list_payments.cgi', 'csrf_token_value')
         self.maxDiff = None
         self.assertEqual(html_row, (('td', '2023-1000'),
@@ -292,7 +292,7 @@ class GetListPaymentsRow(unittest.TestCase):
                                             (('input', 'type', 'hidden', 'name', 'bank_ref', 'value', '202308081060'),),
                                             (('select', 'name', 'reservation_uuid'),
                                              (('option', 'value', ''), '--- Choisir la réservation correspondante ---'),
-                                             (('option', 'value', 'otheruuid'), '+++123/1231/23123+++', ' ', 'Mr B')),
+                                             (('option', 'value', 'otheruuid'), '+++123/1231/23123+++', ' ', 'Mr B C')),
                                             (('input', 'type', 'submit', 'value', 'OK'),)))))
 
     def test_payment_already_linked_to_reservation(self):
@@ -337,7 +337,7 @@ class GetListPaymentsRow(unittest.TestCase):
         configuration = {"dbdir": ":memory:"}
         connection = storage.ensure_connection(configuration)
         with connection:
-            conftest.make_reservation(places=2, bank_id='123123123123', name='Mr B', uuid='otheruuid').insert_data(connection)
+            conftest.make_reservation(places=2, bank_id='123123123123', civility='Mr', first_name='', last_name='B', uuid='otheruuid').insert_data(connection)
             conftest.make_reservation(places=1, bank_id='671423558049').insert_data(connection)
         src_id = "1"
         bank_ref = "2"

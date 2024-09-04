@@ -1,5 +1,9 @@
 #!/usr/pkg/bin/python3
 # -*- coding: utf-8 -*-
+#
+# Test with
+#
+# echo | (cd app && script_name=post_reservation.cgi && env REQUEST_METHOD=POST 'QUERY_STRING=civility=melle&first_name=Jean&last_name=test&email=i%40example.com&paying_seats=3&free_seats=2&gdpr_accepts_use=true&date=2099-01-01' SERVER_NAME=example.com SCRIPT_NAME=$script_name python3 $script_name)
 import cgi
 import cgitb
 import os
@@ -12,43 +16,13 @@ from htmlgen import (
     respond_html,
 )
 from storage import(
-    Reservation,
     create_db,
 )
 from lib_post_reservation import(
     ValidationException,
     validate_data,
     respond_with_reservation_confirmation,
-    respond_with_reservation_failed,
-    save_data_sqlite3
 )
-
-'''
-Input:
-- name
-- email
-- date
-- paying_seats
-- free_seats
-- gdpr_accepts_use
-- uuid
-
-Generate bank_id (10 digits, 33 bits):
-- time: 7 bits
-- number of previous calls: 10 bits
-- process ID: os.getpid(), 16 bits
-
-Save:
-- name
-- email
-- date
-- paying_seats
-- free_seats
-- gdpr_accepts_use
-- bank_id
-- uuid
-- time
-'''
 
 
 def respond_with_validation_error(form, e, configuration):
@@ -78,7 +52,9 @@ if __name__ == '__main__':
 
         # Get form data
         form = cgi.FieldStorage()
-        name = form.getfirst('name', default='')
+        civility = form.getfirst('civility', default='')
+        first_name = form.getfirst('first_name', default='')
+        last_name = form.getfirst('last_name', default='')
         email = form.getfirst('email', default='')
         date = form.getfirst('date', default='')
         paying_seats = form.getfirst('paying_seats', default=0)
@@ -86,13 +62,15 @@ if __name__ == '__main__':
         gdpr_accepts_use = form.getfirst('gdpr_accepts_use', default=False)
 
         try:
-            (name, email, date, paying_seats, free_seats, gdpr_accepts_use) = validate_data(
-                name, email, date, paying_seats, free_seats, gdpr_accepts_use, db_connection)
+            (civility, first_name, last_name, email, date, paying_seats, free_seats, gdpr_accepts_use) = validate_data(
+                civility, first_name, last_name, email, date, paying_seats, free_seats, gdpr_accepts_use, db_connection)
         except ValidationException as e:
             respond_with_validation_error(form, e, CONFIGURATION)
         else:
             respond_with_reservation_confirmation(
-                name,
+                civility,
+                first_name,
+                last_name,
                 email,
                 date,
                 paying_seats,

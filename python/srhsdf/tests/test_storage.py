@@ -22,7 +22,9 @@ class TestReservation(unittest.TestCase):
         cls.connection = storage.create_db({'dbdir': ':memory:'})
         with cls.connection:
             storage.Reservation(
-                 name='n1',
+                 civility='',
+                 first_name='',
+                 last_name='n1',
                  email='n1@e.com',
                  date='2024-03-23',
                  paying_seats=1,
@@ -35,7 +37,9 @@ class TestReservation(unittest.TestCase):
                  active=True,
                  origin=None).insert_data(cls.connection)
             storage.Reservation(
-                 name='n2',
+                 civility='',
+                 first_name='',
+                 last_name='n2',
                  email='n2@f.com',
                  date='2024-03-23',
                  paying_seats=4,
@@ -48,7 +52,9 @@ class TestReservation(unittest.TestCase):
                  active=True,
                  origin=None).insert_data(cls.connection)
             storage.Reservation(
-                 name='n3',
+                 civility='',
+                 first_name='',
+                 last_name='n3',
                  email='n3@g.com',
                  date='2024-03-23',
                  paying_seats=4,
@@ -61,7 +67,9 @@ class TestReservation(unittest.TestCase):
                  active=False,
                  origin='admin').insert_data(cls.connection)
             storage.Reservation(
-                 name='n1',
+                 civility='',
+                 first_name='',
+                 last_name='n1',
                  email='n1@e.com',
                  paying_seats=5,
                  free_seats=0,
@@ -75,15 +83,18 @@ class TestReservation(unittest.TestCase):
                  origin=None).insert_data(cls.connection)
 
     def test_count_places(self):
-        self.assertEqual(storage.Reservation.count_reservations(self.connection, name='n3', email='n3@g.com'), (1, 9))
-        self.assertEqual(storage.Reservation.count_reservations(self.connection, name='n1', email='n1@e.com'), (2, 8))
-        self.assertEqual(storage.Reservation.count_reservations(self.connection, name='N1', email='N2@F.COM'), (3, 12))
+        self.assertEqual(storage.Reservation.count_reservations(self.connection, first_name='', last_name='n3', email='n3@g.com'), (1, 9))
+        self.assertEqual(storage.Reservation.count_reservations(self.connection, first_name='', last_name='n1', email='n1@e.com'), (2, 8))
+        self.assertEqual(storage.Reservation.count_reservations(self.connection, first_name='', last_name='N1', email='N2@F.COM'), (3, 12))
 
     def test_parse_from_row_simple_reservation(self):
         reservation, tail = storage.Reservation.parse_from_row(
-            ['name', 'email@example.com', '2024-03-23', 1, 2, True, 4, 'bank_id', 'uuid', 3.1415, True, 'origin'])
+            ['', '', 'name', 'email@example.com', '2024-03-23', 1, 2, True, 4, 'bank_id', 'uuid', 3.1415, True, 'origin'])
         self.assertIsNotNone(reservation)
         self.assertEqual(tail, [])
+        self.assertEqual(reservation.civility, '')
+        self.assertEqual(reservation.first_name, '')
+        self.assertEqual(reservation.last_name, 'name')
         self.assertEqual(reservation.name, 'name')
         self.assertEqual(reservation.email, 'email@example.com')
         self.assertEqual(reservation.date, '2024-03-23')
@@ -172,8 +183,8 @@ class TestPayments(unittest.TestCase):
         with self.CONNECTION:
             for pmnt in payments:
                 pmnt.insert_data(self.CONNECTION)
-            make_reservation(name="name1", email="one@example.com", paying_seats=3, outside_main_dessert=1, inside_main_dish=1, inside_main_starter=1, inside_extra_dessert=1, cents_due=12345, bank_id="bank_id_1", uuid=self.UUID_WITH_TWO_PAYMENTS).insert_data(self.CONNECTION)
-            make_reservation(name="name2", email="two@example.com", paying_seats=2, outside_main_dessert=1, inside_main_dish=1, inside_third_dish=1, inside_main_starter=2, inside_extra_dessert=1, inside_main_dessert=1, cents_due=34512, bank_id="bank_id_2", uuid="beef12346789fedc").insert_data(self.CONNECTION)
+            make_reservation(civility='', first_name='', name="name1", email="one@example.com", paying_seats=3, outside_main_dessert=1, inside_main_dish=1, inside_main_starter=1, inside_extra_dessert=1, cents_due=12345, bank_id="bank_id_1", uuid=self.UUID_WITH_TWO_PAYMENTS).insert_data(self.CONNECTION)
+            make_reservation(civility='', first_name='', name="name2", email="two@example.com", paying_seats=2, outside_main_dessert=1, inside_main_dish=1, inside_third_dish=1, inside_main_starter=2, inside_extra_dessert=1, inside_main_dessert=1, cents_due=34512, bank_id="bank_id_2", uuid="beef12346789fedc").insert_data(self.CONNECTION)
 
     def tearDown(self):
         if self.CONNECTION:

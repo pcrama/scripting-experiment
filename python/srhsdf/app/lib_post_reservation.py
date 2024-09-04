@@ -28,7 +28,7 @@ def is_test_reservation(name: str, email: str) -> bool:
     return name.lower().startswith('test') and email.lower().endswith('@example.com')
 
 
-def normalize_data(name: str, email: str, date: str, paying_seats: str, free_seats: str, gdpr_accepts_use: str) -> tuple[str, str, str, int, int, bool]:
+def normalize_data(civility: str, first_name: str, last_name: str, email: str, date: str, paying_seats: str, free_seats: str, gdpr_accepts_use: str) -> tuple[str, str, str, str, str, int, int, bool]:
     def safe_strip(x: Union[str, None]) -> str:
         if x is None:
             return ''
@@ -39,7 +39,9 @@ def normalize_data(name: str, email: str, date: str, paying_seats: str, free_sea
             return max(0, min(int(x), 50))
         except Exception:
             return 0
-    name = safe_strip(name)
+    civility = {'mr': 'Mr', 'mme': 'Mme', 'melle': 'Melle'}.get(safe_strip(civility).lower(), '')
+    first_name = safe_strip(first_name)
+    last_name = safe_strip(last_name)
     email = safe_strip(email)
     date = safe_strip(date)
     try:
@@ -47,7 +49,9 @@ def normalize_data(name: str, email: str, date: str, paying_seats: str, free_sea
     except Exception:
         gdpr_accepts_use_bool = bool(gdpr_accepts_use) and gdpr_accepts_use not in [0, False]
     return (
-        name,
+        civility,
+        first_name,
+        last_name,
         email,
         date,
         safe_non_negative_int_less_or_equal_than_50(paying_seats),
@@ -55,10 +59,10 @@ def normalize_data(name: str, email: str, date: str, paying_seats: str, free_sea
         gdpr_accepts_use_bool)
 
 
-def validate_data(name, email, date, paying_seats, free_seats, gdpr_accepts_use, connection):
-    (name, email, date, paying_seats, free_seats, gdpr_accepts_use) = normalize_data(
-        name, email, date, paying_seats, free_seats, gdpr_accepts_use)
-    if not(name and email):
+def validate_data(civility: str, first_name: str, last_name, email, date, paying_seats, free_seats, gdpr_accepts_use, connection):
+    (civility, first_name, last_name, email, date, paying_seats, free_seats, gdpr_accepts_use) = normalize_data(
+        civility, first_name, last_name, email, date, paying_seats, free_seats, gdpr_accepts_use)
+    if not((first_name or last_name) and email):
         raise ValidationException('Vos données de contact sont incomplètes')
     INVALID_EMAIL = "L'adresse email renseignée n'a pas le format requis"
     try:
@@ -71,19 +75,19 @@ def validate_data(name, email, date, paying_seats, free_seats, gdpr_accepts_use,
     if paying_seats + free_seats < 1:
         raise ValidationException("Vous n'avez pas indiqué combien de sièges vous vouliez réserver")
     if date not in (('2099-01-01', '2099-01-02')
-                    if is_test_reservation(name, email)
+                    if is_test_reservation(last_name, email)
                     else ('2024-11-30', '2024-12-01',)):
         raise ValidationException(f"Il n'y a pas de concert le {date!r}")
-    reservations_count, reserved_seats  = Reservation.count_reservations(connection, name, email)
+    reservations_count, reserved_seats  = Reservation.count_reservations(connection, first_name, last_name, email)
     if (reservations_count or 0) > 10:
         raise ValidationException('Il y a déjà trop de réservations à votre nom')
     if (reserved_seats or 0) + paying_seats + free_seats > 60:
         raise ValidationException('Vous réservez ou avez réservé trop de sièges')
-    return (name, email, date, paying_seats, free_seats, gdpr_accepts_use)
+    return (civility, first_name, last_name, email, date, paying_seats, free_seats, gdpr_accepts_use)
 
 
 def save_data_sqlite3(
-        name: str, email: str, date: str, paying_seats: int, free_seats: int, gdpr_accepts_use: bool,
+        civility: str, first_name: str, last_name: str, email: str, date: str, paying_seats: int, free_seats: int, gdpr_accepts_use: bool,
         cents_due: int, origin: Union[str, None], connection_or_root_dir: Union[sqlite3.Connection, dict[str, Any]]
 ) -> Reservation:
     connection = ensure_connection(connection_or_root_dir)
@@ -95,7 +99,9 @@ def save_data_sqlite3(
         timestamp = time.time()
         bank_id = generate_bank_id(timestamp, Reservation.length(connection), process_id)
         try:
-            new_row = Reservation(name=name,
+            new_row = Reservation(civility=civility,
+                                  first_name=first_name,
+                                  last_name=last_name,
                                   email=email,
                                   date=date,
                                   paying_seats=paying_seats,
@@ -116,7 +122,7 @@ def save_data_sqlite3(
                 pass
             else:
                 raise
-    raise RuntimeError(f"Unable to save Reservation for {name} {email}")
+    raise RuntimeError(f"Unable to save Reservation for {civility} {first_name} {last_name} {email}")
 
 
 def to_bits(n):
@@ -179,11 +185,11 @@ def make_show_reservation_url(bank_id, uuid_hex, server_name=None, script_name=N
 
 
 def respond_with_reservation_confirmation(
-        name, email, date, paying_seats, free_seats, gdpr_accepts_use, connection, configuration, origin=None):
+        civility, first_name, last_name, email, date, paying_seats, free_seats, gdpr_accepts_use, connection, configuration, origin=None):
     cents_due = compute_price(paying_seats, date, configuration)
     try:
         new_row = save_data_sqlite3(
-            name, email, date, paying_seats, free_seats, gdpr_accepts_use, cents_due, origin, connection)
+            civility, first_name, last_name, email, date, paying_seats, free_seats, gdpr_accepts_use, cents_due, origin, connection)
     except Exception:
         respond_with_reservation_failed(configuration)
         cgitb.handler()

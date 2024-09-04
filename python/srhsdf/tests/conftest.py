@@ -8,7 +8,9 @@ except ImportError:
 
 def make_reservation(**overrides) -> Reservation:
     defaults = dict(
-        name='testing',
+        civility='',
+        first_name='',
+        last_name='testing',
         email='test@example.com',
         date='2024-11-30',
         paying_seats=2,
@@ -22,7 +24,9 @@ def make_reservation(**overrides) -> Reservation:
         origin='unit tests')
     defaults.update(**overrides)
     reservation, tail = Reservation.parse_from_row(
-        [defaults['name'],
+        [defaults['civility'],
+         defaults['first_name'],
+         defaults['last_name'],
          defaults['email'],
          defaults['date'],
          defaults['paying_seats'],

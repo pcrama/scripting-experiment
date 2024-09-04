@@ -26,9 +26,11 @@ class IsTestReservation(unittest.TestCase):
 
 class NormalizeData(unittest.TestCase):
     def test_full_positional_list(self):
-        (name, email, date, paying_seats, free_seats, gdpr_accepts_use) = lib_post_reservation.normalize_data(
-             'name', 'email', 'date', '2', '3', 'yes')
-        self.assertEqual(name, 'name')
+        (civility, first_name, last_name, email, date, paying_seats, free_seats, gdpr_accepts_use) = lib_post_reservation.normalize_data(
+             'Mr', 'first_name', 'last_name', 'email', 'date', '2', '3', 'yes')
+        self.assertEqual(civility, 'Mr')
+        self.assertEqual(first_name, 'first_name')
+        self.assertEqual(last_name, 'last_name')
         self.assertEqual(email, 'email')
         self.assertEqual(date, 'date')
         self.assertEqual(paying_seats, 2)
@@ -43,9 +45,11 @@ class NormalizeData(unittest.TestCase):
                 (None, ""),
         ):
             with self.subTest(string_in=string_in):
-                (name, email, date, _paying_seats, _free_seats, _gdpr_accepts_use) = lib_post_reservation.normalize_data(
-                     string_in, string_in, string_in, 'paying_seats', 'free_seats', 'gdpr_accepts_use')
-                self.assertEqual(name, expected)
+                (civility, first_name, last_name, email, date, _paying_seats, _free_seats, _gdpr_accepts_use) = lib_post_reservation.normalize_data(
+                    string_in, string_in, string_in, string_in, string_in, 'paying_seats', 'free_seats', 'gdpr_accepts_use')
+                self.assertEqual(civility, '')
+                self.assertEqual(first_name, expected)
+                self.assertEqual(last_name, expected)
                 self.assertEqual(email, expected)
                 self.assertEqual(date, expected)
 
@@ -62,8 +66,8 @@ class NormalizeData(unittest.TestCase):
                 ("451", 50),
         ):
             with self.subTest(string_in=string_in):
-                (_name, _email, _date, paying_seats, free_seats, _gdpr_accepts_use) = lib_post_reservation.normalize_data(
-                     "name", "email", "date", paying_seats=string_in, free_seats=string_in, gdpr_accepts_use="gdpr_accepts_use")
+                (_civility, _first_name, _last_name, _email, _date, paying_seats, free_seats, _gdpr_accepts_use) = lib_post_reservation.normalize_data(
+                     'Mr', 'jean', "name", "email", "date", paying_seats=string_in, free_seats=string_in, gdpr_accepts_use="gdpr_accepts_use")
                 self.assertEqual(paying_seats, expected)
                 self.assertEqual(free_seats, expected)
 
@@ -75,7 +79,7 @@ class ValidateDate(unittest.TestCase):
             with self.subTest(name=name, email=email):
                 with self.assertRaises(lib_post_reservation.ValidationException):
                     lib_post_reservation.validate_data(
-                        name, email, 'date', 'paying_seats', 'free_seats',
+                        'Melle', 'Jo', name, email, 'date', 'paying_seats', 'free_seats',
                         'gdpr_accepts_use', 'connection')
 
 
@@ -84,7 +88,7 @@ class ValidateDate(unittest.TestCase):
             with self.subTest(email=email):
                 with self.assertRaises(lib_post_reservation.ValidationException) as cm:
                     lib_post_reservation.validate_data(
-                        'name', email, 'date', 'paying_seats', 'free_seats',
+                        'Mr', '', 'name', email, 'date', 'paying_seats', 'free_seats',
                         'gdpr_accepts_use', 'connection')
                 message = cm.exception.args[0]
                 self.assertTrue("email" in message and "format" in message)
@@ -96,7 +100,7 @@ class ValidateDate(unittest.TestCase):
         for email in ("me-and-you@together.com", "a+test@bcd.az", "bourgmestre@braine-lalleud.be"):
             with self.subTest(email=email):
                 lib_post_reservation.validate_data(
-                    'name', email, '2024-12-01', 3, 0, True, connection)
+                    '', '', 'name', email, '2024-12-01', 3, 0, True, connection)
 
 
     def test_date_validation_date_is_OK(self):
@@ -109,7 +113,7 @@ class ValidateDate(unittest.TestCase):
             with self.subTest(name=name, email=email, date=date), \
                  self.assertRaises(AttributeError) as cm:
                 lib_post_reservation.validate_data(
-                     name=name, email=email, date=date, paying_seats=3,
+                     civility='Mme', first_name='Jean', last_name=name, email=email, date=date, paying_seats=3,
                      free_seats=0, gdpr_accepts_use=True,
                      connection='connection is not a correct object, so force validation to fail in time')
             message = cm.exception.args[0]
@@ -118,15 +122,15 @@ class ValidateDate(unittest.TestCase):
 
 
     def test_date_validation_date_is_not_OK(self):
-        for (name, email, date) in (
+        for (last_name, email, date) in (
                 ("Name", "test.email@gmail.com", "2099-01-01"),
                 ("Name", "test.email@gmail.com", "2099-01-02"),
                 ("Someone", "an.email@gmail.com", "2023-02-02"),
         ):
-            with self.subTest(name=name, email=email, date=date), \
+            with self.subTest(last_name=last_name, email=email, date=date), \
                  self.assertRaises(lib_post_reservation.ValidationException) as cm:
                 lib_post_reservation.validate_data(
-                     name=name, email=email, date=date, paying_seats=1, free_seats=0, gdpr_accepts_use=True,
+                     civility="Mme", first_name="An", last_name=last_name, email=email, date=date, paying_seats=1, free_seats=0, gdpr_accepts_use=True,
                      connection='connection is not a correct object, so force validation to fail in time')
             message = cm.exception.args[0]
             self.assertTrue(message.startswith("Il n'y a pas de concert"))
@@ -148,12 +152,15 @@ class ValidateDate(unittest.TestCase):
         connection = storage.ensure_connection(configuration)
 
         new_row = lib_post_reservation.save_data_sqlite3(
-            name='name', email='email@example.com', date='2099-12-31',
+            civility='Mr', first_name='Fred', last_name='name', email='email@example.com', date='2099-12-31',
             paying_seats=11, free_seats=12,
             gdpr_accepts_use=True, origin='origin', cents_due=1234, connection_or_root_dir=connection)
 
         self.assertIsNot(new_row, None)
-        self.assertEqual(new_row.name, 'name')
+        self.assertEqual(new_row.name, 'Mr Fred name')
+        self.assertEqual(new_row.civility, 'Mr')
+        self.assertEqual(new_row.first_name, 'Fred')
+        self.assertEqual(new_row.last_name, 'name')
         self.assertEqual(new_row.email, 'email@example.com')
         self.assertEqual(new_row.date, '2099-12-31')
         self.assertEqual(new_row.paying_seats, 11)
@@ -164,7 +171,10 @@ class ValidateDate(unittest.TestCase):
         fetched_row = storage.Reservation.find_by_bank_id(connection, new_row.bank_id)
 
         self.assertIsNot(fetched_row, None)
-        self.assertEqual(fetched_row.name, 'name')
+        self.assertEqual(new_row.name, 'Mr Fred name')
+        self.assertEqual(new_row.civility, 'Mr')
+        self.assertEqual(new_row.first_name, 'Fred')
+        self.assertEqual(new_row.last_name, 'name')
         self.assertEqual(fetched_row.email, 'email@example.com')
         self.assertEqual(fetched_row.date, '2099-12-31')
         self.assertEqual(fetched_row.paying_seats, 11)

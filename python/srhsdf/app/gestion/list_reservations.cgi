@@ -1,5 +1,7 @@
 #!/usr/pkg/bin/python3
 # -*- coding: utf-8 -*-
+#
+# (export SCRIPT_NAME="$PWD/app/gestion/list_reservations.cgi"; cd "$(dirname "$SCRIPT_NAME")" && CONFIGURATION_JSON_DIR="$(dirname "$(ls -t /tmp/tmp.*/configuration.json | head -n 1)")" DB_DB="$CONFIGURATION_JSON_DIR/db.db" REQUEST_METHOD=GET REMOTE_USER="secretaire" REMOTE_ADDR="1.2.3.4" QUERY_STRING="" SERVER_NAME=localhost python3 $SCRIPT_NAME)
 import cgi
 import cgitb
 import itertools

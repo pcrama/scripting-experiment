@@ -365,9 +365,9 @@ function assert_html_response
     grep -q "Content-Type: text/html; charset=utf-8" "$test_output" || die "$test_name No Content-Type in $test_output"
     grep -q '<!DOCTYPE HTML><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>' "$test_output" || die "$test_name no HTML preamble boilerplate in $test_output"
     if [ -z "$no_banner" ]; then
-        grep -q '</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet"[^>]*bootstrap[^>]*></head><body><div id="branding" role="banner"><h1 id="site-title">Société Royale d'\''Harmonie de Braine-l'\''Alleud</h1><img src="https://www.srhbraine.be/wp-content/uploads/2019/10/site-en-tete.jpg" width="940" height="198" alt=""></div>' "$test_output" || die "$test_name no banner in $test_output"
+        grep -q '</title><link rel="stylesheet"[^>]*bootstrap[^>]*>.*<body>.*<nav id="navbar"' "$test_output" || die "$test_name no banner in $test_output"
     else
-        if grep -q '<h1.*Braine.*Alleud</h1><img src' "$test_output"; then
+        if grep -q '<img src="https://www.srhbraine.be/images/logo-srh.png"' "$test_output"; then
             die "$test_name banner in $test_output"
         fi
     fi
@@ -393,6 +393,75 @@ function assert_not_in_html_response
 }
 
 # Test definitions
+
+# 01: Post a new reservation as a customer
+function test_01_local_post_reservation
+{
+    local test_name test_output uuid_hex bank_id
+    test_name="test_01_local_post_reservation"
+    test_output="$test_dir/$test_name.log"
+    echo | (cd "$app_dir" && script_name=post_reservation.cgi && env CONFIGURATION_JSON_DIR="$test_dir" REQUEST_METHOD=POST 'QUERY_STRING=civility=melle&first_name=Jean&last_name=test&email=i%40example.com&paying_seats=3&free_seats=2&gdpr_accepts_use=true&date=2099-01-01' SERVER_NAME=example.com SCRIPT_NAME=$script_name python3 $script_name) > "$test_output" 2> "$test_output.stderr"
+    grep -q '^Status: 302' "$test_output"
+    uuid_hex="$(sed -n -e '/^Location: /s/.*uuid_hex=\([a-f0-9]*\).*/\1/p' "$test_output")"
+    [ -z "$uuid_hex" ] && die "No uuid_hex in $test_output"
+    bank_id="$(sed -n -e '/^Location: /s/.*bank_id=\([0-9]*\).*/\1/p' "$test_output")"
+    [ -z "$bank_id" ] && die "No bank_id in $test_output"
+    [ "$(count_reservations)" -eq 1 ] || die "Reservation count wrong"
+    [ "$(count_csrfs)" -eq 0 ] || die "CSRF count wrong"
+    [ "$(count_payments)" -eq 0 ] || die "Payment count wrong"
+    (cd "$app_dir" && script_name=show_reservation.cgi && env CONFIGURATION_JSON_DIR="$test_dir" REQUEST_METHOD=GET QUERY_STRING="bank_id=$bank_id&uuid_hex=$uuid_hex" SERVER_NAME=example.com SCRIPT_NAME=$script_name python3 $script_name) > "$test_output" 2> "$test_output.stderr"
+    assert_html_response "$test_name" "$test_output" \
+                         "Melle Jean test" \
+                         " 3 [^0-9]*pay[^0-9]* 2 [^0-9]*gratuit" \
+                         "$bank_account" \
+                         "$(echo $bank_id | sed -e 's;\(...\)\(....\)\(.*\);\1/\2/\3;')" \
+                         "$bank_id" \
+                         "$uuid_hex"
+    [ "$(count_reservations)" -eq 1 ] || die "Reservation count wrong"
+    [ "$(count_csrfs)" -eq 0 ] || die "CSRF count wrong"
+    [ "$(count_payments)" -eq 0 ] || die "Payment count wrong"
+    echo "$test_name: ok"
+}
+
+# 02: Locally list payments when DB is still empty
+function test_02_local_list_empty_payments
+{
+    local test_output csrf_token
+    test_output="$test_dir/02_local_list_empty_payments.html"
+    (cd "$app_dir/gestion" && env CONFIGURATION_JSON_DIR="$test_dir" REQUEST_METHOD=GET REMOTE_USER=secretaire REMOTE_ADDR=1.2.3.4 SERVER_NAME=localhost SCRIPT_NAME=list_payments.cgi python3 list_payments.cgi) > "$test_output.tmp"
+    csrf_token="$(sed -n -e 's/.*csrf_token" value="\([a-f0-9A-F]*\)".*/\1/p' "$test_output.tmp")"
+    if [ -z "$csrf_token" ];
+    then
+        die "No csrf_token in '$test_output.tmp'"
+    else
+        sed -e 's/csrf_token" value="'"$csrf_token"'"/csrf_token" value="CSRF_TOKEN"/g' \
+            "$test_output.tmp" \
+            > "$test_output"
+    fi
+    do_diff "$test_output"
+    if [ "$(count_csrfs)" -ne "1" -o "$(get_user_of_csrf_token "$csrf_token")" != "secretaire" ]; then
+        die "CSRF problem."
+    fi
+    echo "test_02_local_list_empty_payments: ok"
+}
+
+function test_03_local_list_reservations__1_reservation
+{
+    local test_name test_output csrf_token local_user
+    test_name="03_local_list_reservations__1_reservation"
+    test_output="$test_dir/$test_name.html"
+    local_user=secretaire
+    (cd "$app_dir/gestion";export SCRIPT_NAME="list_reservations.cgi"; cd "$(dirname "$SCRIPT_NAME")" && CONFIGURATION_JSON_DIR="$(dirname "$(ls -t /tmp/tmp.*/configuration.json | head -n 1)")" DB_DB="$CONFIGURATION_JSON_DIR/db.db" REQUEST_METHOD=GET REMOTE_USER="$local_user" REMOTE_ADDR="1.2.3.4" QUERY_STRING="" SERVER_NAME=localhost python3 $SCRIPT_NAME) > "$test_output"
+    [ "$(count_reservations)" -eq 1 ] || die "Reservation count wrong"
+    [ "$(count_csrfs)" -eq 1 ] || die "CSRF count wrong"
+    [ "$(count_payments)" -eq 0 ] || die "Payment count wrong"
+    csrf_token="$(get_csrf_token_of_user "$local_user")"
+    [ -n "$csrf_token" ] || die "Unable to get csrf_token of $local_user"
+    assert_html_response "$test_name" "$test_output" \
+                         "<tr><td>Melle Jean test</td><td>i@example.com</td><td>2099-01-01</td><td>3</td><td>2</td>" \
+                         '<input type="hidden"[^>]*"csrf_token"[^>]*"'"$csrf_token"'"'
+    echo "$test_name: ok"
+}
 
 # 01: List reservations when DB is still empty, then
 # - Verify output HTML
@@ -421,28 +490,6 @@ function test_01_list_empty_reservations
         die "CSRF problem."
     fi
     echo "test_01_list_empty_reservations: ok"
-}
-
-# 01: Locally list payments when DB is still empty
-function test_01_local_list_empty_payments
-{
-    local test_output csrf_token
-    test_output="$test_dir/01_local_list_empty_payments.html"
-    (cd "$app_dir/gestion" && env CONFIGURATION_JSON_DIR="$test_dir" REQUEST_METHOD=GET REMOTE_USER=secretaire REMOTE_ADDR=1.2.3.4 SERVER_NAME=localhost SCRIPT_NAME=list_payments.cgi python3 list_payments.cgi) > "$test_output.tmp"
-    csrf_token="$(sed -n -e 's/.*csrf_token" value="\([a-f0-9A-F]*\)".*/\1/p' "$test_output.tmp")"
-    if [ -z "$csrf_token" ];
-    then
-        die "No csrf_token in '$test_output.tmp'"
-    else
-        sed -e 's/csrf_token" value="'"$csrf_token"'"/csrf_token" value="CSRF_TOKEN"/g' \
-            "$test_output.tmp" \
-            > "$test_output"
-    fi
-    do_diff "$test_output"
-    if [ "$(count_csrfs)" -ne "2" -o "$(get_user_of_csrf_token "$csrf_token")" != "secretaire" ]; then
-        die "CSRF problem."
-    fi
-    echo "test_01_local_list_empty_payments: ok"
 }
 
 # 02: Attempt to register for an invalid date
@@ -776,12 +823,6 @@ function test_13_show_reservation_redirects_to_concert_page_on_error
 # First run local unit tests to avoid deploying if it's already broken
 (cd "$(dirname "$0")" && python3 -m unittest discover) || die "Unit tests failed"
 
-if [ -n "$skip_deploy" ];
-then
-    echo "Everything is fine so far.  Skipping tests requiring deployment"
-    exit 0
-fi
-
 # Temporary dir to store test outputs and also used as deployment directory name
 test_dir="$(mktemp --directory)"
 folder="$(basename "$test_dir")"
@@ -792,17 +833,6 @@ Storing test output in '$test_dir', clean with
     rm -r '$test_dir';
 EOF
 
-ssh_app_folder="$host_path_prefix/$folder"
-cat <<EOF
-Deploying to '$ssh_app_folder', clean with
-    ssh '$destination' "rm -r '$ssh_app_folder' '$venv_abs_path'";
-EOF
-
-# Deploy
-"$(dirname "$0")/../deploy.sh" "--for-tests" "$destination" "$user" "$group" "$host_path_prefix" "$folder" "$venv_abs_path" "$admin_user" "$admin_pw"
-echo '{ "paying_seat_cents": 500, "bank_account": "'$bank_account'", "info_email": "'$info_email'" }' \
-    | ssh "$destination" \
-          "touch '$ssh_app_folder/configuration.json'; cat > '$ssh_app_folder/configuration.json'"
 # Local copy of configuration
 echo '{ "paying_seat_cents": 500, "bank_account": "'$bank_account'", "info_email": "'$info_email'", "dbdir": "'$test_dir'", "logir": "'$test_dir'" }' \
      > "$test_dir/configuration.json"
@@ -812,9 +842,38 @@ then
     set -x
 fi
 
+test_01_local_post_reservation
+test_02_local_list_empty_payments
+test_03_local_list_reservations__1_reservation
+
+set +x
+
+if [ -n "$skip_deploy" ];
+then
+    echo "Everything is fine so far.  Skipping tests requiring deployment -> cleaning $test_dir"
+    rm -rf "$test_dir"
+    exit 0
+fi
+
+ssh_app_folder="$host_path_prefix/$folder"
+cat <<EOF
+Deploying to '$ssh_app_folder', clean with
+    ssh '$destination' "rm -r '$ssh_app_folder' '$venv_abs_path'";
+EOF
+
+# Deploy
+"$(dirname "$0")/../deploy.sh" "--for-tests" "$destination" "$user" "$group" "$host_path_prefix" "$folder" "$venv_abs_path" "$admin_user" "$admin_pw"
+cat "$test_dir/configuration.json" \
+    | ssh "$destination" \
+          "touch '$ssh_app_folder/configuration.json'; cat > '$ssh_app_folder/configuration.json'"
+
+if [ -n "$dash_x" ];
+then
+    set -x
+fi
+
 # Tests
 test_01_list_empty_reservations
-test_01_local_list_empty_payments
 test_02_invalid_date_for_reservation
 test_03_valid_reservation_for_test_date
 test_03_00_locally_upload_payments
@@ -829,6 +888,8 @@ test_10_export_as_csv
 test_11_deactivate_a_reservation
 test_12_bobby_tables_and_co
 test_13_show_reservation_redirects_to_concert_page_on_error
+
+set +x
 
 # Clean up
 ssh $destination "rm -r '$host_path_prefix/$folder' ; if [ -r '$venv_abs_path/.ssh' ] ; then echo '\"$venv_abs_path\" might be your home directory, not cleaning up' ; else if [ -r '$venv_abs_path/bin/activate' -a -r '$venv_abs_path/pyvenv.cfg' ] ; then rm -r '$venv_abs_path' ; else echo 'I am not comfortable rm -r \"$venv_abs_path\"' ; fi ; fi"

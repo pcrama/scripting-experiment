@@ -199,7 +199,9 @@ class MiniOrm:
 class Reservation(MiniOrm):
     TABLE_NAME = 'reservations'
     COLUMNS = [
-        ("name", "TEXT NOT NULL"),
+        ("civility", "TEXT NOT NULL"),
+        ("first_name", "TEXT NOT NULL"),
+        ("last_name", "TEXT NOT NULL"),
         ("email", "TEXT"),
         ("date", "TEXT NOT NULL"),
         ("paying_seats", "INTEGER"),
@@ -217,10 +219,16 @@ class Reservation(MiniOrm):
         f'CREATE UNIQUE INDEX index_bank_id_{TABLE_NAME} ON {TABLE_NAME} (bank_id)',
         f'CREATE UNIQUE INDEX index_uuid_{TABLE_NAME} ON {TABLE_NAME} (uuid)']
 
-    def __init__(self, name, email, date, paying_seats, free_seats, gdpr_accepts_use, cents_due, bank_id, uuid, timestamp, active, origin):
+    @property
+    def name(self) -> str:
+        return " ".join(p for p in (self.civility, self.first_name, self.last_name) if p)
+
+    def __init__(self, civility, first_name, last_name, email, date, paying_seats, free_seats, gdpr_accepts_use, cents_due, bank_id, uuid, timestamp, active, origin):
         # !!! Keep in sync with COLUMNS if you want to use the default !!!
         # !!! from_row implementation !!!
-        self.name = name
+        self.civility = civility
+        self.first_name = first_name
+        self.last_name = last_name
         self.email = email
         self.date = date
         self.paying_seats = paying_seats
@@ -242,11 +250,11 @@ class Reservation(MiniOrm):
         return self
 
     @classmethod
-    def count_reservations(cls, connection: Union[sqlite3.Cursor, sqlite3.Connection], name: str, email: str) -> tuple[int, int]:
+    def count_reservations(cls, connection: Union[sqlite3.Cursor, sqlite3.Connection], first_name: str, last_name: str, email: str) -> tuple[int, int]:
         return connection.execute(
             f'''SELECT COUNT(*), SUM(paying_seats + free_seats) FROM {cls.TABLE_NAME}
-                WHERE LOWER(name) = :name OR LOWER(email) = :email''',
-            {'name': name.lower(), 'email': email.lower()}
+                WHERE (LOWER(last_name) = :last_name AND LOWER(first_name) = :first_name) OR LOWER(email) = :email''',
+            {'first_name': first_name.lower(), 'last_name': last_name.lower(), 'email': email.lower()}
         ).fetchone()
 
     def remaining_amount_due_in_cents(self, connection: Union[sqlite3.Cursor, sqlite3.Connection]):
@@ -281,10 +289,10 @@ class Reservation(MiniOrm):
             Reservation.from_row(row) for row in connection.execute(
             f"""SELECT {','.join(col[0] for col in cls.COLUMNS)} FROM {cls.TABLE_NAME}
                 WHERE active != 0 AND uuid != :uuid
-                ORDER BY name""",
+                ORDER BY {cls.SORTABLE_COLUMNS['name']}""",
             {'uuid': exclude_uuid}).fetchall()]
 
-    SORTABLE_COLUMNS = {'name': 'LOWER(name)',
+    SORTABLE_COLUMNS = {'name': 'LOWER(last_name||first_name)',
                         'email': 'LOWER(email)',
                         'date': 'date',
                         'time': 'time',
@@ -295,7 +303,7 @@ class Reservation(MiniOrm):
                         'active': 'active'}
 
 
-    FILTERABLE_COLUMNS = {'name': MiniOrm.compare_with_like_lower('name'),
+    FILTERABLE_COLUMNS = {'last_name': MiniOrm.compare_with_like_lower('last_name'),
                           'email': MiniOrm.compare_with_like_lower('email'),
                           'date': (),
                           'bank_id': (),
