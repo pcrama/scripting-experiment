@@ -187,7 +187,7 @@ function generic_test_valid_reservation_for_test_date
     test_output="$test_dir/$test_name.html"
     do_curl_with_redirect 'post_reservation.cgi' \
                           "$test_output.tmp" \
-                          "-X POST -F name=$spectator_name -F email=$spectator_email -F date=$concert_date -F paying_seats=$paying_seats -F free_seats=$free_seats -F gdpr_accepts_use=$gdpr_accepts_use"
+                          "-X POST -F last_name=$spectator_name -F first_name= -F civility= -F email=$spectator_email -F date=$concert_date -F paying_seats=$paying_seats -F free_seats=$free_seats -F gdpr_accepts_use=$gdpr_accepts_use"
     get_db_file
     communication="$(sed -n -e 's;.*<code>+++\([0-9][0-9][0-9]\)/\([0-9][0-9][0-9][0-9]\)/\([0-9][0-9][0-9][0-9][0-9]\)+++</code>.*;\1\2\3;p' "$test_output.tmp")"
     formatted_communication="$(sed -n -e 's;.*<code>\(+++[0-9][0-9][0-9]/[0-9][0-9][0-9][0-9]/[0-9][0-9][0-9][0-9][0-9]+++\)</code>.*;\1;p' "$test_output.tmp")"
@@ -216,8 +216,8 @@ function generic_test_valid_reservation_for_test_date
         # leading `<' character and read file content
         spectator_email="$(cat "${spectator_email:1}")"
     fi
-    if [ "$(sql_query "SELECT name, email, date, paying_seats, free_seats, gdpr_accepts_use, cents_due, active, bank_id FROM reservations WHERE bank_id = '$communication';")" \
-             != "$spectator_name|$spectator_email|$concert_date|$paying_seats|$free_seats|$gdpr_accepts_use|$cents_due|1|$communication" \
+    if [ "$(sql_query "SELECT civility, first_name, last_name, email, date, paying_seats, free_seats, gdpr_accepts_use, cents_due, active, bank_id FROM reservations WHERE bank_id = '$communication';")" \
+             != "||$spectator_name|$spectator_email|$concert_date|$paying_seats|$free_seats|$gdpr_accepts_use|$cents_due|1|$communication" \
        ]; then
         die "test_$test_name: Wrong data saved in DB"
     fi
@@ -236,7 +236,7 @@ function generic_test_new_reservation_without_valid_CSRF_token_fails
     test_stderr="$test_dir/$test_name.stderr.log"
     do_curl_as_admin 'gestion/add_unchecked_reservation.cgi' \
                      "$test_output" \
-                     "-X POST -F name=$test_name -F email=ByAdminNoCsrf@email.com -F date=2099-01-01 -F paying_seats=3 -F free_seats=5 $csrf_arg --verbose" \
+                     "-X POST -F last_name=$test_name -F first_name= -F civility= -F email=ByAdminNoCsrf@email.com -F date=2099-01-01 -F paying_seats=3 -F free_seats=5 $csrf_arg --verbose" \
                      2> "$test_stderr"
     get_db_file
     if [ "$(count_reservations)" != "3" ]; then
@@ -253,9 +253,9 @@ function make_list_reservations_output_deterministic
     local input substitutions csrf_token
     input="$1"
     # tr -d -c '...': slugify name to ensure it can become a proper sed(1) command
-    substitutions="$(sql_query "SELECT name, bank_id FROM reservations" \
+    substitutions="$(sql_query "SELECT civility, first_name, last_name, bank_id FROM reservations" \
                          | tr -d -c 'a-zA-Z0-9|\n' \
-                         | sed -e 's;\(.*\)|\(.*\);-e s,\2,COMMUNICATION-\1,;')"
+                         | sed -e 's;\(.*\)|\(.*\)|\(.*\)|\(.*\);-e s,\4,COMMUNICATION-\1\2\3,;')"
     csrf_token="$(sed -n -e 's/.*csrf_token" value="\([a-f0-9A-F]*\)".*/\1/p' "$input")"
     if [ -z "$csrf_token" ];
     then
@@ -301,17 +301,18 @@ function capture_cgi_output
     else
         ignore_cgitb=""
     fi
+    if [ "$1" = "--output" ]; then
+        test_output="$2"
+        shift 2
+    fi
     test_name="$1"
     method="$2"
     script_name="$3"
     query_string="$4"
-    shift 4
-    if [ -z "$5" ]; then
+    if [ -z "$test_output" ]; then
         test_output="$test_dir/$test_name.log"
-    else
-        test_output="$5"
-        shift
     fi
+    shift 4
     if ! simulate_cgi_request "$method" "$script_name" "$query_string" "$@" > "$test_output" ; then
         [ -z "$ignore_cgitb" ] && die "$test_name CGI execution problem, look in $test_output"
     fi
@@ -333,16 +334,17 @@ function capture_admin_cgi_output
     else
         remote_addr="1.2.3.4"
     fi
+    if [ "$1" = "--output" ]; then
+        test_output="$2"
+        shift 2
+    fi
     test_name="$1"
     method="$2"
     script_name="$3"
     query_string="$4"
     shift 4
-    if [ -z "$5" ]; then
+    if [ -z "$test_output" ]; then
         test_output="$test_dir/$test_name.log"
-    else
-        test_output="$5"
-        shift
     fi
     if ! simulate_cgi_request "$method" "$admin_sub_dir/$script_name" "$query_string" REMOTE_USER="$admin_user" REMOTE_ADDR="$remote_addr" "$@" > "$test_output" ; then
         [ -z "$ignore_cgitb" ] && die "$test_name admin CGI execution problem, look in $test_output"
@@ -397,10 +399,9 @@ function assert_not_in_html_response
 # 01: Post a new reservation as a customer
 function test_01_local_post_reservation
 {
-    local test_name test_output uuid_hex bank_id
+    local test_name test_output test_stderr uuid_hex bank_id
     test_name="test_01_local_post_reservation"
-    test_output="$test_dir/$test_name.log"
-    echo | (cd "$app_dir" && script_name=post_reservation.cgi && env CONFIGURATION_JSON_DIR="$test_dir" REQUEST_METHOD=POST 'QUERY_STRING=civility=melle&first_name=Jean&last_name=test&email=i%40example.com&paying_seats=3&free_seats=2&gdpr_accepts_use=true&date=2099-01-01' SERVER_NAME=example.com SCRIPT_NAME=$script_name python3 $script_name) > "$test_output" 2> "$test_output.stderr"
+    test_output="$(capture_cgi_output "$test_name" POST post_reservation.cgi 'civility=melle&first_name=Jean&last_name=test&email=i%40example.com&paying_seats=3&free_seats=2&gdpr_accepts_use=true&date=2099-01-01')"
     grep -q '^Status: 302' "$test_output"
     uuid_hex="$(sed -n -e '/^Location: /s/.*uuid_hex=\([a-f0-9]*\).*/\1/p' "$test_output")"
     [ -z "$uuid_hex" ] && die "No uuid_hex in $test_output"
@@ -409,7 +410,7 @@ function test_01_local_post_reservation
     [ "$(count_reservations)" -eq 1 ] || die "Reservation count wrong"
     [ "$(count_csrfs)" -eq 0 ] || die "CSRF count wrong"
     [ "$(count_payments)" -eq 0 ] || die "Payment count wrong"
-    (cd "$app_dir" && script_name=show_reservation.cgi && env CONFIGURATION_JSON_DIR="$test_dir" REQUEST_METHOD=GET QUERY_STRING="bank_id=$bank_id&uuid_hex=$uuid_hex" SERVER_NAME=example.com SCRIPT_NAME=$script_name python3 $script_name) > "$test_output" 2> "$test_output.stderr"
+    test_output="$(capture_cgi_output --output "$test_output" "$test_name" GET show_reservation.cgi "bank_id=$bank_id&uuid_hex=$uuid_hex")"
     assert_html_response "$test_name" "$test_output" \
                          "Melle Jean test" \
                          " 3 [^0-9]*pay[^0-9]* 2 [^0-9]*gratuit" \
@@ -417,49 +418,84 @@ function test_01_local_post_reservation
                          "$(echo $bank_id | sed -e 's;\(...\)\(....\)\(.*\);\1/\2/\3;')" \
                          "$bank_id" \
                          "$uuid_hex"
-    [ "$(count_reservations)" -eq 1 ] || die "Reservation count wrong"
-    [ "$(count_csrfs)" -eq 0 ] || die "CSRF count wrong"
-    [ "$(count_payments)" -eq 0 ] || die "Payment count wrong"
+    [ "$(count_reservations)" -eq 1 ] || die "$test_name: Reservation count wrong"
+    [ "$(count_csrfs)" -eq 0 ] || die "$test_name: CSRF count wrong"
+    [ "$(count_payments)" -eq 0 ] || die "$test_name: Payment count wrong"
     echo "$test_name: ok"
 }
 
 # 02: Locally list payments when DB is still empty
 function test_02_local_list_empty_payments
 {
-    local test_output csrf_token
-    test_output="$test_dir/02_local_list_empty_payments.html"
-    (cd "$app_dir/gestion" && env CONFIGURATION_JSON_DIR="$test_dir" REQUEST_METHOD=GET REMOTE_USER=secretaire REMOTE_ADDR=1.2.3.4 SERVER_NAME=localhost SCRIPT_NAME=list_payments.cgi python3 list_payments.cgi) > "$test_output.tmp"
-    csrf_token="$(sed -n -e 's/.*csrf_token" value="\([a-f0-9A-F]*\)".*/\1/p' "$test_output.tmp")"
+    local test_name test_output test_output_tmp csrf_token
+    test_name="02_local_list_empty_payments"
+    test_output="$test_dir/$test_name.html"
+    test_output_tmp="$(capture_admin_cgi_output --output "$test_output.tmp" "$test_name" GET list_payments.cgi '')"
+    csrf_token="$(sed -n -e 's/.*csrf_token" value="\([a-f0-9A-F]*\)".*/\1/p' "$test_output_tmp")"
     if [ -z "$csrf_token" ];
     then
-        die "No csrf_token in '$test_output.tmp'"
+        die "No csrf_token in '$test_output_tmp'"
     else
         sed -e 's/csrf_token" value="'"$csrf_token"'"/csrf_token" value="CSRF_TOKEN"/g' \
-            "$test_output.tmp" \
+            "$test_output_tmp" \
             > "$test_output"
     fi
     do_diff "$test_output"
-    if [ "$(count_csrfs)" -ne "1" -o "$(get_user_of_csrf_token "$csrf_token")" != "secretaire" ]; then
-        die "CSRF problem."
+    if [ "$(count_csrfs)" -ne "1" -o "$(get_user_of_csrf_token "$csrf_token")" != "$admin_user" ]; then
+        die "$test_name: CSRF problem."
     fi
     echo "test_02_local_list_empty_payments: ok"
 }
 
 function test_03_local_list_reservations__1_reservation
 {
-    local test_name test_output csrf_token local_user
+    local test_name test_output csrf_token
     test_name="03_local_list_reservations__1_reservation"
-    test_output="$test_dir/$test_name.html"
-    local_user=secretaire
-    (cd "$app_dir/gestion";export SCRIPT_NAME="list_reservations.cgi"; cd "$(dirname "$SCRIPT_NAME")" && CONFIGURATION_JSON_DIR="$(dirname "$(ls -t /tmp/tmp.*/configuration.json | head -n 1)")" DB_DB="$CONFIGURATION_JSON_DIR/db.db" REQUEST_METHOD=GET REMOTE_USER="$local_user" REMOTE_ADDR="1.2.3.4" QUERY_STRING="" SERVER_NAME=localhost python3 $SCRIPT_NAME) > "$test_output"
-    [ "$(count_reservations)" -eq 1 ] || die "Reservation count wrong"
-    [ "$(count_csrfs)" -eq 1 ] || die "CSRF count wrong"
-    [ "$(count_payments)" -eq 0 ] || die "Payment count wrong"
-    csrf_token="$(get_csrf_token_of_user "$local_user")"
-    [ -n "$csrf_token" ] || die "Unable to get csrf_token of $local_user"
+    test_output="$(capture_admin_cgi_output "$test_name" GET list_reservations.cgi "")"
+    [ "$(count_reservations)" -eq 1 ] || die "$test_name: Reservation count wrong"
+    [ "$(count_csrfs)" -eq 1 ] || die "$test_name: CSRF count wrong"
+    [ "$(count_payments)" -eq 0 ] || die "$test_name: Payment count wrong"
+    csrf_token="$(get_csrf_token_of_user "$admin_user")"
+    [ -n "$csrf_token" ] || die "Unable to get csrf_token of $admin_user"
     assert_html_response "$test_name" "$test_output" \
                          "<tr><td>Melle Jean test</td><td>i@example.com</td><td>2099-01-01</td><td>3</td><td>2</td>" \
                          '<input type="hidden"[^>]*"csrf_token"[^>]*"'"$csrf_token"'"'
+    echo "$test_name: ok"
+}
+
+function test_04_local_export_reservations_csv__1_reservation
+{
+    local test_name test_output csrf_token
+    test_name="04_local_export_reservations_csv__1_reservation"
+    test_output="$(capture_admin_cgi_output --output "$test_dir/$test_name.csv" "$test_name" GET export_csv.cgi '')"
+    [ "$(count_reservations)" -eq 1 ] || die "$test_name: Reservation count wrong"
+    [ "$(count_csrfs)" -eq 1 ] || die "$test_name: CSRF count wrong"
+    [ "$(count_payments)" -eq 0 ] || die "$test_name: Payment count wrong"
+    csrf_token="$(get_csrf_token_of_user "$admin_user")"
+    [ -n "$csrf_token" ] || die "Unable to get csrf_token of $admin_user"
+    sed -n -e '/^Content-Type: text\/csv; charset=utf-8/q0' -e '2q12' "$test_output" || die "First line of $test_output is not the content-type"
+    (tail -n 1 "$test_output" \
+         | grep -q -e "^Melle,test,Jean,i@example.com,2099-01-01,3,2,15.00€" \
+        ) || die "Unexpected data in $test_output"
+    echo "$test_name: ok"
+}
+
+function test_05_local_add_unchecked_reservation
+{
+    local test_name test_output csrf_token uuid_hex bank_id
+    test_name="05_local_add_unchecked_reservation"
+    csrf_token="$(get_csrf_token_of_user "$admin_user")"
+    [ -n "$csrf_token" ] || die "$test_name: Unable to get csrf_token of $admin_user before POST"
+    test_output="$(capture_admin_cgi_output "$test_name" POST "add_unchecked_reservation.cgi" 'csrf_token='"$csrf_token"'&last_name=cmdlinename&comment=fromcmdline&date=2099-01-01&paying_seats=3&free_seats=4')"
+    [ "$(count_reservations)" -eq 2 ] || die "$test_name: Reservation count wrong"
+    [ "$(count_csrfs)" -eq 1 ] || die "$test_name: CSRF count wrong"
+    [ "$(count_payments)" -eq 0 ] || die "$test_name: Payment count wrong"
+    grep -q '^Status: 302' "$test_output" || die "$test_name: not a redirection"
+    bank_id="$(sed -ne 's/.*bank_id=\([0-9]*\).*/\1/p' "$test_output")"
+    [ -n "$bank_id" ] || die "$test_name: no bank_id?"
+    uuid_hex="$(sed -ne 's/.*uuid_hex=\([0-9a-f]*\).*/\1/p' "$test_output")"
+    [ -n "$uuid_hex" ] || die "$test_name: no uuid_hex?"
+    [ "$(sql_query "SELECT COUNT(*) FROM reservations WHERE bank_id = '$bank_id' AND uuid = '$uuid_hex'")" -eq "1" ] || die "$test_name: reservation not found in DB"
     echo "$test_name: ok"
 }
 
@@ -500,7 +536,7 @@ function test_02_invalid_date_for_reservation
 {
     local test_output
     test_output="$test_dir/02_invalid_date_for_reservation.html"
-    do_curl 'post_reservation.cgi' "$test_output" "-X POST -F name=TestName -F email=Test.Email@example.com -F date=1234-56-78 -F paying_seats=3 -F free_seats=5 -F gdpr_accepts_use=1"
+    do_curl 'post_reservation.cgi' "$test_output" "-X POST -F last_name=TestName -F first_name='' -F civility='' -F email=Test.Email@example.com -F date=1234-56-78 -F paying_seats=3 -F free_seats=5 -F gdpr_accepts_use=1"
     do_diff "$test_output"
     get_db_file
     if [ "$(count_reservations)" != "0" ]; then
@@ -535,7 +571,7 @@ function test_03_00_locally_upload_payments
     if [ -z "$remote_addr" ]; then
        die "$test_name no REMOTE_ADDR generated for $admin_user"
     fi
-    uuid_hex="$(sql_query 'select uuid from reservations where name="TestName" limit 1')"
+    uuid_hex="$(sql_query 'select uuid from reservations where last_name="TestName" limit 1')"
     if [ -z "$uuid_hex" ]; then
         die "$test_name Unable to find reservation uuid"
     fi
@@ -588,7 +624,7 @@ function test_03_01_locally_hide_payment
     if [ -z "$remote_addr" ]; then
        die "$test_name no REMOTE_ADDR generated for $admin_user"
     fi
-    uuid_hex="$(sql_query 'select uuid from reservations where name="TestName" limit 1')"
+    uuid_hex="$(sql_query 'select uuid from reservations where last_name="TestName" limit 1')"
     if [ -z "$uuid_hex" ]; then
         die "$test_name Unable to find reservation uuid"
     fi
@@ -697,7 +733,7 @@ function test_09_new_reservation_with_correct_CSRF_token_succeeds
     do_curl_with_redirect --admin \
                           'gestion/add_unchecked_reservation.cgi' \
                           "$test_output.tmp" \
-                          "-X POST -F name=TestCreatedByAdmin -F comment=ByAdmin -F date=2099-01-01 -F paying_seats=0 -F free_seats=1 -F csrf_token=$csrf_token"
+                          "-X POST -F last_name=TestCreatedByAdmin -F comment=ByAdmin -F date=2099-01-01 -F paying_seats=0 -F free_seats=1 -F csrf_token=$csrf_token"
     formatted_communication="$(sed -n -e 's;.*<code>\(+++[0-9][0-9][0-9]/[0-9][0-9][0-9][0-9]/[0-9][0-9][0-9][0-9][0-9]+++\)</code>.*;\1;p' "$test_output.tmp")"
     if [ -n "$formatted_communication" ]; then
        die "test_09_new_reservation_with_correct_CSRF_token_succeeds: bank ID '$formatted_communication' in output"
@@ -717,7 +753,7 @@ function test_09_new_reservation_with_correct_CSRF_token_succeeds
     if [ "$(count_reservations)" != "4" ]; then
         die "test_09_new_reservation_with_correct_CSRF_token_succeeds: Reservations table should contain $total_reservations_count row."
     fi
-    if [ "$(sql_query "SELECT name, email, date, paying_seats, free_seats, gdpr_accepts_use, cents_due, active, bank_id, uuid FROM reservations ORDER BY timestamp DESC LIMIT 1;")" \
+    if [ "$(sql_query "SELECT last_name, email, date, paying_seats, free_seats, gdpr_accepts_use, cents_due, active, bank_id, uuid FROM reservations ORDER BY timestamp DESC LIMIT 1;")" \
              != "TestCreatedByAdmin|ByAdmin|2099-01-01|0|1|0|0|1|$bank_id|$uuid_hex" \
        ]; then
         die "test_09_new_reservation_with_correct_CSRF_token_succeeds: Wrong data saved in DB"
@@ -741,7 +777,7 @@ function test_10_export_as_csv
     test_output="$test_dir/10_export_as_csv.csv"
     do_curl_as_admin 'gestion/export_csv.cgi' "$test_output.tmp"
     # Replace variable or random parts of collected output by deterministic identifiers
-    substitutions="$(sql_query "SELECT name, bank_id FROM reservations" \
+    substitutions="$(sql_query "SELECT last_name, bank_id FROM reservations" \
                          | sed -e 's;\(.*\)|\(...\)\(....\)\(.....\);-e s,+++\2/\3/\4+++,COMMUNICATION-\1,;')"
     sed $substitutions -e "s/,$admin_user,/,TEST_ADMIN,/" "$test_output.tmp" > "$test_output"
     do_diff "$test_output"
@@ -785,7 +821,7 @@ function test_12_bobby_tables_and_co
     do_curl_as_admin 'gestion/list_reservations.cgi?limit=9' "$test_output.tmp"
     csrf_token="$(sed -n -e 's/.*csrf_token" value="\([a-f0-9A-F]*\)".*/\1/p' "$test_output.tmp")"
     get_db_file
-    sql_query 'select email,name from reservations where email like "%body%html%"' \
+    sql_query 'select email,last_name from reservations where email like "%body%html%"' \
               > "$sql_output"
     do_diff "$sql_output"
     if [ "$(count_csrfs)" -gt "1" -o "$(get_user_of_csrf_token "$csrf_token")" != "$admin_user" ]; then
@@ -834,7 +870,7 @@ Storing test output in '$test_dir', clean with
 EOF
 
 # Local copy of configuration
-echo '{ "paying_seat_cents": 500, "bank_account": "'$bank_account'", "info_email": "'$info_email'", "dbdir": "'$test_dir'", "logir": "'$test_dir'" }' \
+echo '{ "paying_seat_cents": 500, "bank_account": "'$bank_account'", "info_email": "'$info_email'", "dbdir": "'$test_dir'", "logdir": "'$test_dir'" }' \
      > "$test_dir/configuration.json"
 
 if [ -n "$dash_x" ];
@@ -845,6 +881,8 @@ fi
 test_01_local_post_reservation
 test_02_local_list_empty_payments
 test_03_local_list_reservations__1_reservation
+test_04_local_export_reservations_csv__1_reservation
+test_05_local_add_unchecked_reservation
 
 set +x
 
@@ -863,7 +901,7 @@ EOF
 
 # Deploy
 "$(dirname "$0")/../deploy.sh" "--for-tests" "$destination" "$user" "$group" "$host_path_prefix" "$folder" "$venv_abs_path" "$admin_user" "$admin_pw"
-cat "$test_dir/configuration.json" \
+sed -e 's/, *"[^"]*dir" *: *"[^"]*"//g' "$test_dir/configuration.json" \
     | ssh "$destination" \
           "touch '$ssh_app_folder/configuration.json'; cat > '$ssh_app_folder/configuration.json'"
 

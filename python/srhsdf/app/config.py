@@ -20,7 +20,7 @@ def get_configuration():
         "organizer_bic": "GABBBEBB",
         'info_email': 'nobody@example.com',
         "full_payment_confirmation_template": '<p>Hi,</p><p>Thank you for your payment for <a href="%reservation_url%">your reservation</a>.</p><p>Greetings,<br>--&nbsp;<br>Signature</p>',
-        "partial_payment_confirmation_template": '<p>Hi,</p><p>Thank you for your payment for <a href="%reservation_url%">your reservation</a>.</p><p>You can wire the remaining %remaining_amount_in_euro% € to %organizer_name% (%bank_account%, organizer_bic%) with the communication <pre>%formatted_bank_id%</pre>.</p><p>Greetings,<br>--&nbsp;<br>Signature</p>',
+        "partial_payment_confirmation_template": '<p>Hi,</p><p>Thank you for your payment for <a href="%reservation_url%">your reservation</a>.</p><p>You can wire the remaining %remaining_amount_in_euro% € to %organizer_name% (%bank_account%, %organizer_bic%) with the communication <pre>%formatted_bank_id%</pre>.</p><p>Greetings,<br>--&nbsp;<br>Signature</p>',
     }
     try:
         with open(os.path.join(SCRIPT_DIR, 'configuration.json')) as f:

@@ -26,34 +26,50 @@ Host an HTML form that will =POST= its content to the =post_reservation.cgi=
 script:
 #+begin_example
   <form action="https://YOUR_HOST/DEPLOYMENT_DIR/post_reservation.cgi" method="POST">
-    <label for="name">Nom:</label><br>
-    <input type="text" id="name" name="name" placeholder="Il est obligatoire de saisir votre nom" required="required" style="width:100%;"><br>
-    <label for="email">Email:</label><br>
-    <input type="email" id="email" name="email" placeholder="Votre adresse email nous permettra de vous tenir au courant de nos futures activités" required="required" style="width:100%;"><br>
-    <br><input type="radio" id="samedi" name="date" value="2099-01-01" checked="checked">
-    <label for="samedi">TEST: Samedi 1 janvier 2099 à 20h.</label><br>
-    <input type="radio" id="dimanche" name="date" value="2099-01-02">
-    <label for="dimanche">TEST: Dimanche 2 janvier 2099 à 15h.</label><br>
-    <label for="paying_seats">Places payantes (5€ à partir de 12 ans):</label>
-    <input type="number" id="paying_seats" name="paying_seats" min="0" max="10" value="0"><br>
-    <label for="free_seats">Places gratuites (moins de 12 ans):</label>
-    <input type="number" id="free_seats" name="free_seats" min="0" max="10" value="0"><br>
+    <div style="display: flex;">
+      <select id="civility" name="civility">
+        <option value=""></option>
+        <option value="mlle">Mlle</option>
+        <option value="mme">Mme</option>
+        <option value="mr">Mr</option>
+      </select>
+      <input id="first_name" name="first_name" type="text" placeholder="Prénom" style="width: calc(40%)">
+      <input id="last_name" name="last_name" type="text" placeholder="Nom de famille" required="required" style="width: calc(60%)">
+    </div>
+    <input id="email" name="email" type="email" placeholder="Adresse email pour le suivi de votre commande" required="required" style="width: 100%;"><br>
+    <input id="samedi" name="date" type="radio" value="2024-11-30" checked="checked"><label for="samedi">Samedi 30 novembre 2024 à 20h</label><br>
+    <input id="dimanche" name="date" type="radio" value="2024-12-01"><label for="dimanche">Dimanche 1 décembre 2024 à 15h</label><br>
+    <div style="display: grid;">
+      <div style="grid-row: 1; grid-column: 1;">
+        <label for="paying_seats">Places payantes (12€ en prévente; plus de 12 ans):</label>
+      </div>
+      <div style="grid-row: 1; grid-column: 2;">
+        <input id="paying_seats" name="paying_seats" type="number" min="0" value="1" style="width: 5em;"><br>
+      </div>
+      <div style="grid-row: 2; grid-column: 1;">
+        <label for="free_seats">Places gratuites (moins de 12 ans):</label>
+      </div>
+      <div style="grid-row: 2; grid-column: 2;">
+        <input id="free_seats" name="free_seats" type="number" min="0" value="0" style="width: 5em;"><br>
+      </div>
+    </div>
     <div style="display: grid;">
       <div style="grid-row: 1; grid-column: 1;"><input type="checkbox" id="gdpr_accepts_use" name="gdpr_accepts_use" value="true"></div>
       <div style="grid-row: 1; grid-column: 2;">
         <label for="gdpr_accepts_use">J'autorise la Société Royale d'Harmonie de Braine-l'Alleud à utiliser mon adresse email pour m'avertir de ses futures activités.</label>
       </div>
     </div><br>
-    <input type="submit" value="Confirmer">
+    <input type="submit" value="Confirmer" style="width: 100%;">
   </form>
 #+end_example
 
 * Test mode
 There are 4 dates for the concert: 2 fake dates in 2099 and the 2 real dates
-in 2022.
+in 2024.
 
-The trick to be able to book dates for the fake dates is that the name must
-start with ~Test~ and that the email address must end with ~@example.com~.
+The trick to be able to book dates for the fake dates is that the last name
+must start with ~Test~ and that the email address must end with
+~@example.com~.
 
 There are some automated test in [[file+emacs:tests/tests.sh][this shell script]].  It exercises various
 end-points and compares the HTML output with known good HTML output.  The

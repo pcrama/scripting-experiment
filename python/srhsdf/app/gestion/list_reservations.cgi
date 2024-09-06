@@ -1,7 +1,7 @@
 #!/usr/pkg/bin/python3
 # -*- coding: utf-8 -*-
 #
-# (export SCRIPT_NAME="$PWD/app/gestion/list_reservations.cgi"; cd "$(dirname "$SCRIPT_NAME")" && CONFIGURATION_JSON_DIR="$(dirname "$(ls -t /tmp/tmp.*/configuration.json | head -n 1)")" DB_DB="$CONFIGURATION_JSON_DIR/db.db" REQUEST_METHOD=GET REMOTE_USER="secretaire" REMOTE_ADDR="1.2.3.4" QUERY_STRING="" SERVER_NAME=localhost python3 $SCRIPT_NAME)
+# (export SCRIPT_NAME="$PWD/app/gestion/list_reservations.cgi"; cd "$(dirname "$SCRIPT_NAME")" && CONFIGURATION_JSON_DIR="$(dirname "$(ls -t /tmp/tmp.*/configuration.json | head -n 1)")" REQUEST_METHOD=GET REMOTE_USER="secretaire" REMOTE_ADDR="1.2.3.4" QUERY_STRING="" SERVER_NAME=localhost python3 $SCRIPT_NAME)
 import cgi
 import cgitb
 import itertools
@@ -182,8 +182,13 @@ if __name__ == '__main__':
              ('p', 'Ajouter une réservation:'),
              (('form', 'method', 'post', 'action', 'add_unchecked_reservation.cgi'),
               (('input', 'type', 'hidden', 'id', 'csrf_token', 'name', 'csrf_token', 'value', csrf_token.token),),
-              (('label', 'for', 'name'), 'Nom'),
-              (('input', 'id', 'name', 'name', 'name', 'type', 'text', 'placeholder', 'Nom de la bulle', 'required', 'required', 'style', 'width:100%;'),),
+              (('select', 'id', 'civility', 'name', 'civility'),
+               (('option', 'value', ''), ""),
+               (('option', 'value', 'mlle'), "Mlle"),
+               (('option', 'value', 'mlle'), "Mme"),
+               (('option', 'value', 'mlle'), "Mr")),
+              (('input', 'id', 'first_name', 'name', 'first_name', 'type', 'text', 'placeholder', 'Prénom'),),
+              (('input', 'id', 'last_name', 'name', 'last_name', 'type', 'text', 'placeholder', 'Nom de famille', 'required', 'required'),),
               ('br',),
               (('label', 'for', 'comment'), 'Commentaire'),
               (('input', 'id', 'comment', 'name', 'comment', 'type', 'text', 'placeholder', 'Commentaire', 'style', 'width:100%;'),),

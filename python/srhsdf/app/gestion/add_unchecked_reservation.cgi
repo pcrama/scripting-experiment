@@ -1,7 +1,7 @@
 #!/usr/pkg/bin/python3
 # -*- coding: utf-8 -*-
 #
-# (export SCRIPT_NAME="$PWD/app/gestion/add_unchecked_reservation.cgi"; cd "$(dirname "$SCRIPT_NAME")" && echo | CONFIGURATION_JSON_DIR="$(dirname "$(ls -t /tmp/tmp.*/configuration.json | head -n 1)")" DB_DB="$CONFIGURATION_JSON_DIR/db.db" REQUEST_METHOD=POST REMOTE_USER="$(sqlite3 "$DB_DB" "select user from csrfs limit 1")" REMOTE_ADDR="$(sqlite3 "$DB_DB" "select ip from csrfs limit 1")" QUERY_STRING='csrf_token='"$(sqlite3 "$DB_DB" "select token from csrfs limit 1")"'&name=cmdlinename&comment=fromcmdline&date=2099-01-01&paying_seats=3&free_seats=4' SERVER_NAME=localhost python3 $SCRIPT_NAME)
+# (export SCRIPT_NAME="$PWD/app/gestion/add_unchecked_reservation.cgi"; cd "$(dirname "$SCRIPT_NAME")" && echo | CONFIGURATION_JSON_DIR="$(dirname "$(ls -t /tmp/tmp.*/configuration.json | head -n 1)")" DB_DB="$CONFIGURATION_JSON_DIR/db.db" REQUEST_METHOD=POST REMOTE_USER="$(sqlite3 "$DB_DB" "select user from csrfs order by timestamp desc limit 1")" REMOTE_ADDR="$(sqlite3 "$DB_DB" "select ip from csrfs order by timestamp desc limit 1")" QUERY_STRING='csrf_token='"$(sqlite3 "$DB_DB" "select token from csrfs order by timestamp desc limit 1")"'&last_name=cmdlinename&comment=fromcmdline&date=2099-01-01&paying_seats=3&free_seats=4' SERVER_NAME=localhost python3 $SCRIPT_NAME)
 import cgi
 import cgitb
 import os
@@ -54,23 +54,30 @@ if __name__ == '__main__':
             except KeyError:
                 fail_add_unchecked_reservation()
         
-        name = form.getfirst('name', default='')
+        civility = form.getfirst('civility', default='')
+        first_name = form.getfirst('first_name', default='')
+        last_name = form.getfirst('last_name', default='')
         comment = form.getfirst('comment', default='')
         date = form.getfirst('date', default='')
         paying_seats = form.getfirst('paying_seats', default=0)
         free_seats = form.getfirst('free_seats', default=0)
         # Abuse 'email' field to store 'comment'
-        (name, comment, date, paying_seats, free_seats, gdpr_accepts_use) = normalize_data(
-            name,
+        (civility, first_name, last_name, comment, date, paying_seats, free_seats, gdpr_accepts_use) = normalize_data(
+            civility,
+            first_name,
+            last_name,
             comment,
             date,
             paying_seats,
             free_seats,
             # there is no email address or they would have registered
-            # themselves -> No GDPR
-            False)
+            # themselves -> Say no to GDPR, we don't want the email address in
+            # our records anyway.
+            "No")
         respond_with_reservation_confirmation(
-            name,
+            civility,
+            first_name,
+            last_name,
             comment,
             date,
             paying_seats,

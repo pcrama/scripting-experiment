@@ -38,36 +38,6 @@ def cents_to_euro(cents):
     return f'{sign}{cents // 100}.{cents % 100:02}'
 
 
-def old_html_gen(data):
-    def is_tuple(x):
-        return type(x) is tuple
-    if is_tuple(data) and len(data) == 2 and data[0] == 'raw':
-        yield data[1]
-    elif is_tuple(data):
-        tag_name = None
-        single_elt = len(data) == 1
-        for elt in data:
-            if tag_name is None:
-                tag = elt
-                if is_tuple(tag):
-                    tag_name = str(tag[0])
-                    attr_values = []
-                    for idx in range(1, len(tag), 2):
-                        attr_values.append((tag[idx], html.escape(tag[idx + 1], quote=True)))
-                    yield '<' + tag_name + ' ' + ' '.join(f'{x}="{y}"' for (x, y) in attr_values)
-                else:
-                    tag_name = str(tag)
-                    yield f'<{tag_name}'
-                yield ('/>' if single_elt else '>')
-            else:
-                for x in html_gen(elt):
-                    yield x
-        if not single_elt:
-            yield f'</{tag_name}>'
-    else:
-        yield html.escape(str(data), quote=False)
-
-
 def html_gen(data):
     def is_tuple(x):
         return type(x) is tuple
