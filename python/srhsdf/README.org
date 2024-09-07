@@ -33,10 +33,16 @@ script:
         <option value="mme">Mme</option>
         <option value="mr">Mr</option>
       </select>
-      <input id="first_name" name="first_name" type="text" placeholder="Prénom" style="width: calc(40%)">
-      <input id="last_name" name="last_name" type="text" placeholder="Nom de famille" required="required" style="width: calc(60%)">
+      <input id="first_name" name="first_name" type="text" placeholder="Prénom" style="width: 40%">
+      <input id="last_name" name="last_name" type="text" placeholder="Nom de famille" required="required" style="width: 60%">
     </div>
-    <input id="email" name="email" type="email" placeholder="Adresse email pour le suivi de votre commande" required="required" style="width: 100%;"><br>
+    <input id="email" name="email" type="email" placeholder="Adresse email pour le suivi de votre commande" required="required" style="width: 100%;">
+    <div style="display: grid;">
+      <div style="grid-row: 1; grid-column: 1;"><input type="checkbox" id="gdpr_accepts_use" name="gdpr_accepts_use" value="true"></div>
+      <div style="grid-row: 1; grid-column: 2;">
+        <label for="gdpr_accepts_use">J'autorise la Société Royale d'Harmonie de Braine-l'Alleud à utiliser mon adresse email pour m'avertir de ses futures activités.</label>
+      </div>
+    </div>
     <input id="samedi" name="date" type="radio" value="2024-11-30" checked="checked"><label for="samedi">Samedi 30 novembre 2024 à 20h</label><br>
     <input id="dimanche" name="date" type="radio" value="2024-12-01"><label for="dimanche">Dimanche 1 décembre 2024 à 15h</label><br>
     <div style="display: grid;">
@@ -44,23 +50,24 @@ script:
         <label for="paying_seats">Places payantes (12€ en prévente; plus de 12 ans):</label>
       </div>
       <div style="grid-row: 1; grid-column: 2;">
-        <input id="paying_seats" name="paying_seats" type="number" min="0" value="1" style="width: 5em;"><br>
+        <input id="paying_seats" name="paying_seats" type="number" min="0" value="1" style="width: 5em;">
       </div>
       <div style="grid-row: 2; grid-column: 1;">
         <label for="free_seats">Places gratuites (moins de 12 ans):</label>
       </div>
       <div style="grid-row: 2; grid-column: 2;">
-        <input id="free_seats" name="free_seats" type="number" min="0" value="0" style="width: 5em;"><br>
+        <input id="free_seats" name="free_seats" type="number" min="0" value="0" style="width: 5em;">
       </div>
     </div>
-    <div style="display: grid;">
-      <div style="grid-row: 1; grid-column: 1;"><input type="checkbox" id="gdpr_accepts_use" name="gdpr_accepts_use" value="true"></div>
-      <div style="grid-row: 1; grid-column: 2;">
-        <label for="gdpr_accepts_use">J'autorise la Société Royale d'Harmonie de Braine-l'Alleud à utiliser mon adresse email pour m'avertir de ses futures activités.</label>
-      </div>
-    </div><br>
     <input type="submit" value="Confirmer" style="width: 100%;">
   </form>
+  <p>La Société Royale d'Harmonie de Braine-l'Alleud respecte votre vie
+  privée. Les données de contact que vous nous communiquez dans ce formulaire
+  seront uniquement utilisées dans le cadre de ce concert de Gala, à moins que
+  vous nous donniez l'autorisation de les garder pour vous informer de nos
+  concerts et autres fêtes dans le futur.
+  <a href="mailto:info@srhbraine.be">Contactez-nous</a> pour demander d'être
+  retiré de nos fichiers.</p>
 #+end_example
 
 * Test mode
