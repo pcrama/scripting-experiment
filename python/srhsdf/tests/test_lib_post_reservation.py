@@ -79,7 +79,7 @@ class ValidateDate(unittest.TestCase):
             with self.subTest(name=name, email=email):
                 with self.assertRaises(lib_post_reservation.ValidationException):
                     lib_post_reservation.validate_data(
-                        'Melle', 'Jo', name, email, 'date', 'paying_seats', 'free_seats',
+                        'Mlle', 'Jo', name, email, 'date', 'paying_seats', 'free_seats',
                         'gdpr_accepts_use', 'connection')
 
 

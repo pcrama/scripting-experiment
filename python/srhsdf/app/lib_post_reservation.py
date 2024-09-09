@@ -39,7 +39,7 @@ def normalize_data(civility: str, first_name: str, last_name: str, email: str, d
             return max(0, min(int(x), 50))
         except Exception:
             return 0
-    civility = {'mr': 'Mr', 'mme': 'Mme', 'melle': 'Melle'}.get(safe_strip(civility).lower(), '')
+    civility = {'mr': 'Mr', 'mme': 'Mme', 'mlle': 'Mlle'}.get(safe_strip(civility).lower(), '')
     first_name = safe_strip(first_name)
     last_name = safe_strip(last_name)
     email = safe_strip(email)

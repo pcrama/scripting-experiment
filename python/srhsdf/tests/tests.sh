@@ -401,7 +401,7 @@ function test_01_local_post_reservation
 {
     local test_name test_output test_stderr uuid_hex bank_id
     test_name="test_01_local_post_reservation"
-    test_output="$(capture_cgi_output "$test_name" POST post_reservation.cgi 'civility=melle&first_name=Jean&last_name=test&email=i%40example.com&paying_seats=3&free_seats=2&gdpr_accepts_use=true&date=2099-01-01')"
+    test_output="$(capture_cgi_output "$test_name" POST post_reservation.cgi 'civility=mlle&first_name=Jean&last_name=test&email=i%40example.com&paying_seats=3&free_seats=2&gdpr_accepts_use=true&date=2099-01-01')"
     grep -q '^Status: 302' "$test_output"
     uuid_hex="$(sed -n -e '/^Location: /s/.*uuid_hex=\([a-f0-9]*\).*/\1/p' "$test_output")"
     [ -z "$uuid_hex" ] && die "No uuid_hex in $test_output"
@@ -412,7 +412,7 @@ function test_01_local_post_reservation
     [ "$(count_payments)" -eq 0 ] || die "Payment count wrong"
     test_output="$(capture_cgi_output --output "$test_output" "$test_name" GET show_reservation.cgi "bank_id=$bank_id&uuid_hex=$uuid_hex")"
     assert_html_response "$test_name" "$test_output" \
-                         "Melle Jean test" \
+                         "Mlle Jean test" \
                          " 3 [^0-9]*pay[^0-9]* 2 [^0-9]*gratuit" \
                          "$bank_account" \
                          "$(echo $bank_id | sed -e 's;\(...\)\(....\)\(.*\);\1/\2/\3;')" \
@@ -458,7 +458,7 @@ function test_03_local_list_reservations__1_reservation
     csrf_token="$(get_csrf_token_of_user "$admin_user")"
     [ -n "$csrf_token" ] || die "Unable to get csrf_token of $admin_user"
     assert_html_response "$test_name" "$test_output" \
-                         "<tr><td>Melle Jean test</td><td>i@example.com</td><td>2099-01-01</td><td>3</td><td>2</td>" \
+                         "<tr><td>Mlle Jean test</td><td>i@example.com</td><td>2099-01-01</td><td>3</td><td>2</td>" \
                          '<input type="hidden"[^>]*"csrf_token"[^>]*"'"$csrf_token"'"'
     echo "$test_name: ok"
 }
@@ -475,7 +475,7 @@ function test_04_local_export_reservations_csv__1_reservation
     [ -n "$csrf_token" ] || die "Unable to get csrf_token of $admin_user"
     sed -n -e '/^Content-Type: text\/csv; charset=utf-8/q0' -e '2q12' "$test_output" || die "First line of $test_output is not the content-type"
     (tail -n 1 "$test_output" \
-         | grep -q -e "^Melle,test,Jean,i@example.com,2099-01-01,3,2,15.00€" \
+         | grep -q -e "^Mlle,test,Jean,i@example.com,2099-01-01,3,2,15.00€" \
         ) || die "Unexpected data in $test_output"
     echo "$test_name: ok"
 }

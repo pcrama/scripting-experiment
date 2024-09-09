@@ -3,7 +3,7 @@
 #
 # Test with
 #
-# echo | (cd app && script_name=post_reservation.cgi && env REQUEST_METHOD=POST 'QUERY_STRING=civility=melle&first_name=Jean&last_name=test&email=i%40example.com&paying_seats=3&free_seats=2&gdpr_accepts_use=true&date=2099-01-01' SERVER_NAME=example.com SCRIPT_NAME=$script_name python3 $script_name)
+# echo | (cd app && script_name=post_reservation.cgi && env REQUEST_METHOD=POST 'QUERY_STRING=civility=mlle&first_name=Jean&last_name=test&email=i%40example.com&paying_seats=3&free_seats=2&gdpr_accepts_use=true&date=2099-01-01' SERVER_NAME=example.com SCRIPT_NAME=$script_name python3 $script_name)
 import cgi
 import cgitb
 import os
