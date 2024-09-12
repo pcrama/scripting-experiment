@@ -137,5 +137,6 @@ def redirect(new_url, and_exit=True, file=None):
         sys.exit(0)
 
 def redirect_to_event(suffix=None) -> NoReturn:
-    redirect(f'https://www.srhbraine.be/concert-de-gala-2022/#{suffix}')
+    suffix = f"#{suffix}" if suffix else ''
+    redirect(f'https://srhbraine.be/{suffix}')
     sys.exit(0)

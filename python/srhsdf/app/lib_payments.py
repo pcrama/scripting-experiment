@@ -105,7 +105,7 @@ def import_bank_statements(connection, bank_statements_csv: str, user:str, ip: s
         rowid=None, timestamp=None, amount_in_cents=None, comment=None, uuid=None, src_id=None, bank_ref=None, other_account=None, other_name=None, status=None, user=user, ip=ip, confirmation_timestamp=None, active=True,
     )
     exceptions = []
-    src_id_limit = time.strftime("%Y-000")
+    src_id_limit = time.strftime("%Y-")
     with connection:
         for row in csv_reader:
             pmnt = builder(row, proto)

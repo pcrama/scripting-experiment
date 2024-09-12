@@ -82,7 +82,7 @@ function assert_redirect_to_concert_page
     test_stderr="$1"
     grep -q '^< HTTP/1.1 302 Found' "$test_stderr" \
         || die "Not a redirect: $test_stderr $2"
-    grep -q '^< Location: https://www.srhbraine.be' "$test_stderr" \
+    grep -q '^< Location: https://[w.]*srhbraine.be' "$test_stderr" \
         || die "Target is not srhbraine.be: $test_stderr $2"
 }
 

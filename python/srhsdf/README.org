@@ -28,7 +28,7 @@ script:
   <form action="https://YOUR_HOST/DEPLOYMENT_DIR/post_reservation.cgi" method="POST">
     <div style="display: flex;">
       <select id="civility" name="civility">
-        <option value=""></option>
+        <option value="" selected="selected">???</option>
         <option value="mlle">Mlle</option>
         <option value="mme">Mme</option>
         <option value="mr">Mr</option>
