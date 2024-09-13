@@ -98,7 +98,26 @@ def extract_bank_ref(details: str) -> str:
     return details[left_idx:right_idx].strip()
 
 
+def blank_src_id(pmnt: Payment) -> bool:
+    """True if pmnt.src_id is blank or <<incomplete as observed in our bank statements>>
+
+    Some bank records have a src_id=='2024-' that gets updated during a later import,
+    let's count these as empty, too."""
+    return not pmnt.src_id or (pmnt.src_id.endswith('-') and all(ch.isdigit() for ch in pmnt.src_id[:-1]))
+
+
 def import_bank_statements(connection, bank_statements_csv: str, user:str, ip: str) -> list[tuple[Exception, Payment]]:
+    """Parse bank statements CSV and insert/update the rows in the database
+
+    For each row, a tuple is returned: the second element is the record parsed
+    from the CSV, the first element is None if the row caused a change in the
+    DB or the exception that prevented the DB update otherwise.
+
+    Normally, rows are only inserted, not updated with one exception: the bank
+    sometimes exports rows in the CSV without a valid src_id (valid would be
+    e.g. 2024-00123) and later imports will contain the same row except with a
+    `corrected' src_id.  In this case, the row is updated in the DB to reflect the
+    valid src_id issued by the bank."""
     csv_reader = csv.reader(io.StringIO(bank_statements_csv), delimiter=';')
     builder = make_payment_builder(next(csv_reader))
     proto = Payment(
@@ -109,7 +128,7 @@ def import_bank_statements(connection, bank_statements_csv: str, user:str, ip: s
     with connection:
         for row in csv_reader:
             pmnt = builder(row, proto)
-            if pmnt.src_id and pmnt.src_id < src_id_limit:
+            if not blank_src_id(pmnt) and pmnt.src_id < src_id_limit:
                 exceptions.append((RuntimeError(f"Bank statement {pmnt.src_id!r} is too old"), pmnt))
                 continue
             try:
@@ -121,8 +140,8 @@ def import_bank_statements(connection, bank_statements_csv: str, user:str, ip: s
                 if old_style_unique_constraint_error or new_style_unique_constraint_error:
                     # update src_id if it did not exist yet
                     pre_existing = Payment.find_by_bank_ref(connection, pmnt.bank_ref)
-                    if pre_existing and not pre_existing.src_id:
-                        columns_to_compare = {"amount_in_cents", "comment", "bank_ref", "other_account", "other_name", "timestamp"}
+                    if pre_existing and blank_src_id(pre_existing):
+                        columns_to_compare = {"amount_in_cents", "comment", "bank_ref", "other_account", "other_name"}
                         pre_dict = {key: val for key, val in pre_existing.to_dict().items() if key in columns_to_compare}
                         new_dict = {key: val for key, val in pmnt.to_dict().items() if key in columns_to_compare}
                         if pre_dict == new_dict:
