@@ -250,19 +250,22 @@ function generic_test_new_reservation_without_valid_CSRF_token_fails
 # CSRF token is included.  Output to stdout.
 function make_list_reservations_output_deterministic
 {
-    local input substitutions csrf_token
+    local input bank_id_substitutions uuid_substitutions csrf_token
     input="$1"
     # tr -d -c '...': slugify name to ensure it can become a proper sed(1) command
-    substitutions="$(sql_query "SELECT civility, first_name, last_name, bank_id FROM reservations" \
-                         | tr -d -c 'a-zA-Z0-9|\n' \
-                         | sed -e 's;\(.*\)|\(.*\)|\(.*\)|\(.*\);-e s,\4,COMMUNICATION-\1\2\3,;')"
+    bank_id_substitutions="$(sql_query "SELECT civility, first_name, last_name, bank_id FROM reservations" \
+                             | tr -d -c 'a-zA-Z0-9|\n' \
+                             | sed -e 's;\(.*\)|\(.*\)|\(.*\)|\(.*\);-e s,\4,COMMUNICATION-\1\2\3,g;')"
+    uuid_substitutions="$(sql_query "SELECT civility, first_name, last_name, uuid FROM reservations" \
+                          | tr -d -c 'a-zA-Z0-9|\n' \
+                          | sed -e 's;\(.*\)|\(.*\)|\(.*\)|\(.*\);-e s,\4,UUID-\1\2\3,g;')"
     csrf_token="$(sed -n -e 's/.*csrf_token" value="\([a-f0-9A-F]*\)".*/\1/p' "$input")"
     if [ -z "$csrf_token" ];
     then
         die "No csrf_token in '$input'"
     else
         sed -e 's/csrf_token" value="'"$csrf_token"'"/csrf_token" value="CSRF_TOKEN"/g' \
-            $substitutions \
+            $bank_id_substitutions $uuid_substitutions \
             -e "s/$admin_user/TEST_ADMIN/g" \
             -e "s;<td>[0-9]*/[0-9]*/[0-9]* [0-9]*:[0-9]*</td></tr>;<td>TEST-DATE</td></tr>;g" \
             "$input"
@@ -458,7 +461,7 @@ function test_03_local_list_reservations__1_reservation
     csrf_token="$(get_csrf_token_of_user "$admin_user")"
     [ -n "$csrf_token" ] || die "Unable to get csrf_token of $admin_user"
     assert_html_response "$test_name" "$test_output" \
-                         "<tr><td>Mlle Jean test</td><td>i@example.com</td><td>2099-01-01</td><td>3</td><td>2</td>" \
+                         "<tr><td><a href=\"[^>]*\">Mlle Jean test</a></td><td>i@example.com</td><td>2099-01-01</td><td>3</td><td>2</td>" \
                          '<input type="hidden"[^>]*"csrf_token"[^>]*"'"$csrf_token"'"'
     echo "$test_name: ok"
 }

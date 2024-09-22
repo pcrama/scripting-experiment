@@ -25,6 +25,9 @@ from storage import (
     Reservation,
     create_db,
 )
+from lib_post_reservation import (
+    make_show_reservation_url
+)
 
 
 def update_sort_order(new_col_name, sort_order):
@@ -86,10 +89,14 @@ if __name__ == '__main__':
     try:
         remote_user = os.environ['REMOTE_USER']
         remote_addr = os.environ['REMOTE_ADDR']
+        script_name = os.environ['SCRIPT_NAME']
+        server_name = os.environ['SERVER_NAME']
     except KeyError:
         redirect_to_event()
     if os.getenv('REQUEST_METHOD') != 'GET' or not remote_user or not remote_addr:
         redirect_to_event()
+    script_super_dir = os.path.dirname(os.path.dirname(script_name))
+    script_basename = os.path.basename(script_name)
 
     CONFIGURATION = config.get_configuration()
     cgitb.enable(display=CONFIGURATION['cgitb_display'], logdir=CONFIGURATION['logdir'])
@@ -143,7 +150,7 @@ if __name__ == '__main__':
                            for row in reservation_summary))
              if total_bookings > 0
              else '',
-             (('form', 'action', os.getenv('SCRIPT_NAME')),
+             (('form', 'action', script_name),
               (('label', 'for', 'limit'), 'Limiter le tableau à ', ('em', 'n'), ' lignes:'),
               (('input', 'id', 'limit', 'type', 'number', 'name', 'limit', 'min', '5', 'value', str(limit), 'max', '10000'),),
               (('input', 'type', 'submit', 'value', 'Rafraichir la page'),),
@@ -154,7 +161,8 @@ if __name__ == '__main__':
              ('table',
               ('tr', *table_header_row),
               *tuple(('tr',
-                      ('td', r.name),
+                      ('td', (('a', 'href', make_show_reservation_url(
+                       r.bank_id, r.uuid, server_name=server_name, script_name=os.path.join(script_super_dir, script_basename))), r.name)),
                       ('td', r.email),
                       ('td', r.date),
                       ('td', r.paying_seats),
