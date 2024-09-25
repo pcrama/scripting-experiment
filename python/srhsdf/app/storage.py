@@ -295,7 +295,7 @@ class Reservation(MiniOrm):
     SORTABLE_COLUMNS = {'name': 'LOWER(last_name||first_name)',
                         'email': 'LOWER(email)',
                         'date': 'date',
-                        'time': 'time',
+                        'timestamp': 'timestamp',
                         'paying_seats': 'paying_seats',
                         'free_seats': 'free_seats',
                         'bank_id': 'bank_id',

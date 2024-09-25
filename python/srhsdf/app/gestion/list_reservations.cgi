@@ -118,7 +118,7 @@ if __name__ == '__main__':
         COLUMNS = [('name', 'Nom'), ('email', 'Email'), ('date', 'Date'),
                    ('paying_seats', 'Payant'), ('free_seats', 'Gratuit'),
                    ('bank_id', 'Communication'), ('origin', 'Origine'),
-                   ('time', 'Réservé le')]
+                   ('timestamp', 'Réservé le')]
         table_header_row = tuple(
             ('th', make_navigation_a_elt(update_sort_order(column, sort_order), limit, offset,
                                          header + sort_direction(column, sort_order)))
