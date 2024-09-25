@@ -38,14 +38,57 @@ def html_document_with_mail_template(connection, reservation: Reservation, payme
                     if isinstance(key, str)
                     else (f'%{key[0]}%', key[1]))
         template = template.replace(key, val)
+    email_id = "reservation_email"
+    subject_id = "subject_id"
+    template_id = "mail_template_id"
     return (*html_document(
         "Mail template to confirm payment",
-        (('p',
+        (('script',
+          ('raw',
+           """/** Paste richly formatted text.
+ * https://stackoverflow.com/a/77305170
+ * @param {string} rich - the text formatted as HTML
+ * @param {string} plain - a plain text fallback
+ */
+async function pasteRich(rich, plain) {
+  if (typeof ClipboardItem !== "undefined") {
+    // Shiny new Clipboard API, not fully supported in Firefox.
+    // https://developer.mozilla.org/en-US/docs/Web/API/Clipboard_API#browser_compatibility
+    const html = new Blob([rich], { type: "text/html" });
+    const text = new Blob([plain], { type: "text/plain" });
+    const data = new ClipboardItem({ "text/html": html, "text/plain": text });
+    await navigator.clipboard.write([data]);
+  } else {
+    // Fallback using the deprecated `document.execCommand`.
+    // https://developer.mozilla.org/en-US/docs/Web/API/Document/execCommand#browser_compatibility
+    const cb = e => {
+      e.clipboardData.setData("text/html", rich);
+      e.clipboardData.setData("text/plain", plain);
+      e.preventDefault();
+    };
+    document.addEventListener("copy", cb);
+    document.execCommand("copy");
+    document.removeEventListener("copy", cb);
+  }
+}""")),
+         ('p',
           'To: ',
-          reservation.email,
+          (('span',
+            'onclick', f"navigator.clipboard.writeText(document.getElementById('{email_id}').innerText)",
+            'id', email_id,
+            'style', 'cursor: copy;'),
+           reservation.email),
           ('br',),
-          'Subject: Merci pour votre réservation et votre virement'),
-         ('raw', template),
+          'Subject: ',
+          (('span', 'onclick', f"navigator.clipboard.writeText(document.getElementById('{subject_id}').innerText)",
+            'id', subject_id,
+            'style', 'cursor: copy;'),
+           'Merci pour votre réservation et votre virement')),
+         (('div',
+           'onclick', f"pasteRich(document.getElementById('{template_id}').innerHTML, document.getElementById('{template_id}').innerText)",
+           'id', template_id,
+           'style', 'cursor: copy;'),
+          ('raw', template)),
          (('form', 'method', 'POST', 'action', urllib.parse.urljoin(f'https://{server_name}', confirm_payment_script_name)),
           (('input', 'type', 'hidden', 'name', 'csrf_token', 'value', csrf.token),),
           (('input', 'type', 'hidden', 'name', 'bank_ref', 'value', payment.bank_ref),),

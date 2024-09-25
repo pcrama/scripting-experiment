@@ -96,11 +96,16 @@ class TestHtmlDocumentWithMailTemplate(_BaseTestCase):
                 else:
                     self.assertEqual((tokens[0].user, tokens[0].ip), (self.USER, self.IP))
                 result = self.output.getvalue()
-                self.assertIn(f'<p>To: emile@example.com<br>Subject: Merci pour votre réservation et votre virement</p>', result)
+                last_pos = result.find("body>")
+                for needle in ('<p>To:', '>emile@example.com<', '>Subject:', '>Merci pour votre réservation et votre virement<'):
+                    self.assertIn(needle, result)
+                    needle_pos = result.find(needle, last_pos)
+                    self.assertLess(last_pos, needle_pos)
+                    last_pos = needle_pos
                 self.assertIn(f'<form method="POST" action="https://example.com/italsdf/gestion/confirm_payment.cgi">', result)
                 self.assertIn(f'<input type="hidden" name="csrf_token" value="{tokens[0].token}">', result)
                 self.assertIn(f'<input type="hidden" name="bank_ref" value="{payment.bank_ref}">', result)
-                self.assertIn(f'<a href="https://example.com/italsdf/show_reservation.cgi?bank_id={reservation.bank_id}&uuid_hex={reservation.uuid}">', result)
+                self.assertIn(f'Hello, you paid for your <a href="https://example.com/italsdf/show_reservation.cgi?bank_id={reservation.bank_id}&uuid_hex={reservation.uuid}">', result)
 
     def test_generate_email_template_for_partial_payment(self):
         connection, reservation, payment = self.setup_reservation_and_payment(missing_cents=123)
@@ -132,7 +137,12 @@ class TestHtmlDocumentWithMailTemplate(_BaseTestCase):
                 else:
                     self.assertEqual((tokens[0].user, tokens[0].ip), (self.USER, self.IP))
                 result = self.output.getvalue()
-                self.assertIn(f'<p>To: emile@example.com<br>Subject: Merci pour votre réservation et votre virement</p>', result)
+                last_pos = result.find("body>")
+                for needle in ('<p>To:', '>emile@example.com<', '>Subject:', '>Merci pour votre réservation et votre virement<'):
+                    self.assertIn(needle, result)
+                    needle_pos = result.find(needle, last_pos)
+                    self.assertLess(last_pos, needle_pos)
+                    last_pos = needle_pos
                 self.assertIn(f'<form method="POST" action="https://example.com/italsdf/gestion/confirm_payment.cgi">', result)
                 self.assertIn(f'<input type="hidden" name="csrf_token" value="{tokens[0].token}">', result)
                 self.assertIn(f'<input type="hidden" name="bank_ref" value="{payment.bank_ref}">', result)
