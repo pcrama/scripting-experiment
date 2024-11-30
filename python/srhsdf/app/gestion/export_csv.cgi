@@ -47,7 +47,7 @@ if __name__ == '__main__':
                 gdpr_email = x.email if x.gdpr_accepts_use else ''
             euros_due = (''
                          if (x.cents_due is None or not math.isfinite(x.cents_due)) else
-                         cents_to_euro(x.cents_due) + '€')
+                         cents_to_euro(x.remaining_amount_due_in_cents(connection)) + '€')
             writer.writerow((
                 x.civility, x.last_name, x.first_name, email, x.date, x.paying_seats, x.free_seats, euros_due, format_bank_id(x.bank_id), x.origin, comment, x.active, gdpr_email
             ))
